@@ -100,9 +100,9 @@ export async function GET(
   // Look up latest roof report — by property_id if set, otherwise by address fallback
   // (property_id is null when property INSERT failed at lead creation — see leads/route.ts)
   const reportQuery = data.property_id
-    ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).eq('property_id', data.property_id).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    ? getSupabaseAdmin().from('roof_reports').select('id, total_squares_order, dominant_pitch, waste_factor, r2_key, r2_url').eq('pro_id', data.pro_id).eq('property_id', data.property_id).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
     : data.property_address
-      ? getSupabaseAdmin().from('roof_reports').select('total_squares_order, dominant_pitch, waste_factor, r2_url').eq('pro_id', data.pro_id).ilike('address', `${data.property_address}${data.contact_city ? ', ' + data.contact_city : ''}${data.contact_state ? ', ' + data.contact_state : ''}%`).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      ? getSupabaseAdmin().from('roof_reports').select('id, total_squares_order, dominant_pitch, waste_factor, r2_key, r2_url').eq('pro_id', data.pro_id).ilike('address', `${data.property_address}${data.contact_city ? ', ' + data.contact_city : ''}${data.contact_state ? ', ' + data.contact_state : ''}%`).not('total_squares_order', 'is', null).order('created_at', { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null })
   if (data.property_id || data.property_address) {
     const { data: latestReport } = await reportQuery
@@ -130,6 +130,8 @@ export async function GET(
         // and must never be served. No human LF → null → UI shows trace-LF prompt.
         linear_footage: humanLF,
         report_url:     latestReport.r2_url              ?? null,
+        report_r2_key:  (latestReport as any).r2_key        ?? null,
+        report_row_id:  (latestReport as any).id            ?? null,
       }
     }
   }

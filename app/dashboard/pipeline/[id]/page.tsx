@@ -1902,7 +1902,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         )}
                                       </div>
                                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                                        {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', () => window.open((lead as any).roofing_job_data.report_url, '_blank'))}
+                                        {s.key === 'measure' && (lead as any)?.roofing_job_data?.report_url && sBtn('View report', async () => {
+                                          try {
+                                            const r = await fetch(`/api/roofing/reports?pro_id=${session?.id}`, { headers: { Authorization: `Bearer ${session?.token}` } })
+                                            const reports = await r.json()
+                                            const reportRowId = (lead as any).roofing_job_data?.report_row_id
+                                            const match = Array.isArray(reports) ? (reportRowId ? reports.find((rpt: any) => rpt.id === reportRowId) : reports[0]) : null
+                                            if (match?.r2_url) window.open(match.r2_url, '_blank')
+                                            else window.open((lead as any).roofing_job_data.report_url, '_blank')
+                                          } catch { window.open((lead as any).roofing_job_data.report_url, '_blank') }
+                                        })}
                                         {sBtn(s.key === 'measure' ? 'Re-measure' : s.key === 'estimate' ? 'Open' : 'View', () => { if (s.key === 'measure') runSatelliteMeasure(); else goStage(s.key) }, s.key === 'measure')}
                                       </div>
                                     </div>
