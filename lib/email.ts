@@ -284,3 +284,70 @@ export async function sendVisualizerPickEmail({
 </html>`,
   })
 }
+
+// ── Unclaimed pro lead notification ──────────────────────────────────────────
+interface UnclaimedLeadEmailProps {
+  proName:     string
+  contactName: string
+  message:     string
+  claimUrl:    string
+}
+
+export function unclaimedLeadEmail({ proName, contactName, message, claimUrl }: UnclaimedLeadEmailProps): string {
+  const firstName = proName.includes(',')
+    ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
+    : proName.split(' ')[0]
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4ef;padding:32px 16px;">
+  <tr><td align="center">
+  <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
+    <tr><td style="background:#0F766E;padding:28px 32px 24px;">
+      <div style="font-size:20px;font-weight:600;color:#ffffff;">ProGuild.ai</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Professional trades marketplace</div>
+    </td></tr>
+    <tr><td style="padding:28px 32px;">
+      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">New enquiry waiting</div>
+      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">Someone wants to hire you, ${firstName}</div>
+      <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">
+        Your Florida contractor license is already on ProGuild. <strong>${contactName}</strong> found your profile and wants to get in touch.
+        Claim your free profile to see their contact details and respond.
+      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;">
+        <tr><td style="padding:20px;">
+          <div style="font-size:13px;font-weight:600;color:#1a1a18;margin-bottom:4px;">${contactName}</div>
+          <div style="font-size:13px;color:#73726c;font-style:italic;">"${message}"</div>
+          <div style="margin-top:12px;font-size:12px;color:#9c9a92;">Contact details visible after you claim your profile</div>
+        </td></tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+        <tr>
+          <td align="center">
+            <a href="${claimUrl}" style="display:inline-block;background:#0F766E;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;">
+              Claim Your Profile — Free →
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <div style="font-size:12px;color:#9c9a92;text-align:center;line-height:1.6;">
+        Claiming is free. No credit card required.<br>
+        Your 90-day free trial starts the moment you claim.
+      </div>
+    </td></tr>
+    <tr><td style="padding:20px 32px;border-top:1px solid #e2e1db;">
+      <div style="font-size:11px;color:#b5b3ab;text-align:center;">
+        © 2026 ProGuild.ai · <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">proguild.ai</a>
+      </div>
+    </td></tr>
+  </table>
+  </td></tr>
+</table>
+</body>
+</html>`
+}

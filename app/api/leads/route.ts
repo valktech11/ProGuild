@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
-import { leadNotificationEmail } from '@/lib/email'
+import { leadNotificationEmail, unclaimedLeadEmail } from '@/lib/email'
 import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
 import { moderateContent } from '@/lib/moderation'
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state')
+    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at')
     .eq('id', pro_id)
     .single()
 
@@ -338,26 +338,58 @@ export async function POST(req: NextRequest) {
       console.error('[leads] RESEND_API_KEY not set — skipping notification for lead', lead.id)
     } else {
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
-        const { data: emailData, error: emailError } = await resend.emails.send({
-          from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
-          to:      proRecord.email,
-          subject: `New lead from ${contact_name} — ProGuild.ai`,
-          html:    leadNotificationEmail({
+        const resend  = new Resend(process.env.RESEND_API_KEY)
+        const appUrl  = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
+        const isClaimed = proRecord.is_claimed === true
+
+        // Trial status: within 90 days of claim OR paying
+        const trialActive = proRecord.trial_ends_at
+          ? new Date(proRecord.trial_ends_at) > new Date()
+          : false
+        const isPaid = proRecord.plan_tier !== 'Free'
+        // Phone visible only to claimed pros within trial or paying
+        const showPhone = isClaimed && (trialActive || isPaid)
+
+        let emailHtml: string
+        let subject: string
+        let template: string
+
+        if (isClaimed) {
+          // Claimed pro — full lead notification
+          subject  = `New lead from ${contact_name} — ProGuild.ai`
+          template = 'lead_notification'
+          emailHtml = leadNotificationEmail({
             proName:      proRecord.full_name,
             proEmail:     proRecord.email,
             contactName:  contact_name,
             contactEmail: contact_email,
-            contactPhone: contact_phone || null,
+            contactPhone: showPhone ? (contact_phone || null) : null,
             message,
             city:         proRecord.city,
             state:        proRecord.state,
             leadSource:   lead_source || 'Profile_Page',
             dashboardUrl: `${appUrl}/dashboard`,
-            isPaid:       proRecord.plan_tier !== 'Free',
-          }),
+            isPaid:       showPhone,
+          })
+        } else {
+          // Unclaimed pro — claim prompt email
+          subject  = `Someone enquired about your roofing services — ProGuild.ai`
+          template = 'unclaimed_lead_notification'
+          emailHtml = unclaimedLeadEmail({
+            proName:     proRecord.full_name,
+            contactName: contact_name,
+            message,
+            claimUrl:    `${appUrl}/claim?email=${encodeURIComponent(proRecord.email)}`,
+          })
+        }
+
+        const { data: emailData, error: emailError } = await resend.emails.send({
+          from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
+          to:      proRecord.email,
+          subject,
+          html:    emailHtml,
         })
+
         if (emailError) {
           console.error('[leads] Resend error:', emailError)
         } else {
@@ -366,18 +398,18 @@ export async function POST(req: NextRequest) {
             lead_id:    lead.id,
             to_email:   proRecord.email,
             from_email: process.env.EMAIL_FROM || 'leads@proguild.ai',
-            subject:    `New lead from ${contact_name} — ProGuild.ai`,
-            template:   'lead_notification',
+            subject,
+            template,
             resend_id:  emailData?.id || null,
             status:     'sent',
             sent_at:    new Date().toISOString(),
           })
-          console.log('[leads] Email sent to', proRecord.email, 'resend_id:', emailData?.id)
+          console.log('[leads] Email sent to', proRecord.email, 'template:', template, 'resend_id:', emailData?.id)
         }
       } catch (e) { console.error('[leads] Email failed:', e) }
     }
-    // SMS if pro has phone
-    if (proRecord?.phone) {
+    // SMS only for claimed pros with phone
+    if (proRecord?.is_claimed && proRecord?.phone) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
       void sendProSms(proRecord.phone, newLeadSmsBody({
         contactName: contact_name, city: proRecord.city,

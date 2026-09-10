@@ -482,6 +482,10 @@ export default function ProProfileClient() {
   const hasInsurance  = pro.insurance_status === 'active'
   const hasCredentials = hasLicense || hasOsha || hasInsurance
 
+  // Phone visible only to claimed pros within 90-day trial OR paying
+  const trialActive = pro.trial_ends_at ? new Date(pro.trial_ends_at) > new Date() : false
+  const showPhone   = pro.is_claimed && (isPaid(pro.plan_tier) || trialActive)
+
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'overview',     label: 'Overview' },
     { id: 'work',         label: 'Work', count: portfolio.length },
@@ -1088,7 +1092,7 @@ export default function ProProfileClient() {
                     style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                     Contact {firstName}
                   </button>
-                  {pro.phone && (
+                  {showPhone && (
                     <a href={`tel:${pro.phone}`}
                       className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-semibold transition-all"
                       style={{ borderColor: '#E8E2D9', color: '#0A1628' }}
@@ -1159,7 +1163,7 @@ export default function ProProfileClient() {
         <div className="md:hidden fixed bottom-16 left-0 right-0 bg-white border-t z-40"
           style={{ borderColor: '#E8E2D9' }}>
           <div className="flex gap-3 px-4 py-3 max-w-sm mx-auto">
-            {pro.phone ? (
+            {showPhone ? (
               <a href={`tel:${pro.phone}`}
                 className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-sm font-bold rounded-xl"
                 style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
