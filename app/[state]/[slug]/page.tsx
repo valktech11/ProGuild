@@ -211,7 +211,6 @@ async function getProCount(tradeId: string, stateAbbr: string): Promise<number> 
     .not('license_number', 'is', null)
     .gt('phone_cell', '')
     .or('email.is.null,email.ilike.%@placeholder.tradesnetwork')
-  console.log(`[getProCount] tradeId=${tradeId} state=${stateAbbr} claimed=${r1.count} withEmail=${r2.count} phoneOnly=${r3.count}`)
   return (r1.count || 0) + (r2.count || 0) + (r3.count || 0)
 }
 
