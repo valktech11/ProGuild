@@ -157,17 +157,28 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 
   // 2. Pad with unclaimed pros who have email OR phone — they are contactable
   const needed = 12 - claimedFiltered.length
-  const { data: withContact } = await sb
-    .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
+  const SELECT = 'id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)'
+
+  // Fetch unclaimed with email first, then phone-only to avoid broken OR
+  const { data: withEmail } = await sb.from('pros').select(SELECT)
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
-    .or('email.not.is.null,phone_cell.not.is.null')
-    .not('license_number', 'is', null)
-    .order('full_name', { ascending: true })
-    .limit(needed)
+    .not('license_number', 'is', null).not('email', 'is', null)
+    .order('full_name', { ascending: true }).limit(needed)
 
-  const unclaimedFiltered = (withContact || []).filter(
+  const emailIds = new Set((withEmail || []).map((p: any) => p.id))
+  let combined = [...(withEmail || [])]
+
+  if (combined.length < needed) {
+    const { data: withPhone } = await sb.from('pros').select(SELECT)
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active').eq('is_claimed', false)
+      .not('license_number', 'is', null).not('phone_cell', 'is', null).is('email', null)
+      .order('full_name', { ascending: true }).limit(needed - combined.length)
+    combined = [...combined, ...(withPhone || []).filter((p: any) => !emailIds.has(p.id))]
+  }
+
+  const unclaimedFiltered = combined.filter(
     (p: any) => !SACRED_PRO_NAMES.includes(p.full_name)
   )
 
@@ -175,14 +186,28 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
-  // Count what customers actually see:
-  // claimed pros OR (unclaimed + has license + has email or phone)
-  const { count } = await getSupabaseAdmin()
-    .from('pros').select('id', { count: 'exact', head: true })
+  const sb = getSupabaseAdmin()
+  // Two clean queries — avoid PostgREST nested AND/OR which doesn't filter correctly
+  const [r1, r2] = await Promise.all([
+    // Claimed pros (any)
+    sb.from('pros').select('id', { count: 'exact', head: true })
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active').eq('is_claimed', true),
+    // Unclaimed pros with license AND (email OR phone)
+    sb.from('pros').select('id', { count: 'exact', head: true })
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active').eq('is_claimed', false)
+      .not('license_number', 'is', null)
+      .not('email', 'is', null),
+  ])
+  // Also count unclaimed with phone but no email (separate to avoid OR)
+  const r3 = await sb.from('pros').select('id', { count: 'exact', head: true })
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-    .eq('profile_status', 'Active')
-    .or('is_claimed.eq.true,and(license_number.not.is.null,email.not.is.null),and(license_number.not.is.null,phone_cell.not.is.null)')
-  return count || 0
+    .eq('profile_status', 'Active').eq('is_claimed', false)
+    .not('license_number', 'is', null)
+    .is('email', null)
+    .not('phone_cell', 'is', null)
+  return (r1.count || 0) + (r2.count || 0) + (r3.count || 0)
 }
 
 async function getGroupProCount(slugs: string[], stateAbbr: string): Promise<number> {
