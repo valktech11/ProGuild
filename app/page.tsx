@@ -160,7 +160,7 @@ export default function HomePage() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
           style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-          🛡️ 124,503 verified FL contractors
+          🛡️ DBPR-verified Florida contractors
         </div>
 
         {/* Headline */}
@@ -197,7 +197,7 @@ export default function HomePage() {
         {/* Trust stats — real numbers, prominent */}
         <div className="flex items-center justify-center gap-8 flex-wrap mt-2">
           {[
-            { num: '124,503', label: 'Licensed FL Contractors' },
+            { num: '124K+', label: 'DBPR-Verified Licenses' },
             { num: '$0', label: 'Per-lead fees, ever' },
             { num: 'DBPR', label: 'Verified every license' },
           ].map(s => (
@@ -316,7 +316,7 @@ export default function HomePage() {
             Your license is already on ProGuild.
           </h2>
           <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-            We've already imported 124,503 Florida contractors from the DBPR database. Search your name — your profile is waiting. Claim it free, start receiving leads, and pay zero per-lead fees forever.
+            We've already imported 124,000+ Florida contractor licenses from the DBPR database. Search your name — your profile is waiting. Claim it free, start receiving leads, and pay zero per-lead fees forever.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login?tab=signup"

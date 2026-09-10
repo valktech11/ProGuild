@@ -109,6 +109,26 @@ const SLUG_ALIAS: Record<string, string> = {
   'pools':               'pool-spa',
 }
 
+// Display names for trade pages (singular, title case)
+const TRADE_DISPLAY_NAME: Record<string, string> = {
+  'roofing':          'Roofer',
+  'hvac-technician':  'HVAC Technician',
+  'electrician':      'Electrician',
+  'plumber':          'Plumber',
+  'pool-spa':         'Pool & Spa Contractor',
+  'general-contractor': 'General Contractor',
+  'painter':          'Painter',
+  'landscaper':       'Landscaper',
+  'solar-installer':  'Solar Installer',
+  'pest-control':     'Pest Control Specialist',
+  'carpenter':        'Carpenter',
+  'drywall':          'Drywall Contractor',
+  'flooring':         'Flooring Contractor',
+}
+
+// Sacred test pro names to exclude from public customer-facing pages
+const SACRED_PRO_NAMES = ['Robert Smith', 'Roger Smith', 'Tom Smith', 'Mark Smith', 'ProGuild Showcase']
+
 // ── DB helpers ────────────────────────────────────────────────────────────────
 async function getTradeCategory(slug: string) {
   const dbSlug = SLUG_ALIAS[slug] ?? slug
@@ -128,9 +148,13 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     .eq('profile_status', 'Active')
     .eq('is_claimed', true)
     .order('avg_rating', { ascending: false, nullsFirst: false })
-    .limit(12)
+    .limit(20) // fetch extra to account for sacred row exclusion
 
-  return claimed || []
+  // Exclude sacred test rows from public customer-facing pages
+  const filtered = (claimed || []).filter(
+    (p: any) => !SACRED_PRO_NAMES.includes(p.full_name)
+  )
+  return filtered.slice(0, 12)
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
@@ -234,7 +258,8 @@ export default async function SlugPage(
   // Build JSON-LD schema for Google
   const siteUrl = 'https://proguild.ai'
   const pageUrl = `${siteUrl}/${stateSlug}/${slugLower}`
-  const tradeLabel = category.category_name || slugToTitle(slugLower)
+  const dbSlug = SLUG_ALIAS[slugLower] ?? slugLower
+  const tradeLabel = TRADE_DISPLAY_NAME[dbSlug] || category.category_name || slugToTitle(slugLower)
 
   const itemListSchema = {
     '@context': 'https://schema.org',
@@ -280,7 +305,7 @@ export default async function SlugPage(
       stateName={info.name}
       stateAbbr={info.abbr}
       tradeSlug={slugLower}
-      tradeTitle={category.category_name || slugToTitle(slugLower)}
+      tradeTitle={TRADE_DISPLAY_NAME[SLUG_ALIAS[slugLower] ?? slugLower] || category.category_name || slugToTitle(slugLower)}
       tradeCategoryId={category.id}
       initialPros={pros as any[]}
       totalCount={count}
