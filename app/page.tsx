@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -9,10 +9,10 @@ import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
 // BG:      #FAF9F6  warm cream
 // CARD:    #FFFFFF  white
 // DARK:    #0A1628  navy
-// TEAL:    #0F766E  primary accent (v56)
+// TEAL:    #0F766E  primary accent
 // BORDER:  #E8E2D9  warm gray
 
-// ── 6 primary trade tiles — 3×2 grid, direct to /fl/[slug] ──────────────────
+// ── Primary trade tiles ───────────────────────────────────────────────────────
 const PRIMARY_TRADES = [
   { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️' },
   { slug: 'electrician',        label: 'Electrician',        icon: '⚡' },
@@ -22,30 +22,29 @@ const PRIMARY_TRADES = [
   { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊' },
 ]
 
-// Secondary trades — pills below the main grid
 const SECONDARY_TRADES = [
-  { slug: 'painter',                label: 'Painter' },
-  { slug: 'landscaper',             label: 'Landscaper' },
-  { slug: 'solar-installer',        label: 'Solar Installer' },
-  { slug: 'drywall',                label: 'Drywall' },
-  { slug: 'impact-window-shutter',  label: 'Impact Windows' },
-  { slug: 'flooring',               label: 'Flooring' },
-  { slug: 'pest-control',           label: 'Pest Control' },
-  { slug: 'marine-contractor',      label: 'Marine / Dock' },
-  { slug: 'carpenter',              label: 'Carpenter' },
-  { slug: 'irrigation',             label: 'Irrigation' },
+  { slug: 'painter',               label: 'Painter' },
+  { slug: 'landscaper',            label: 'Landscaper' },
+  { slug: 'solar-installer',       label: 'Solar Installer' },
+  { slug: 'drywall',               label: 'Drywall' },
+  { slug: 'impact-window-shutter', label: 'Impact Windows' },
+  { slug: 'flooring',              label: 'Flooring' },
+  { slug: 'pest-control',          label: 'Pest Control' },
+  { slug: 'marine-contractor',     label: 'Marine / Dock' },
+  { slug: 'carpenter',             label: 'Carpenter' },
+  { slug: 'irrigation',            label: 'Irrigation' },
 ]
 
 const HOW_STEPS_HOMEOWNER = [
-  { n: '01', title: 'Search', desc: 'Enter your trade and city. Every result is DBPR license-verified.' },
-  { n: '02', title: 'Compare', desc: 'See ProGuild Score, reviews, credentials, and project photos side by side.' },
+  { n: '01', title: 'Search', desc: 'Enter your trade and city. Every pro\'s license is verified against the Florida DBPR database.' },
+  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and reviews side by side.' },
   { n: '03', title: 'Hire Direct', desc: 'Contact the pro directly. No middleman. No lead fees charged to them.' },
 ]
 
 const HOW_STEPS_PRO = [
-  { n: '01', title: 'Join Free', desc: 'Create your profile. Your DBPR license is already in our database.' },
-  { n: '02', title: 'Get Discovered', desc: 'Homeowners find you by trade and city. Your ProGuild Score builds over time.' },
-  { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Zero per-lead charges. Ever.' },
+  { n: '01', title: 'Claim Free', desc: 'Your DBPR license is already in our database. Claim your profile in 30 seconds.' },
+  { n: '02', title: 'Get Discovered', desc: 'Homeowners find you by trade and city. Zero per-lead fees — ever.' },
+  { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Unlimited leads, estimates, invoices, and measurements.' },
 ]
 
 // ── Scope helpers ─────────────────────────────────────────────────────────────
@@ -70,8 +69,6 @@ export default function HomePage() {
   const [city, setCity]                 = useState('')
   const [zipResolving, setZipResolving] = useState(false)
   const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
-  const tradeRef = useRef<HTMLInputElement>(null)
-  const cityRef  = useRef<HTMLInputElement>(null)
 
   const scopeLabel = getScopeLabel()
   const scopeState = getScopeState().toLowerCase()
@@ -135,19 +132,6 @@ export default function HomePage() {
     await navigate(slug, city.trim() || undefined)
   }
 
-  function detectLocation() {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude: lat, longitude: lng } = pos.coords
-        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
-        const data = await res.json()
-        const detected = data.address?.city || data.address?.town || data.address?.village || ''
-        if (detected) setCity(detected)
-      } catch {}
-    })
-  }
-
   return (
     <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
 
@@ -156,25 +140,26 @@ export default function HomePage() {
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
 
-        {/* Live badge */}
+        {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
           style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-          🛡️ DBPR-verified Florida contractors
+          Every license verified against Florida DBPR
         </div>
 
         {/* Headline */}
         <h1 className="font-bold leading-tight tracking-tight mb-6"
           style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628' }}>
-          Find a licensed Florida<br />
-          <span style={{ color: '#0F766E' }}>contractor you can trust.</span>
+          Find a licensed contractor<br />
+          <span style={{ color: '#0F766E' }}>you can actually reach.</span>
         </h1>
 
         <p className="text-lg mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          Every contractor on ProGuild is verified against Florida's DBPR license database. Search by trade and city — contact any pro directly, no middleman.
+          Every pro on ProGuild has claimed their profile and is ready to take your job.
+          Search by trade and city — contact them directly, no middleman.
         </p>
 
-        {/* ── SEARCH BAR — autocomplete + fuzzy matching ───────────────── */}
+        {/* Search bar */}
         <div className="max-w-3xl mx-auto mb-5">
           <SearchAutocomplete
             tradeValue={trade}
@@ -187,19 +172,19 @@ export default function HomePage() {
         </div>
 
         {/* AI hint */}
-        <div className="flex items-center justify-center gap-2 mb-5">
+        <div className="flex items-center justify-center gap-2 mb-8">
           <span style={{ color: '#0F766E' }}>✦</span>
           <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
             Describe your problem — AI finds the right trade automatically
           </span>
         </div>
 
-        {/* Trust stats — real numbers, prominent */}
-        <div className="flex items-center justify-center gap-8 flex-wrap mt-2">
+        {/* Trust stats — honest */}
+        <div className="flex items-center justify-center gap-10 flex-wrap">
           {[
-            { num: '124K+', label: 'DBPR-Verified Licenses' },
-            { num: '$0', label: 'Per-lead fees, ever' },
-            { num: 'DBPR', label: 'Verified every license' },
+            { num: '$0',    label: 'Per-lead fees, ever' },
+            { num: 'DBPR',  label: 'License verified' },
+            { num: '1',     label: 'Pro per enquiry' },
           ].map(s => (
             <div key={s.num} className="text-center">
               <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
@@ -226,10 +211,10 @@ export default function HomePage() {
               style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <span className="text-2xl mb-2">{t.icon}</span>
               <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR Verified</span>
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR licensed</span>
               <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
-                {city.trim() ? `Near ${city.trim()} →` : 'Browse pros →'}
+                {city.trim() ? `Near ${city.trim()} →` : 'Find pros →'}
               </span>
             </button>
           ))}
@@ -256,9 +241,9 @@ export default function HomePage() {
       <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {[
-            { icon: "🛡", title: "DBPR License Verified", sub: "Every pro checked against Florida state licensing database" },
-            { icon: "💰", title: "Zero Lead Fees. Ever.", sub: "One flat monthly subscription - pros keep every dollar they earn" },
-            { icon: '🎯', title: 'Direct Contact', sub: 'Message any pro directly. No middleman, no bidding wars, no spam calls' },
+            { icon: '🛡', title: 'DBPR License Verified', sub: 'Every pro\'s license is checked against Florida\'s state database before they appear on ProGuild.' },
+            { icon: '💰', title: 'Zero Lead Fees. Ever.', sub: 'Pros pay one flat monthly fee. No per-lead charges means they focus on your job, not chasing credits.' },
+            { icon: '🎯', title: 'You Pick. They Answer.', sub: 'You choose one pro and contact them directly. No bidding wars, no spam calls, no middleman.' },
           ].map(item => (
             <div key={item.title}>
               <div className="text-3xl mb-3">{item.icon}</div>
@@ -276,7 +261,6 @@ export default function HomePage() {
           <h2 className="text-2xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
             Simple. Direct. Transparent.
           </h2>
-          {/* Tab switcher */}
           <div className="inline-flex rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
             {(['homeowner', 'pro'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
@@ -291,9 +275,8 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map((step, i) => (
-            <div key={step.n} className="relative">
-
+          {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
+            <div key={step.n}>
               <div className="text-3xl font-bold mb-4" style={{ color: '#A89F93', fontFamily: "'DM Serif Display', serif" }}>
                 {step.n}
               </div>
@@ -316,13 +299,14 @@ export default function HomePage() {
             Your license is already on ProGuild.
           </h2>
           <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-            We've already imported 124,000+ Florida contractor licenses from the DBPR database. Search your name — your profile is waiting. Claim it free, start receiving leads, and pay zero per-lead fees forever.
+            We imported every Florida contractor license from the DBPR database.
+            Search your name — your profile is waiting. Claim it free in 30 seconds.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login?tab=signup"
               className="px-8 py-3.5 rounded-xl font-bold text-white transition-all hover:opacity-90"
               style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-              Join the Guild — Free
+              Claim Your Profile — Free
             </Link>
             <Link href="/contractors"
               className="px-8 py-3.5 rounded-xl font-semibold border transition-all hover:bg-white/5"
@@ -343,7 +327,7 @@ export default function HomePage() {
                 <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
               </div>
               <p className="text-base leading-relaxed" style={{ color: '#A89F93' }}>
-                {scopeLabel}'s verified professional trades network. State-licensed pros. Zero lead fees. Your Craft. Your Guild.
+                Verified licensed contractors in {scopeLabel}. Zero lead fees. Your Craft. Your Guild.
               </p>
             </div>
 
@@ -379,7 +363,7 @@ export default function HomePage() {
               <div>
                 <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Top Trades</div>
                 <div className="space-y-3">
-                  {[['electrician','Electrician'],['plumber','Plumber'],['hvac-technician','HVAC'],['general-contractor','General Contractor']].map(([slug, label]) => (
+                  {[['electrician','Electrician'],['plumber','Plumber'],['hvac-technician','HVAC'],['roofer','Roofer']].map(([slug, label]) => (
                     <Link key={slug} href={`/${scopeState}/${slug}`}
                       className="block transition-colors text-sm"
                       style={{ color: '#6B7280' }}
@@ -396,7 +380,7 @@ export default function HomePage() {
           <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
             style={{ borderColor: '#E8E2D9' }}>
             <div className="text-xs" style={{ color: '#C4BAB0' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>Verified against state licensing boards · OSHA · Background checked</div>
+            <div className="text-xs" style={{ color: '#C4BAB0' }}>License verified against state licensing boards · DBPR</div>
           </div>
         </div>
       </footer>
