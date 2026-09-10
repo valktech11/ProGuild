@@ -165,7 +165,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
-    .not('email', 'is', null).neq('email', '')
+    .gt('email', '')
     .order('full_name', { ascending: true }).limit(needed)
 
   const emailIds = new Set((withEmail || []).map((p: any) => p.id))
@@ -176,8 +176,8 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
-      .not('phone_cell', 'is', null).neq('phone_cell', '')
-      .or('email.is.null,email.eq.')
+      .gt('phone_cell', '')
+      .or('email.is.null,email.lte.')
       .order('full_name', { ascending: true }).limit(needed - combined.length)
     combined = [...combined, ...(withPhone || []).filter((p: any) => !emailIds.has(p.id))]
   }
@@ -196,22 +196,20 @@ async function getProCount(tradeId: string, stateAbbr: string): Promise<number> 
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', true),
-    // Unclaimed with real email (not null, not empty string)
+    // Unclaimed with real email — use gt('email','') to catch both null and empty string
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
-      .not('email', 'is', null)
-      .neq('email', ''),
+      .gt('email', ''),
   ])
   // Unclaimed with real phone but no email
   const r3 = await sb.from('pros').select('id', { count: 'exact', head: true })
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
-    .not('phone_cell', 'is', null)
-    .neq('phone_cell', '')
-    .or('email.is.null,email.eq.')
+    .gt('phone_cell', '')
+    .or('email.is.null,email.lte.')
   console.log(`[getProCount] tradeId=${tradeId} state=${stateAbbr} claimed=${r1.count} withEmail=${r2.count} phoneOnly=${r3.count}`)
   return (r1.count || 0) + (r2.count || 0) + (r3.count || 0)
 }
