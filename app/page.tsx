@@ -14,12 +14,12 @@ import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
 
 // ── 6 primary trade tiles — 3×2 grid, direct to /fl/[slug] ──────────────────
 const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '15,252' },
-  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '14,057' },
-  { slug: 'plumber',            label: 'Plumber',            icon: '🪠', count: '9,550' },
-  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '11,501' },
-  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '68,341' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '5,569' },
+  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️' },
+  { slug: 'electrician',        label: 'Electrician',        icon: '⚡' },
+  { slug: 'plumber',            label: 'Plumber',            icon: '🪠' },
+  { slug: 'roofer',             label: 'Roofer',             icon: '🏠' },
+  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️' },
+  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊' },
 ]
 
 // Secondary trades — pills below the main grid
@@ -226,7 +226,7 @@ export default function HomePage() {
               style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <span className="text-2xl mb-2">{t.icon}</span>
               <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              {t.count && <span className="text-sm font-medium" style={{ color: '#6B7280' }}>{t.count} licensed</span>}
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR Verified</span>
               <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()} →` : 'Browse pros →'}
