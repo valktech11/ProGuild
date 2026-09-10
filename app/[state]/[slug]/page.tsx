@@ -187,26 +187,23 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
   const sb = getSupabaseAdmin()
-  // Two clean queries — avoid PostgREST nested AND/OR which doesn't filter correctly
   const [r1, r2] = await Promise.all([
-    // Claimed pros (any)
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', true),
-    // Unclaimed pros with license AND (email OR phone)
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
       .not('email', 'is', null),
   ])
-  // Also count unclaimed with phone but no email (separate to avoid OR)
   const r3 = await sb.from('pros').select('id', { count: 'exact', head: true })
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
     .is('email', null)
     .not('phone_cell', 'is', null)
+  console.log(`[getProCount] tradeId=${tradeId} state=${stateAbbr} claimed=${r1.count} withEmail=${r2.count} phoneOnly=${r3.count}`)
   return (r1.count || 0) + (r2.count || 0) + (r3.count || 0)
 }
 
