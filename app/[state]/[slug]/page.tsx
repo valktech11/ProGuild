@@ -175,19 +175,14 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
-  const sb = getSupabaseAdmin()
-  // Count claimed + unclaimed with contact info (real contactable supply)
-  const [{ count: claimed }, { count: withContact }] = await Promise.all([
-    sb.from('pros').select('id', { count: 'exact', head: true })
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-      .eq('profile_status', 'Active').eq('is_claimed', true),
-    sb.from('pros').select('id', { count: 'exact', head: true })
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-      .eq('profile_status', 'Active').eq('is_claimed', false)
-      .or('email.not.is.null,phone_cell.not.is.null')
-      .not('license_number', 'is', null),
-  ])
-  return (claimed || 0) + (withContact || 0)
+  // Count what customers actually see:
+  // claimed pros OR (unclaimed + has license + has email or phone)
+  const { count } = await getSupabaseAdmin()
+    .from('pros').select('id', { count: 'exact', head: true })
+    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('profile_status', 'Active')
+    .or('is_claimed.eq.true,and(license_number.not.is.null,email.not.is.null),and(license_number.not.is.null,phone_cell.not.is.null)')
+  return count || 0
 }
 
 async function getGroupProCount(slugs: string[], stateAbbr: string): Promise<number> {
