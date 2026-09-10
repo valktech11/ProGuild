@@ -97,15 +97,30 @@ function slugToTitle(slug: string): string {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
+// URL slug → DB slug aliases (URL-friendly slugs that map to DB trade_categories slugs)
+const SLUG_ALIAS: Record<string, string> = {
+  'roofer':              'roofing',
+  'roofing-contractor':  'roofing',
+  'hvac':                'hvac-technician',
+  'ac-repair':           'hvac-technician',
+  'electricians':        'electrician',
+  'plumbers':            'plumber',
+  'pool':                'pool-spa',
+  'pools':               'pool-spa',
+}
+
 // ── DB helpers ────────────────────────────────────────────────────────────────
 async function getTradeCategory(slug: string) {
+  const dbSlug = SLUG_ALIAS[slug] ?? slug
   const { data } = await getSupabaseAdmin()
-    .from('trade_categories').select('id, category_name, slug').eq('slug', slug).single()
+    .from('trade_categories').select('id, category_name, slug').eq('slug', dbSlug).single()
   return data
 }
 
 async function getTopPros(tradeId: string, stateAbbr: string) {
-  // Claimed pros first (ordered by rating), then unclaimed to fill the page
+  // Only show claimed pros to customers — unclaimed pros have no contact info
+  // and showing them creates a false impression of available supply.
+  // Unclaimed profiles exist only for SEO (individual /pro/[id] pages).
   const { data: claimed } = await getSupabaseAdmin()
     .from('pros')
     .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
@@ -115,30 +130,15 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     .order('avg_rating', { ascending: false, nullsFirst: false })
     .limit(12)
 
-  const claimedList = claimed || []
-
-  // If we have fewer than 12 claimed, pad with unclaimed (those with license numbers)
-  if (claimedList.length < 12) {
-    const needed = 12 - claimedList.length
-    const { data: unclaimed } = await getSupabaseAdmin()
-      .from('pros')
-      .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-      .eq('profile_status', 'Active')
-      .eq('is_claimed', false)
-      .not('license_number', 'is', null)
-      .order('full_name', { ascending: true })
-      .limit(needed)
-    return [...claimedList, ...(unclaimed || [])]
-  }
-
-  return claimedList
+  return claimed || []
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
+  // Count only claimed pros — this is the real contactable supply shown to customers
   const { count } = await getSupabaseAdmin()
     .from('pros').select('id', { count: 'exact', head: true })
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr).eq('profile_status', 'Active')
+    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('profile_status', 'Active').eq('is_claimed', true)
   return count || 0
 }
 
