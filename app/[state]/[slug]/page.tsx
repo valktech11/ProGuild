@@ -160,10 +160,12 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   const SELECT = 'id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)'
 
   // Fetch unclaimed with email first, then phone-only to avoid broken OR
+  // email/phone_cell columns store "" instead of NULL for missing values — filter both
   const { data: withEmail } = await sb.from('pros').select(SELECT)
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
-    .not('license_number', 'is', null).not('email', 'is', null)
+    .not('license_number', 'is', null)
+    .not('email', 'is', null).neq('email', '')
     .order('full_name', { ascending: true }).limit(needed)
 
   const emailIds = new Set((withEmail || []).map((p: any) => p.id))
@@ -173,7 +175,9 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     const { data: withPhone } = await sb.from('pros').select(SELECT)
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', false)
-      .not('license_number', 'is', null).not('phone_cell', 'is', null).is('email', null)
+      .not('license_number', 'is', null)
+      .not('phone_cell', 'is', null).neq('phone_cell', '')
+      .or('email.is.null,email.eq.')
       .order('full_name', { ascending: true }).limit(needed - combined.length)
     combined = [...combined, ...(withPhone || []).filter((p: any) => !emailIds.has(p.id))]
   }
@@ -188,21 +192,26 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
   const sb = getSupabaseAdmin()
   const [r1, r2] = await Promise.all([
+    // Claimed pros
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', true),
+    // Unclaimed with real email (not null, not empty string)
     sb.from('pros').select('id', { count: 'exact', head: true })
       .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
-      .not('email', 'is', null),
+      .not('email', 'is', null)
+      .neq('email', ''),
   ])
+  // Unclaimed with real phone but no email
   const r3 = await sb.from('pros').select('id', { count: 'exact', head: true })
     .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
-    .is('email', null)
     .not('phone_cell', 'is', null)
+    .neq('phone_cell', '')
+    .or('email.is.null,email.eq.')
   console.log(`[getProCount] tradeId=${tradeId} state=${stateAbbr} claimed=${r1.count} withEmail=${r2.count} phoneOnly=${r3.count}`)
   return (r1.count || 0) + (r2.count || 0) + (r3.count || 0)
 }
