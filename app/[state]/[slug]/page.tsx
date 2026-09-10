@@ -144,7 +144,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   const { data: claimed } = await sb
     .from('pros')
     .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', true)
     .order('avg_rating', { ascending: false, nullsFirst: false })
     .limit(20)
@@ -162,7 +162,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   // Fetch unclaimed with email first, then phone-only to avoid broken OR
   // email/phone_cell columns store "" instead of NULL for missing values — filter both
   const { data: withEmail } = await sb.from('pros').select(SELECT)
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
     .not('email', 'ilike', '%@placeholder.tradesnetwork')
@@ -174,7 +174,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 
   if (combined.length < needed) {
     const { data: withPhone } = await sb.from('pros').select(SELECT)
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('trade_category_id', tradeId)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
       .gt('phone_cell', '')
@@ -195,18 +195,18 @@ async function getProCount(tradeId: string, stateAbbr: string): Promise<number> 
   const [r1, r2] = await Promise.all([
     // Claimed pros
     sb.from('pros').select('id', { count: 'exact', head: true })
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('trade_category_id', tradeId)
       .eq('profile_status', 'Active').eq('is_claimed', true),
     // Unclaimed with real email — exclude placeholder emails from import
     sb.from('pros').select('id', { count: 'exact', head: true })
-      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('trade_category_id', tradeId)
       .eq('profile_status', 'Active').eq('is_claimed', false)
       .not('license_number', 'is', null)
       .not('email', 'ilike', '%@placeholder.tradesnetwork'),
   ])
   // Unclaimed with real phone but no email
   const r3 = await sb.from('pros').select('id', { count: 'exact', head: true })
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', false)
     .not('license_number', 'is', null)
     .gt('phone_cell', '')
