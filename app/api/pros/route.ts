@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
 
   let query = getSupabaseAdmin()
     .from('pros')
-    .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,is_claimed,license_number,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
+    .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,is_claimed,license_number,email,phone_cell,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
     .eq('profile_status', status)
-    .eq('is_claimed', true) // Only show claimed pros — unclaimed profiles have no contact info
+    // Show claimed pros + unclaimed pros who have email or phone (contactable supply)
+    .or('is_claimed.eq.true,and(email.not.is.null,license_number.not.is.null),and(phone_cell.not.is.null,license_number.not.is.null)')
 
   // Filters
   if (trade)     query = query.eq('trade_category_id', trade)

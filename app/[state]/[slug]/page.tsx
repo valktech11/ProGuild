@@ -138,32 +138,56 @@ async function getTradeCategory(slug: string) {
 }
 
 async function getTopPros(tradeId: string, stateAbbr: string) {
-  // Only show claimed pros to customers — unclaimed pros have no contact info
-  // and showing them creates a false impression of available supply.
-  // Unclaimed profiles exist only for SEO (individual /pro/[id] pages).
-  const { data: claimed } = await getSupabaseAdmin()
-    .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-    .eq('profile_status', 'Active')
-    .eq('is_claimed', true)
-    .order('avg_rating', { ascending: false, nullsFirst: false })
-    .limit(20) // fetch extra to account for sacred row exclusion
+  const sb = getSupabaseAdmin()
 
-  // Exclude sacred test rows from public customer-facing pages
-  const filtered = (claimed || []).filter(
+  // 1. Claimed pros first (ordered by rating)
+  const { data: claimed } = await sb
+    .from('pros')
+    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
+    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('profile_status', 'Active').eq('is_claimed', true)
+    .order('avg_rating', { ascending: false, nullsFirst: false })
+    .limit(20)
+
+  const claimedFiltered = (claimed || []).filter(
     (p: any) => !SACRED_PRO_NAMES.includes(p.full_name)
   )
-  return filtered.slice(0, 12)
+
+  if (claimedFiltered.length >= 12) return claimedFiltered.slice(0, 12)
+
+  // 2. Pad with unclaimed pros who have email OR phone — they are contactable
+  const needed = 12 - claimedFiltered.length
+  const { data: withContact } = await sb
+    .from('pros')
+    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
+    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+    .eq('profile_status', 'Active').eq('is_claimed', false)
+    .or('email.not.is.null,phone_cell.not.is.null')
+    .not('license_number', 'is', null)
+    .order('full_name', { ascending: true })
+    .limit(needed)
+
+  const unclaimedFiltered = (withContact || []).filter(
+    (p: any) => !SACRED_PRO_NAMES.includes(p.full_name)
+  )
+
+  return [...claimedFiltered, ...unclaimedFiltered]
 }
 
 async function getProCount(tradeId: string, stateAbbr: string): Promise<number> {
-  // Count only claimed pros — this is the real contactable supply shown to customers
-  const { count } = await getSupabaseAdmin()
-    .from('pros').select('id', { count: 'exact', head: true })
-    .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
-    .eq('profile_status', 'Active').eq('is_claimed', true)
-  return count || 0
+  const sb = getSupabaseAdmin()
+  // Count claimed + unclaimed with contact info (real contactable supply)
+  const [{ count: claimed }, { count: withContact }] = await Promise.all([
+    sb.from('pros').select('id', { count: 'exact', head: true })
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active').eq('is_claimed', true),
+    sb.from('pros').select('id', { count: 'exact', head: true })
+      .eq('trade_category_id', tradeId).ilike('state', stateAbbr)
+      .eq('profile_status', 'Active').eq('is_claimed', false)
+      .or('email.not.is.null,phone_cell.not.is.null')
+      .not('license_number', 'is', null),
+  ])
+  return (claimed || 0) + (withContact || 0)
 }
 
 async function getGroupProCount(slugs: string[], stateAbbr: string): Promise<number> {
