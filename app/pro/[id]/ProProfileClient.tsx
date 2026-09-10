@@ -82,12 +82,14 @@ function BeforeAfterSlider({ afterUrl, beforeUrl, title, showLabels = false }: {
 }
 
 function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
+  const [name, setName]       = useState('')
+  const [phone, setPhone]     = useState('')
+  const [email, setEmail]     = useState('')
+  const [address, setAddress] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
+  const [done, setDone]       = useState(false)
+  const [err, setErr]         = useState('')
   const firstName = proFirstName(pro.full_name)
 
   async function send() {
@@ -95,7 +97,15 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
     setSubmitting(true); setErr('')
     const r = await fetch('/api/leads', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: pro.id, contact_name: name, contact_email: `${phone.replace(/\D/g,'')}@sms.placeholder`, contact_phone: phone, message: message || 'Contact request', lead_source: 'Profile_Page' }),
+      body: JSON.stringify({
+        pro_id:          pro.id,
+        contact_name:    name,
+        contact_email:   email || `${phone.replace(/\D/g,'')}@sms.placeholder`,
+        contact_phone:   phone,
+        property_address: address || null,
+        message:         message || 'Contact request',
+        lead_source:     'Profile_Page',
+      }),
     })
     setSubmitting(false)
     if (r.ok) setDone(true)
@@ -124,8 +134,10 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
             <div className="px-5 py-4 space-y-3">
               {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl">{err}</div>}
               {[
-                { lbl: 'Your name *', val: name, set: setName, ph: 'James Smith', type: 'text' },
-                { lbl: 'Phone *', val: phone, set: setPhone, ph: '(555) 000-0000', type: 'tel' },
+                { lbl: 'Your name *',    val: name,    set: setName,    ph: 'James Smith',       type: 'text' },
+                { lbl: 'Phone *',        val: phone,   set: setPhone,   ph: '(555) 000-0000',   type: 'tel' },
+                { lbl: 'Email',          val: email,   set: setEmail,   ph: 'you@email.com',    type: 'email' },
+                { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa FL', type: 'text' },
               ].map(f => (
                 <div key={f.lbl}>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{f.lbl}</label>

@@ -332,45 +332,60 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Email notification (non-blocking) ────────────────────────────────────
-  if (proRecord?.email && process.env.RESEND_API_KEY) {
-    try {
-      const resend  = new Resend(process.env.RESEND_API_KEY)
-      const appUrl  = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
-      await resend.emails.send({
-        from:    process.env.EMAIL_FROM || 'onboarding@resend.dev',
-        to:      proRecord.email,
-        subject: `New lead from ${contact_name} — ProGuild.ai`,
-        html:    leadNotificationEmail({
-          proName:      proRecord.full_name,
-          proEmail:     proRecord.email,
-          contactName:  contact_name,
-          contactEmail: contact_email,
-          contactPhone: contact_phone || null,
-          message,
-          city:         proRecord.city,
-          state:        proRecord.state,
-          leadSource:   lead_source || 'Profile_Page',
-          dashboardUrl: `${appUrl}/dashboard`,
-          isPaid:       proRecord.plan_tier !== 'Free',
-        }),
-      })
-    } catch (e) { console.error('Email failed:', e) }
-
-    // ── SMS to pro — fire if they have a phone number on file ──────────────
-    // We only SMS the pro (contractor), never the homeowner.
-    // Pros consented via Terms of Service at signup.
+  const hasRealEmail = proRecord?.email && !proRecord.email.includes('@placeholder.tradesnetwork')
+  if (hasRealEmail) {
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[leads] RESEND_API_KEY not set — skipping notification for lead', lead.id)
+    } else {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
+        const { data: emailData, error: emailError } = await resend.emails.send({
+          from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
+          to:      proRecord.email,
+          subject: `New lead from ${contact_name} — ProGuild.ai`,
+          html:    leadNotificationEmail({
+            proName:      proRecord.full_name,
+            proEmail:     proRecord.email,
+            contactName:  contact_name,
+            contactEmail: contact_email,
+            contactPhone: contact_phone || null,
+            message,
+            city:         proRecord.city,
+            state:        proRecord.state,
+            leadSource:   lead_source || 'Profile_Page',
+            dashboardUrl: `${appUrl}/dashboard`,
+            isPaid:       proRecord.plan_tier !== 'Free',
+          }),
+        })
+        if (emailError) {
+          console.error('[leads] Resend error:', emailError)
+        } else {
+          void supabase.from('email_log').insert({
+            pro_id:     pro_id,
+            lead_id:    lead.id,
+            to_email:   proRecord.email,
+            from_email: process.env.EMAIL_FROM || 'leads@proguild.ai',
+            subject:    `New lead from ${contact_name} — ProGuild.ai`,
+            template:   'lead_notification',
+            resend_id:  emailData?.id || null,
+            status:     'sent',
+            sent_at:    new Date().toISOString(),
+          })
+          console.log('[leads] Email sent to', proRecord.email, 'resend_id:', emailData?.id)
+        }
+      } catch (e) { console.error('[leads] Email failed:', e) }
+    }
+    // SMS if pro has phone
     if (proRecord?.phone) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
-      void sendProSms(
-        proRecord.phone,
-        newLeadSmsBody({
-          contactName:  contact_name,
-          city:         proRecord.city,
-          state:        proRecord.state,
-          dashboardUrl: `${appUrl}/dashboard`,
-        })
-      )
+      void sendProSms(proRecord.phone, newLeadSmsBody({
+        contactName: contact_name, city: proRecord.city,
+        state: proRecord.state, dashboardUrl: `${appUrl}/dashboard`,
+      }))
     }
+  } else {
+    console.log('[leads] No real email for pro', pro_id, '— notification skipped')
   }
 
   // Client and property were resolved before INSERT — no follow-up writes needed.

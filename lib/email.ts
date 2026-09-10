@@ -30,7 +30,10 @@ export function leadNotificationEmail({
   dashboardUrl,
   isPaid,
 }: LeadEmailProps): string {
-  const firstName = proName.split(' ')[0]
+  // Handle DBPR format "LASTNAME, FIRSTNAME" 
+  const firstName = proName.includes(',') 
+    ? (proName.split(',')[1]?.trim().split(' ')[0] || proName).replace(/^\w/, c => c.toUpperCase())
+    : proName.split(' ')[0]
   const initials  = contactName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const location  = [city, state].filter(Boolean).join(', ') || 'Not specified'
   const source    = leadSource.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())

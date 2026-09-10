@@ -10,6 +10,11 @@ export function isBusinessName(name: string): boolean {
 export function proFirstName(name: string): string {
   if (!name) return 'the team'
   if (isBusinessName(name)) return 'the team'
+  // DBPR format: "LASTNAME, FIRSTNAME MIDDLE" — extract first name after comma
+  if (name.includes(',')) {
+    const afterComma = name.split(',')[1]?.trim()
+    if (afterComma) return afterComma.split(' ')[0].charAt(0).toUpperCase() + afterComma.split(' ')[0].slice(1).toLowerCase()
+  }
   return name.split(' ')[0]
 }
 
