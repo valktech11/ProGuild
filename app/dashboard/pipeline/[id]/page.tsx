@@ -926,6 +926,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       }}/>
   ) : null
 
+  // Auth not yet resolved — render nothing (avoids blank flash)
+  if (_authLoading) return null
+
+  // Not logged in — redirect handled in useEffect, show nothing while it fires
+  if (!session) return null
+
   return (
     <DashboardShell session={session} newLeads={0} onAddLead={()=>{}} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{background:pg,minHeight:'100vh',padding:'16px 20px 80px',boxSizing:'border-box'}}>
