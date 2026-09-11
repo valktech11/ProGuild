@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id')
+    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token')
     .eq('id', pro_id)
     .single()
 
@@ -389,7 +389,9 @@ export async function POST(req: NextRequest) {
             proName:     proRecord.full_name,
             contactName: contact_name,
             message,
-            claimUrl:    `${appUrl}/claim?email=${encodeURIComponent(proRecord.email)}`,
+            claimUrl:    proRecord.claim_token
+              ? `${appUrl}/claim/${proRecord.claim_token}`
+              : `${appUrl}/login?tab=signup&claim=${pro_id}`,
           })
         }
 
