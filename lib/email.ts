@@ -352,7 +352,7 @@ export function homeownerConfirmationEmail({
         <div style="display:flex;flex-direction:column;gap:10px;">
           ${[
             ['✓', `${proFirstName} receives your message and contact details`],
-            ['✓', 'They'll reach out directly — no middleman involved'],
+            ['✓', 'They will reach out directly — no middleman involved'],
             ['✓', 'ProGuild never charges you or the contractor a lead fee'],
           ].map(([icon, text]) => `
           <div style="display:flex;align-items:flex-start;gap:10px;">
