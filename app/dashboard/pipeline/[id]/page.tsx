@@ -1118,14 +1118,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         {/* ── Loading / not found ──────────────────────────────────────────── */}
         {loading  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Loading...</div>}
         {missing && (
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh',gap:16}}>
-            <div style={{fontSize:32,opacity:0.2}}>📋</div>
-            <div style={{fontSize:18,fontWeight:700,color:tp}}>Lead not found</div>
-            <div style={{fontSize:14,color:ts,maxWidth:320,textAlign:'center',lineHeight:1.6}}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh',gap:16,padding:40}}>
+            <div style={{fontSize:40,opacity:0.25}}>📋</div>
+            <div style={{fontSize:20,fontWeight:700,color:'#0A1628'}}>Lead not found</div>
+            <div style={{fontSize:14,color:'#6B7280',maxWidth:320,textAlign:'center',lineHeight:1.6}}>
               This lead may have been deleted, or you may not have access to it.
             </div>
             <button onClick={() => router.push('/dashboard/pipeline')}
-              style={{marginTop:8,padding:'10px 24px',background:'#0F766E',color:'#fff',border:'none',borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer'}}>
+              style={{marginTop:8,padding:'10px 24px',background:'#0F766E',color:'#fff',border:'none',borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer',boxShadow:'0 2px 8px rgba(15,118,110,0.3)'}}>
               ← Back to pipeline
             </button>
           </div>
