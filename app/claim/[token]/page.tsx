@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { proFirstName, proDisplayName } from '@/lib/utils'
 
 const C = {
   bg:     '#0a0f0f',
@@ -13,7 +14,7 @@ const C = {
 }
 
 const BENEFITS = [
-  { bold: 'Unlimited roof measurements', rest: ' — no $35/report fees' },
+  { bold: 'Unlimited roof measurements', rest: ' — no per-report charges, ever' },
   { bold: 'AI scans insurance claims', rest: ' for missed line items' },
   { bold: 'Unlimited job photos', rest: ' — no per-user fees' },
   { bold: 'Unlimited team members', rest: ' — one flat rate, no per-seat fees' },
@@ -161,7 +162,7 @@ export default function ClaimPage() {
                   </div>
                   <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>DBPR Verified</span>
                 </div>
-                <div style={{ color: '#fff', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{pro.full_name}</div>
+                <div style={{ color: '#fff', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{proDisplayName(pro.full_name)}</div>
                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 6 }}>
                   {pro.trade}{pro.city ? ` · ${pro.city}${pro.state ? `, ${pro.state}` : ''}` : ''}
                 </div>
@@ -216,7 +217,7 @@ export default function ClaimPage() {
               <div style={{ background: 'linear-gradient(135deg, #0F766E, #065F46)', padding: '20px 28px' }}>
                 <div style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>Set your password</div>
                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>
-                  One step to unlock {pro.full_name.split(',')[1]?.trim().split(' ')[0] || pro.full_name.split(' ')[0]}'s dashboard
+                  One step to unlock {proFirstName(pro.full_name)}'s dashboard
                 </div>
               </div>
               <div style={{ padding: '28px 28px 32px' }}>
