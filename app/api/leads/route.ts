@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id')
+    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id')
     .eq('id', pro_id)
     .single()
 
