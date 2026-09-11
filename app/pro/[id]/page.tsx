@@ -9,6 +9,18 @@ import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, pr
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = 'overview' | 'work' | 'reviews' | 'credentials'
 
+// State abbreviation → full name (US states ProGuild may expand to)
+const STATE_NAMES: Record<string, string> = {
+  FL: 'Florida', TX: 'Texas', GA: 'Georgia', CA: 'California',
+  NC: 'North Carolina', SC: 'South Carolina', TN: 'Tennessee',
+  AL: 'Alabama', MS: 'Mississippi', LA: 'Louisiana', AR: 'Arkansas',
+  VA: 'Virginia', MD: 'Maryland', OH: 'Ohio', PA: 'Pennsylvania',
+  NY: 'New York', NJ: 'New Jersey', CT: 'Connecticut', MA: 'Massachusetts',
+  IL: 'Illinois', MI: 'Michigan', IN: 'Indiana', MO: 'Missouri',
+  AZ: 'Arizona', NV: 'Nevada', CO: 'Colorado', WA: 'Washington',
+  OR: 'Oregon', UT: 'Utah', MN: 'Minnesota', WI: 'Wisconsin',
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function ProAvatar({ pro, size }: { pro: any; size: string }) {
@@ -604,7 +616,7 @@ export default function ProProfilePage() {
               {/* Eyebrow: trade type, top-left */}
               <div className="absolute top-4 left-6">
                 <div className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  Verified Florida Contractor
+                  {pro.state ? `Verified ${STATE_NAMES[pro.state.toUpperCase()] || pro.state} Contractor` : 'Verified Licensed Contractor'}
                 </div>
               </div>
             </div>
