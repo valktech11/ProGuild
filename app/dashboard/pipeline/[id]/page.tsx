@@ -355,7 +355,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // ── Fetch lead ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (_authLoading) return
-    if (!session) { router.replace('/login'); return }
+    if (!session) { router.replace(`/login?redirect=${encodeURIComponent('/dashboard/pipeline/' + id)}`); return }
     // Load team members for reassign dropdown (owner only)
     if (session?.role === 'owner') {
       apiFetch('/api/company/members').then(r=>r.json()).then((d:any)=>{

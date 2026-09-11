@@ -262,7 +262,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => {
     if (_authLoading) return
-    if (!session) { router.replace('/login'); return }
+    if (!session) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return }
     apiFetch(`/api/invoices/${id}`)
       .then(r => r.json())
       .then(async d => {

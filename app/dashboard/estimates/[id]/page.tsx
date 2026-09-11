@@ -144,7 +144,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     if (_authLoading) return
-    if (!session) { router.replace('/login'); return }
+    if (!session) { router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`); return }
     // Fetch material prices for this pro so EstimatePage uses real costs
     if (session) {
       apiFetch(`/api/roofing/settings?pro_id=${session.id}`)
