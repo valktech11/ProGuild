@@ -93,6 +93,13 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   const [err, setErr]         = useState('')
   const firstName = proFirstName(pro.full_name)
 
+  function formatPhone(v: string): string {
+    const d = v.replace(/\D/g, '').slice(0, 10)
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `(${d.slice(0,3)}) ${d.slice(3)}`
+    return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
+  }
+
   async function send() {
     if (!name || !phone) { setErr('Name and phone are required'); return }
     setSubmitting(true); setErr('')
@@ -136,7 +143,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
               {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl">{err}</div>}
               {[
                 { lbl: 'Your name *',      val: name,    set: setName,    ph: 'James Smith',              type: 'text' },
-                { lbl: 'Phone *',          val: phone,   set: setPhone,   ph: '(555) 000-0000',          type: 'tel' },
+                { lbl: 'Phone *',          val: phone,   set: (v: string) => setPhone(formatPhone(v)),   ph: '(555) 000-0000',          type: 'tel' },
                 { lbl: 'Email',            val: email,   set: setEmail,   ph: 'you@email.com',           type: 'email' },
                 { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa FL',   type: 'text' },
               ].map(f => (
@@ -1166,9 +1173,9 @@ export default function ProProfilePage() {
                 </div>
               )}
 
-              {/* Sticky contact — claimed profiles keep a contact card on scroll */}
+              {/* Sticky contact — mobile only, desktop has header card */}
               {!isOwner && pro.is_claimed && (
-                <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
+                <div className="bg-white rounded-2xl border p-4 lg:hidden" style={{ borderColor: '#E8E2D9' }}>
                   <button onClick={() => setShowModal(true)}
                     className="w-full py-3 text-white text-sm font-bold rounded-xl mb-2 transition-all hover:opacity-90"
                     style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
