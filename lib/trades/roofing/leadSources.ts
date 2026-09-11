@@ -28,7 +28,8 @@ export const LEAD_SOURCES: LeadSource[] = [
   { value: 'Website',    label: 'Website',       icon: '🌐' },
   { value: 'Google',     label: 'Google',        icon: '🔍' },
   { value: 'Canvassing', label: 'Canvassing',    icon: '🏘️' },
-  { value: 'Other',      label: 'Other',         icon: '📌' },
+  { value: 'Profile_Page', label: 'ProGuild Profile', icon: '🏅' },
+  { value: 'Other',         label: 'Other',           icon: '📌' },
 ]
 
 // Quick lookups
