@@ -1117,7 +1117,19 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
         {/* ── Loading / not found ──────────────────────────────────────────── */}
         {loading  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Loading...</div>}
-        {missing  && <div style={{textAlign:'center',padding:80,color:ts,fontSize:T.fontBody}}>Lead not found.</div>}
+        {missing && (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh',gap:16}}>
+            <div style={{fontSize:32,opacity:0.2}}>📋</div>
+            <div style={{fontSize:18,fontWeight:700,color:tm}}>Lead not found</div>
+            <div style={{fontSize:14,color:ts,maxWidth:320,textAlign:'center',lineHeight:1.6}}>
+              This lead may have been deleted, or you may not have access to it.
+            </div>
+            <button onClick={() => router.push('/dashboard/pipeline')}
+              style={{marginTop:8,padding:'10px 24px',background:'#0F766E',color:'#fff',border:'none',borderRadius:10,fontSize:14,fontWeight:700,cursor:'pointer'}}>
+              ← Back to pipeline
+            </button>
+          </div>
+        )}
 
         {!loading&&!missing&&lead&&(()=>{
           const stages   = getPipelineStages(session?.trade_slug)
