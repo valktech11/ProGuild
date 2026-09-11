@@ -18,6 +18,21 @@ export function proFirstName(name: string): string {
   return name.split(' ')[0]
 }
 
+// Returns "Firstname Lastname" from DBPR "LASTNAME, FIRSTNAME MIDDLE"
+// Used for H1 page title, meta tags, schema — never expose raw DBPR string
+export function proDisplayName(name: string): string {
+  if (!name) return ''
+  if (isBusinessName(name)) return name
+  if (name.includes(',')) {
+    const [last, rest] = name.split(',')
+    const fn = (rest?.trim().split(' ')[0] || '')
+    const firstName = fn.charAt(0).toUpperCase() + fn.slice(1).toLowerCase()
+    const lastName = last.trim().charAt(0).toUpperCase() + last.trim().slice(1).toLowerCase()
+    return `${firstName} ${lastName}`.trim()
+  }
+  return name
+}
+
 export function initials(name: string): string {
   if (!name) return '?'
   if (isBusinessName(name)) {
@@ -26,6 +41,13 @@ export function initials(name: string): string {
     if (words.length === 0) return name.slice(0, 2).toUpperCase()
     if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
     return (words[0][0] + words[1][0]).toUpperCase()
+  }
+  // DBPR: "LASTNAME, FIRSTNAME MIDDLE" — initials in display order (F then L)
+  if (name.includes(',')) {
+    const [last, rest] = name.split(',')
+    const firstInitial = rest?.trim()[0] || ''
+    const lastInitial = last?.trim()[0] || ''
+    return (firstInitial + lastInitial).toUpperCase()
   }
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
