@@ -288,6 +288,7 @@ export async function sendVisualizerPickEmail({
 // ── Unclaimed pro lead notification ──────────────────────────────────────────
 interface UnclaimedLeadEmailProps {
   proName:     string
+  proEmail:    string
   contactName: string
   message:     string
   claimUrl:    string
@@ -374,8 +375,10 @@ export function homeownerConfirmationEmail({
 
     <!-- Footer -->
     <div style="background:#F9FAFB;padding:16px 32px;text-align:center;border-top:1px solid #F0EDE8;">
-      <p style="font-size:12px;color:#9CA3AF;margin:0;">
-        <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;font-weight:600;">ProGuild.ai</a> · Verified Licensed Contractors
+      <p style="font-size:12px;color:#9CA3AF;margin:0;line-height:1.8;">
+        <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;font-weight:600;">ProGuild.ai</a> · Verified Licensed Contractors<br>
+        L-K Enterprises, Dombivali, Maharashtra, India<br>
+        You submitted a contact request through ProGuild.ai.
       </p>
     </div>
   </div>
@@ -383,7 +386,7 @@ export function homeownerConfirmationEmail({
 </html>`
 }
 
-export function unclaimedLeadEmail({ proName, contactName, message, claimUrl }: UnclaimedLeadEmailProps): string {
+export function unclaimedLeadEmail({ proName, proEmail, contactName, message, claimUrl }: UnclaimedLeadEmailProps): string {
   const firstName = proName.includes(',')
     ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
     : proName.split(' ')[0]
@@ -403,7 +406,7 @@ export function unclaimedLeadEmail({ proName, contactName, message, claimUrl }: 
       <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">New enquiry waiting</div>
       <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">Someone wants to hire you, ${firstName}</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">
-        Your Florida contractor license is already on ProGuild. <strong>${contactName}</strong> found your profile and wants to get in touch.
+        Your contractor license is verified and already live on ProGuild. <strong>${contactName}</strong> found your profile and wants to get in touch.
         Claim your free profile to see their contact details and respond.
       </div>
 
@@ -431,8 +434,11 @@ export function unclaimedLeadEmail({ proName, contactName, message, claimUrl }: 
       </div>
     </td></tr>
     <tr><td style="padding:20px 32px;border-top:1px solid #e2e1db;">
-      <div style="font-size:11px;color:#b5b3ab;text-align:center;">
-        © 2026 ProGuild.ai · <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">proguild.ai</a>
+      <div style="font-size:11px;color:#b5b3ab;text-align:center;line-height:1.8;">
+        © 2026 ProGuild.ai · <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">proguild.ai</a><br>
+        L-K Enterprises, Dombivali, Maharashtra, India<br>
+        You received this because a homeowner found your verified license on ProGuild.
+        <a href="https://proguild.ai/unsubscribe?email=\${encodeURIComponent(proEmail)}" style="color:#9c9a92;text-decoration:underline;">Unsubscribe</a>
       </div>
     </td></tr>
   </table>

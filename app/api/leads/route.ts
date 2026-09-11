@@ -387,6 +387,7 @@ export async function POST(req: NextRequest) {
           template = 'unclaimed_lead_notification'
           emailHtml = unclaimedLeadEmail({
             proName:     proRecord.full_name,
+            proEmail:    proRecord.email,
             contactName: contact_name,
             message,
             claimUrl:    proRecord.claim_token
