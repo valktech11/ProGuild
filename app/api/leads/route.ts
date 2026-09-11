@@ -5,6 +5,7 @@ import { leadNotificationEmail, unclaimedLeadEmail, homeownerConfirmationEmail }
 import { notify } from '@/lib/notifications'
 import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
+const _resend = new Resend(process.env.RESEND_API_KEY)
 import { moderateContent } from '@/lib/moderation'
 import { getInitialStage } from '@/lib/trades/_registry'
 import { requirePro } from '@/lib/pro-auth'
@@ -451,7 +452,7 @@ export async function POST(req: NextRequest) {
           message:      message || null,
           profileUrl:   `${appUrl2}/pro/${pro_id}`,
         })
-        await resend.emails.send({
+        await _resend.emails.send({
           from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
           to:      homeownerEmail,
           subject: `Your message to ${proDisplayName(proRecord.full_name)} — ProGuild`,
