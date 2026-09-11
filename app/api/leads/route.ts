@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { leadNotificationEmail, unclaimedLeadEmail } from '@/lib/email'
+import { notify } from '@/lib/notifications'
 import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
 import { moderateContent } from '@/lib/moderation'
@@ -413,6 +414,19 @@ export async function POST(req: NextRequest) {
             sent_at:    new Date().toISOString(),
           })
           console.log('[leads] Email sent to', proRecord.email, 'template:', template, 'resend_id:', emailData?.id)
+
+          // In-app notification → mobile inbox Notifications tab + web bell
+          if (template === 'leadNotificationEmail') {
+            const contactFirst = (contact_name || 'Someone').split(' ')[0]
+            void notify({
+              proId:     proRecord.id,
+              companyId: _manualCompanyId ?? null,
+              type:      'new_lead_created',
+              title:     `New enquiry from ${contactFirst}`,
+              body:      message ? `"${String(message).slice(0, 80)}${String(message).length > 80 ? '…' : ''}"` : 'A homeowner wants to discuss a project.',
+              leadId:    lead.id,
+            })
+          }
         }
       } catch (e) { console.error('[leads] Email failed:', e) }
     }
