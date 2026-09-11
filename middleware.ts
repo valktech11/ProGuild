@@ -116,6 +116,22 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // ── Dashboard auth guard — server-side redirect before page loads ──
+  // Prevents blank page flash when unauthenticated users hit /dashboard/* directly
+  // (e.g. clicking "View lead in dashboard" from email while not logged in).
+  // Lightweight cookie check only — real validation happens in /api/auth/me.
+  if (pathname.startsWith('/dashboard')) {
+    const hasSbSession = req.cookies.getAll().some(c =>
+      c.name.includes('-auth-token') && c.value && c.value !== ''
+    )
+    if (!hasSbSession) {
+      const loginUrl = req.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.searchParams.set('redirect', pathname + req.nextUrl.search)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
   return NextResponse.next()
 }
 
