@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { proFirstName } from '@/lib/utils'
 
 // ── GET /api/claim/[token] — validate token, return pro preview ───────────────
 export async function GET(
@@ -93,26 +94,62 @@ export async function POST(
   }
 
   // 4. Mark claimed, link auth_user_id, consume token (null it out — single use)
-  const { error: updateErr } = await sb.from('pros').update({
+  const trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
     is_claimed:             true,
     claimed_at:             new Date().toISOString(),
     auth_user_id:           authUserId,
     claim_token:            null,
     claim_token_expires_at: null,
-  }).eq('id', pro.id)
+    trial_ends_at:          trialEndsAt,
+  }).eq('id', pro.id).select('id, full_name, email, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number').single()
 
-  if (updateErr) {
-    console.error('Claim update error:', updateErr.message)
+  if (updateErr || !claimedPro) {
+    console.error('Claim update error:', updateErr?.message)
     return NextResponse.json({ error: 'Account created but claim failed. Contact support@proguild.ai.' }, { status: 500 })
   }
 
-  // 5. Sign in to get a session the client can use immediately
-  const { data: session, error: signInErr } = await sb.auth.admin.generateLink({
-    type:    'magiclink',
-    email:   pro.email,
-    options: { redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard` },
-  })
+  // 5. Create company + company_members(owner) — same as signup/route.ts createCompany()
+  // This was missing from the claim token path, causing leads to be invisible in the pipeline.
+  try {
+    const { data: company, error: compErr } = await sb
+      .from('companies')
+      .insert({
+        name:              claimedPro.business_name || claimedPro.full_name || 'My Company',
+        email:             claimedPro.email,
+        trade_slug:        claimedPro.trade_slug || pro.trade_slug || null,
+        trade_category_id: claimedPro.trade_category_id || null,
+        business_name:     claimedPro.business_name || null,
+        license_number:    claimedPro.license_number || null,
+        city:              claimedPro.city || null,
+        state:             claimedPro.state || null,
+        phone_cell:        claimedPro.phone_cell || null,
+        plan_tier:         'Free',
+        trial_ends_at:     trialEndsAt,
+        owner_pro_id:      claimedPro.id,
+      })
+      .select('id')
+      .single()
 
-  // Return success — client will sign in using the password they just set
+    if (company && !compErr) {
+      // Backfill pros.company_id
+      await sb.from('pros').update({ company_id: company.id }).eq('id', claimedPro.id)
+      // Create owner membership
+      await sb.from('company_members').insert({
+        company_id: company.id,
+        pro_id:     claimedPro.id,
+        role:       'owner',
+      })
+    } else {
+      console.error('[claim] company creation failed:', compErr?.message)
+      // Non-fatal — account is claimed, company can be created on next login via /api/auth/me
+    }
+  } catch (e: any) {
+    console.error('[claim] company creation exception:', e?.message)
+    // Non-fatal — do not fail the claim over this
+  }
+
+  // 6. Return success — client signs in using the password they just set
   return NextResponse.json({ ok: true })
 }
