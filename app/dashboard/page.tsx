@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Lead, Review } from '@/types'
-import { timeAgo, fmtCurrency } from '@/lib/utils'
+import { timeAgo, fmtCurrency, proFirstName } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
@@ -425,7 +425,7 @@ export default function OverviewPage() {
   const t        = theme(dk)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const firstName = session?.name?.split(' ')[0] || ''
+  const firstName = session?.name ? proFirstName(session.name) : ''
 
   // ── Action Center — counts come from /api/overview (single source) ─────────
   // Thresholds (24h / 0-3d / 48h / today / draft) live in the endpoint, not here,

@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at')
+    .select('trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id')
     .eq('id', pro_id)
     .single()
 
@@ -229,6 +229,14 @@ export async function POST(req: NextRequest) {
     }
   }
   const initialStage = getInitialStage(tradeSlug)
+
+  // ── Resolve company_id for public contact form path ──────────────────────
+  // Manual path: company_id comes from bearer auth (_manualCompanyId).
+  // Public path: company_id is null unless we resolve it from the pro's record.
+  // Without it the lead inserts with company_id=null and is invisible in the pipeline.
+  if (!_manualCompanyId && proRecord?.company_id) {
+    _manualCompanyId = proRecord.company_id
+  }
   console.log('[POST /api/leads] trade_slug resolution — pros:', proRecord?.trade_slug, 'client:', clientTradeSlug, 'final:', tradeSlug, 'initialStage:', initialStage)
 
   // ── Normalise address ─────────────────────────────────────────────────────
@@ -368,7 +376,7 @@ export async function POST(req: NextRequest) {
             city:         proRecord.city,
             state:        proRecord.state,
             leadSource:   lead_source || 'Profile_Page',
-            dashboardUrl: `${appUrl}/dashboard`,
+            dashboardUrl: `${appUrl}/dashboard/pipeline/${lead.id}`,
             isPaid:       showPhone,
           })
         } else {
