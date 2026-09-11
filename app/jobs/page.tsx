@@ -50,7 +50,7 @@ export default function JobsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-serif text-3xl text-gray-900 mb-1">Open Work Requests</h1>
-            <p className="text-gray-400 text-sm">Homeowners in Florida looking for verified trade pros — browse and respond directly</p>
+            <p className="text-gray-400 text-sm">Homeowners looking for verified trade pros — browse and respond directly</p>
           </div>
           <Link href="/post-job"
             className="px-5 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors">

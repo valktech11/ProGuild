@@ -94,7 +94,7 @@ function PendingReviewBanner({ onVerified }: { onVerified: () => void }) {
 
       {open && (
         <div className="mt-4 border-t border-amber-200 pt-4">
-          <p className="text-xs font-semibold text-amber-800 mb-3">Re-enter your Florida license details</p>
+          <p className="text-xs font-semibold text-amber-800 mb-3">Re-enter your license details</p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-44">
               <label className="block text-xs text-amber-700 mb-1">License number</label>
@@ -788,7 +788,7 @@ export default function OverviewPage() {
 
                 {/* Trust line */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 16 }}>
-                  {['No per-lead fees', 'Cancel any time', '124k FL pros verified'].map((txt, i) => (
+                  {['No per-lead fees', 'Cancel any time', '124k licensed pros'].map((txt, i) => (
                     <React.Fragment key={txt}>
                       {i > 0 && <span style={{ width: 3, height: 3, borderRadius: '50%', background: BORDER, display: 'inline-block' }} />}
                       <span style={{ fontSize: 11, color: BODY }}>{txt}</span>

@@ -158,7 +158,7 @@ export default function MaterialPricesPage() {
                 Using default market prices
               </div>
               <div style={{ fontSize: 12, color: '#B45309' }}>
-                These are typical FL roofing costs. Set your own prices below to get accurate estimates from day one.
+                These are typical roofing costs. Set your own prices below to get accurate estimates from day one.
               </div>
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function MaterialPricesPage() {
             <div style={{ background: t.cardBg, border: `1px solid ${t.cardBorder}`,
               borderRadius: T.radLg, padding: 20, marginBottom: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: t.textPri, marginBottom: 12 }}>
-                Preview — 20 sq roof (typical FL home)
+                Preview — 20 sq roof (typical home)
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 {(['standard', 'upgraded', 'premium'] as const).map((tier, i) => {

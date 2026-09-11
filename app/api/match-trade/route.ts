@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `You are a Florida home trades classifier. Given a homeowner's search query, identify which trade professional they need.
+              text: `You are a home trades classifier. Given a homeowner's search query, identify which trade professional they need.
 
 Available trades:
 ${TRADE_LIST_FOR_PROMPT}

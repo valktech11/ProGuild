@@ -205,7 +205,7 @@ export default function ProIntakePage() {
             <p className="text-xs text-center text-gray-400 mt-4">
               Powered by{' '}
               <Link href="https://proguild.ai" className="text-teal-600 hover:underline">ProGuild.ai</Link>
-              {' '}· Florida's verified trades network
+              {' '}· Verified trades network
             </p>
           </div>
         )}

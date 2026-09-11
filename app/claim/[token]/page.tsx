@@ -163,7 +163,7 @@ export default function ClaimPage() {
                 </div>
                 <div style={{ color: '#fff', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{pro.full_name}</div>
                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 6 }}>
-                  {pro.trade}{pro.city ? ` · ${pro.city}, FL` : ' · Florida'}
+                  {pro.trade}{pro.city ? ` · ${pro.city}${pro.state ? `, ${pro.state}` : ''}` : ''}
                 </div>
               </div>
 
@@ -173,7 +173,7 @@ export default function ClaimPage() {
                   Your verified profile is already<br />live on ProGuild
                 </div>
                 <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-                  Built from Florida DBPR records. Claim it to unlock ProGuild's roofing tools — free for 90 days.
+                  Built from Florida DBPR records. Claim it to manage leads, send estimates, and collect reviews — free for 90 days.
                 </div>
 
                 {/* Benefits */}
