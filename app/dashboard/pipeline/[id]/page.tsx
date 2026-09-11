@@ -1120,7 +1120,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
         {missing && (
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'60vh',gap:16}}>
             <div style={{fontSize:32,opacity:0.2}}>📋</div>
-            <div style={{fontSize:18,fontWeight:700,color:tm}}>Lead not found</div>
+            <div style={{fontSize:18,fontWeight:700,color:tp}}>Lead not found</div>
             <div style={{fontSize:14,color:ts,maxWidth:320,textAlign:'center',lineHeight:1.6}}>
               This lead may have been deleted, or you may not have access to it.
             </div>

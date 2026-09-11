@@ -154,6 +154,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
                   <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
                     className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
                     style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
+                  )}
                 </div>
               ))}
               <div>
