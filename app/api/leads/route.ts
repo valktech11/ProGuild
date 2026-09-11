@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
-import { leadNotificationEmail, unclaimedLeadEmail } from '@/lib/email'
+import { leadNotificationEmail, unclaimedLeadEmail, homeownerConfirmationEmail } from '@/lib/email'
 import { notify } from '@/lib/notifications'
 import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
@@ -430,6 +430,40 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) { console.error('[leads] Email failed:', e) }
     }
+    // ── Homeowner confirmation email ─────────────────────────────────────────
+    // Send only when: homeowner provided a real email (not placeholder/sms.placeholder)
+    const homeownerEmail = contact_email &&
+      !contact_email.includes('@placeholder.tradesnetwork') &&
+      !contact_email.includes('@sms.placeholder') &&
+      contact_email.includes('@')
+        ? contact_email : null
+
+    if (homeownerEmail && proRecord) {
+      try {
+        const { proFirstName, proDisplayName } = await import('@/lib/utils')
+        const appUrl2 = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
+        const confirmHtml = homeownerConfirmationEmail({
+          contactName:  contact_name || 'there',
+          proFirstName: proFirstName(proRecord.full_name),
+          proFullName:  proDisplayName(proRecord.full_name),
+          trade:        proRecord.trade_slug?.replace(/-/g, ' ') || 'contractor',
+          city:         proRecord.city || null,
+          message:      message || null,
+          profileUrl:   `${appUrl2}/pro/${pro_id}`,
+        })
+        await resend.emails.send({
+          from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
+          to:      homeownerEmail,
+          subject: `Your message to ${proDisplayName(proRecord.full_name)} — ProGuild`,
+          html:    confirmHtml,
+        })
+        console.log('[leads] Homeowner confirmation sent to', homeownerEmail)
+      } catch (e) {
+        console.error('[leads] Homeowner confirmation failed:', e)
+        // Non-fatal — pro notification already sent
+      }
+    }
+
     // SMS only for claimed pros with phone
     if (proRecord?.is_claimed && proRecord?.phone) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'

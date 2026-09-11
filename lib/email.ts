@@ -293,6 +293,96 @@ interface UnclaimedLeadEmailProps {
   claimUrl:    string
 }
 
+// ── Homeowner confirmation email ─────────────────────────────────────────────
+// Sent to the homeowner immediately after they submit a contact form.
+// Confirms their message was received and sets expectation on next steps.
+
+interface HomeownerConfirmationProps {
+  contactName:  string
+  proFirstName: string
+  proFullName:  string   // display name (parsed)
+  trade:        string
+  city:         string | null
+  message:      string | null
+  profileUrl:   string
+}
+
+export function homeownerConfirmationEmail({
+  contactName,
+  proFirstName,
+  proFullName,
+  trade,
+  city,
+  message,
+  profileUrl,
+}: HomeownerConfirmationProps): string {
+  const greeting = contactName.split(' ')[0] || contactName
+  const location = city ? ` in ${city}` : ''
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F5F4F0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:520px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#0F766E,#0A5A54);padding:28px 32px;">
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">ProGuild.ai</div>
+      <div style="font-size:22px;font-weight:800;color:#ffffff;line-height:1.25;">Your message is on its way</div>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:28px 32px;">
+      <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 20px;">
+        Hi ${greeting},<br><br>
+        We've sent your message to <strong>${proFullName}</strong>, a licensed ${trade.toLowerCase()}${location}. 
+        They'll be in touch with you directly.
+      </p>
+
+      <!-- Message recap -->
+      ${message ? `
+      <div style="background:#F9FAFB;border-left:3px solid #0F766E;border-radius:0 8px 8px 0;padding:14px 16px;margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Your message</div>
+        <div style="font-size:14px;color:#374151;line-height:1.6;font-style:italic;">"${message.slice(0, 200)}${message.length > 200 ? '…' : ''}"</div>
+      </div>` : ''}
+
+      <!-- What happens next -->
+      <div style="background:#F0FDF9;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
+        <div style="font-size:12px;font-weight:700;color:#0F766E;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">What happens next</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${[
+            ['✓', `${proFirstName} receives your message and contact details`],
+            ['✓', 'They'll reach out directly — no middleman involved'],
+            ['✓', 'ProGuild never charges you or the contractor a lead fee'],
+          ].map(([icon, text]) => `
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <span style="color:#0F766E;font-weight:700;font-size:14px;flex-shrink:0;">${icon}</span>
+            <span style="font-size:14px;color:#374151;line-height:1.5;">${text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- View profile CTA -->
+      <a href="${profileUrl}" style="display:block;text-align:center;background:linear-gradient(135deg,#0F766E,#0A5A54);color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:700;margin-bottom:16px;">
+        View ${proFirstName}'s profile →
+      </a>
+
+      <p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0;line-height:1.6;">
+        Need to reach us? <a href="mailto:hello@proguild.ai" style="color:#0F766E;text-decoration:none;">hello@proguild.ai</a>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#F9FAFB;padding:16px 32px;text-align:center;border-top:1px solid #F0EDE8;">
+      <p style="font-size:12px;color:#9CA3AF;margin:0;">
+        <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;font-weight:600;">ProGuild.ai</a> · Verified Licensed Contractors
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 export function unclaimedLeadEmail({ proName, contactName, message, claimUrl }: UnclaimedLeadEmailProps): string {
   const firstName = proName.includes(',')
     ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
