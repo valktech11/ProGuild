@@ -4,7 +4,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
-import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, proFirstName, proDisplayName } from '@/lib/utils'
+import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, proFirstName, proDisplayName, tradeDisplayName } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = 'overview' | 'work' | 'reviews' | 'credentials'
@@ -467,7 +467,8 @@ export default function ProProfilePage() {
   )
 
   const isOwner    = session?.id === id
-  const trade      = pro.trade_category?.category_name || '—'
+  // Use slug first (more reliable), fallback to category_name raw value
+  const trade      = tradeDisplayName(pro.trade_category?.slug || pro.trade_category?.category_name)
   const location   = [pro.city, pro.state].filter(Boolean).join(', ')
   const rating     = pro.avg_rating || 0
   const reviewCnt  = pro.review_count || reviews.length || 0
@@ -748,10 +749,7 @@ export default function ProProfilePage() {
                             🔒 Phone visible to Pro subscribers
                           </div>
                         )}
-                        <div className="flex items-center justify-center gap-1.5 mt-3">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#A89F93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                          <span className="text-xs" style={{ color: '#A89F93' }}>Direct &amp; secure</span>
-                        </div>
+
                       </>
                     )}
                   </div>
@@ -844,16 +842,16 @@ export default function ProProfilePage() {
                       {pro.bio || `Licensed ${trade.toLowerCase()} serving ${pro.city || 'Florida'} and surrounding areas. Connect directly to discuss your project.`}
                     </p>
                     {/* spec item #6: verified facts only, remove unavailable metrics */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4 mt-2">
                       {[
                         {
-                          icon: <ShieldBadge size={20} />,
+                          icon: <ShieldBadge size={18} />,
                           label: 'Florida DBPR Verified',
                           sub: 'License confirmed with the state',
                         },
                         {
                           icon: (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="20 6 9 17 4 12"/>
                             </svg>
                           ),
@@ -862,7 +860,7 @@ export default function ProProfilePage() {
                         },
                         {
                           icon: (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                             </svg>
                           ),
@@ -871,7 +869,7 @@ export default function ProProfilePage() {
                         },
                         {
                           icon: (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                             </svg>
                           ),
@@ -879,8 +877,8 @@ export default function ProProfilePage() {
                           sub: 'Message directly, no middleman',
                         },
                       ].map(item => (
-                        <div key={item.label} className="flex flex-col items-start gap-2 p-3 rounded-xl" style={{ background: '#FAF9F6' }}>
-                          <div>{item.icon}</div>
+                        <div key={item.label} className="flex items-start gap-3">
+                          <div className="flex-shrink-0 mt-0.5">{item.icon}</div>
                           <div>
                             <div className="text-xs font-bold leading-tight" style={{ color: '#0A1628' }}>{item.label}</div>
                             <div className="text-xs mt-0.5 leading-relaxed" style={{ color: '#8A9199' }}>{item.sub}</div>

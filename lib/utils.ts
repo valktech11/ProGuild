@@ -18,6 +18,36 @@ export function proFirstName(name: string): string {
   return name.split(' ')[0]
 }
 
+// Trade slug → human display label used on pro profile page
+const TRADE_DISPLAY_NAMES: Record<string, string> = {
+  'roofing':              'Roofing Contractor',
+  'roofing-contractor':   'Roofing Contractor',
+  'hvac-technician':      'HVAC Technician',
+  'hvac':                 'HVAC Technician',
+  'electrician':          'Electrician',
+  'plumber':              'Plumber',
+  'pool-spa':             'Pool & Spa Contractor',
+  'general-contractor':   'General Contractor',
+  'painter':              'Painter',
+  'landscaper':           'Landscaper',
+  'solar-installer':      'Solar Installer',
+  'pest-control':         'Pest Control Specialist',
+  'carpenter':            'Carpenter',
+  'drywall':              'Drywall Contractor',
+  'flooring':             'Flooring Contractor',
+}
+
+// Returns display trade label from slug or raw category_name
+// category_name from DB: "Roofing" → "Roofing Contractor"
+export function tradeDisplayName(slugOrName: string | undefined | null): string {
+  if (!slugOrName) return '—'
+  const slug = slugOrName.toLowerCase().replace(/\s+/g, '-')
+  if (TRADE_DISPLAY_NAMES[slug]) return TRADE_DISPLAY_NAMES[slug]
+  // fallback: raw DB category_name (e.g. "Roofing") — try slug form
+  const fromRaw = TRADE_DISPLAY_NAMES[slugOrName.toLowerCase()]
+  return fromRaw || slugOrName
+}
+
 // Returns "Firstname Lastname" from DBPR "LASTNAME, FIRSTNAME MIDDLE"
 // Used for H1 page title, meta tags, schema — never expose raw DBPR string
 export function proDisplayName(name: string): string {
