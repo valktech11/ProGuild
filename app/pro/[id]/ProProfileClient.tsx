@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, proFirstName } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -137,10 +138,19 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
                 { lbl: 'Your name *',    val: name,    set: setName,    ph: 'James Smith',       type: 'text' },
                 { lbl: 'Phone *',        val: phone,   set: setPhone,   ph: '(555) 000-0000',   type: 'tel' },
                 { lbl: 'Email',          val: email,   set: setEmail,   ph: 'you@email.com',    type: 'email' },
-                { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa FL', type: 'text' },
+                { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa, FL', type: 'text', isAddress: true },
               ].map(f => (
                 <div key={f.lbl}>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1">{f.lbl}</label>
+                  {f.isAddress ? (
+                    <AddressAutocomplete
+                      value={f.val}
+                      onChange={f.set}
+                      placeholder={f.ph}
+                      inputClassName="w-full px-3 py-2 border rounded-xl text-sm outline-none"
+                      inputStyle={{ borderColor: '#E2E8F0' }}
+                    />
+                  ) : (
                   <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
                     className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
                     style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
