@@ -22,7 +22,7 @@ function claimEmail(pro: any, claimToken: string): string {
 <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
   <tr><td style="background:#0F766E;padding:24px 32px;">
     <div style="font-size:18px;font-weight:600;color:#fff;">ProGuild.ai</div>
-    <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;">Florida's Verified Trades Network</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px;">Verified Licensed Contractors</div>
   </td></tr>
   <tr><td style="padding:28px 32px;">
     <p style="font-size:15px;color:#222;font-weight:600;margin:0 0 16px;">Hi ${firstName},</p>
@@ -55,7 +55,7 @@ function claimEmail(pro: any, claimToken: string): string {
       </tr>
     </table>
     <p style="font-size:12px;color:#aaa;margin:0;">
-      ProGuild.ai · Florida's verified trades community · Flat $49.99/mo roofing · $29.99/mo other trades · No per-lead fees, ever.
+      ProGuild.ai · Verified trades community · Flat $49.99/mo roofing · $29.99/mo other trades · No per-lead fees, ever.
     </p>
   </td></tr>
 </table>

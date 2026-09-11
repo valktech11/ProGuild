@@ -128,7 +128,7 @@ export default function ClaimPage() {
             <img src="/logo.png" alt="ProGuild" style={{ width: 36, height: 36, borderRadius: 8 }} />
             <span style={{ color: '#fff', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>ProGuild.ai</span>
           </div>
-          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Florida's Verified Trades Network</div>
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Verified Licensed Contractors</div>
         </div>
 
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, overflow: 'hidden' }}>
@@ -297,7 +297,7 @@ export default function ClaimPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20, color: C.muted, fontSize: 12 }}>
-          ProGuild.ai · Florida's Verified Trades Network
+          ProGuild.ai · Verified Licensed Contractors
         </div>
       </div>
     </div>

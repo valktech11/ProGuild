@@ -34,7 +34,7 @@ function expiryEmail(pro: any, daysLeft: number, licenseNumber: string, tradeNam
     </div>
     <a href="https://proguild.ai/edit-profile" style="display:inline-block;background:${color};color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;margin-right:12px;">Update my profile</a>
     <a href="https://www.myfloridalicense.com" style="display:inline-block;color:${color};font-size:13px;text-decoration:underline;">Renew at DBPR →</a>
-    <p style="font-size:12px;color:#aaa;margin-top:24px;">ProGuild.ai · Florida's verified trades community</p>
+    <p style="font-size:12px;color:#aaa;margin-top:24px;">ProGuild.ai · Verified trades community</p>
   </td></tr>
 </table>
 </td></tr>

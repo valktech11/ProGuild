@@ -57,7 +57,7 @@ function outreachEmail(pro: any, contact: {
     </table>
 
     <p style="font-size:12px;color:#A89F93;margin:0;line-height:1.6;">
-      ProGuild.ai · Florida's verified trades network · Zero lead fees<br/>
+      ProGuild.ai · Verified trades network · Zero lead fees<br/>
       You're receiving this because a homeowner found your DBPR-verified profile on ProGuild.ai.
       <a href="https://proguild.ai" style="color:#0F766E;">Unsubscribe</a>
     </p>
