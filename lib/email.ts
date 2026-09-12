@@ -386,7 +386,7 @@ export function homeownerConfirmationEmail({
 </html>`
 }
 
-export function unclaimedLeadEmail({ proName, proEmail, contactName, message, claimUrl, tradeSlug }: UnclaimedLeadEmailProps & { tradeSlug?: string }): string {
+export function unclaimedLeadEmail({ proName, proEmail, contactName, message, claimUrl, tradeSlug, licenseNumber }: UnclaimedLeadEmailProps & { tradeSlug?: string; licenseNumber?: string }): string {
   const firstName = proName.includes(',')
     ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
     : proName.split(' ')[0]
@@ -406,41 +406,69 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Professional trades marketplace</div>
     </td></tr>
     <tr><td style="padding:28px 32px;">
-      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">New homeowner enquiry</div>
-      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">Someone wants to hire you, ${firstName}</div>
-      <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">
-        We built a verified profile for you on ProGuild using your public DBPR license record — and a homeowner just found it.<br><br>
-        <strong>${contactName}</strong> wants to discuss a ${tradeLabel.toLowerCase()} project. Claim your profile to see their contact details and respond directly.
+      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:8px;">New homeowner enquiry</div>
+      <div style="font-size:22px;font-weight:700;color:#1a1a18;margin-bottom:6px;line-height:1.3;">A homeowner is looking for a ${tradeLabel.toLowerCase()} in your area</div>
+      <div style="font-size:14px;color:#73726c;margin-bottom:20px;line-height:1.6;">
+        Hi ${firstName},<br><br>
+        A homeowner recently reached out through ProGuild looking to discuss a ${tradeLabel.toLowerCase()} project.<br><br>
+        Your contractor license is publicly listed with the Florida Department of Business and Professional Regulation (DBPR).
+        We used that public record to create a verified profile on ProGuild —
+        <strong>you have not signed up or been charged anything.</strong>
       </div>
 
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;">
-        <tr><td style="padding:20px;">
-          <div style="font-size:13px;font-weight:600;color:#1a1a18;margin-bottom:4px;">${contactName}</div>
-          <div style="font-size:13px;color:#73726c;font-style:italic;">"${message}"</div>
-          <div style="margin-top:12px;font-size:12px;color:#9c9a92;">Contact details visible after you claim your profile</div>
+      <!-- License verification badge -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr><td>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:#f0fdf9;border:1px solid #a7f3d0;border-radius:8px;padding:8px 14px;">
+            <span style="color:#0F766E;font-size:14px;font-weight:700;">✓</span>
+            <span style="font-size:12px;font-weight:600;color:#065f46;">Verified Florida License${licenseNumber ? ` · #${licenseNumber}` : ''} · DBPR</span>
+          </div>
         </td></tr>
       </table>
 
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-        <tr>
-          <td align="center">
-            <a href="${claimUrl}" style="display:inline-block;background:#0F766E;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;">
-              Claim Your Profile →
-            </a>
-          </td>
-        </tr>
+      <!-- Lead card -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;">
+        <tr><td style="padding:20px;">
+          <div style="font-size:13px;font-weight:700;color:#1a1a18;margin-bottom:4px;">${contactName}</div>
+          <div style="font-size:13px;color:#73726c;font-style:italic;margin-bottom:10px;">"${message}"</div>
+          <div style="font-size:12px;color:#9c9a92;border-top:1px solid #e2e1db;padding-top:10px;">
+            📞 Phone &amp; email visible after you claim your profile
+          </div>
+        </td></tr>
       </table>
 
-      <div style="font-size:12px;color:#9c9a92;text-align:center;line-height:1.6;">
-        No credit card required · Cancel anytime.<br>
-        Your 90-day free trial starts the moment you claim.
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+        <tr><td align="center">
+          <a href="${claimUrl}" style="display:inline-block;background:#0F766E;color:#ffffff;font-size:15px;font-weight:600;padding:14px 36px;border-radius:10px;text-decoration:none;">
+            Claim Your Verified Profile →
+          </a>
+        </td></tr>
+      </table>
+
+      <div style="font-size:12px;color:#9c9a92;text-align:center;line-height:1.8;margin-bottom:24px;">
+        No credit card required.<br>
+        Your first 90 days are included when you claim.
       </div>
+
+      <!-- Why receiving this -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4ef;border-radius:10px;margin-bottom:8px;">
+        <tr><td style="padding:16px 20px;">
+          <div style="font-size:11px;font-weight:700;color:#9c9a92;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Why you're receiving this</div>
+          <div style="font-size:12px;color:#73726c;line-height:1.6;">
+            ProGuild creates verified contractor profiles from public Florida DBPR license records so homeowners can find licensed professionals.
+            You can claim your profile, update your information, or leave it unclaimed — your choice.
+          </div>
+        </td></tr>
+      </table>
+
     </td></tr>
-    <tr><td style="padding:20px 32px;border-top:1px solid #e2e1db;">
+    <tr><td style="padding:16px 32px;border-top:1px solid #e2e1db;">
       <div style="font-size:11px;color:#b5b3ab;text-align:center;line-height:1.8;">
-        © 2026 ProGuild.ai · <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">proguild.ai</a><br>
+        © 2026 <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">ProGuild.ai</a> · Serving Florida Licensed Contractors<br>
         L-K Enterprises, Dombivali, Maharashtra, India<br>
-        You received this because a homeowner found your verified license on ProGuild.
+        You received this because your license is publicly listed with Florida DBPR.
+        &nbsp;·&nbsp;
         <a href="https://proguild.ai/unsubscribe?email=\${encodeURIComponent(proEmail)}" style="color:#9c9a92;text-decoration:underline;">Unsubscribe</a>
       </div>
     </td></tr>

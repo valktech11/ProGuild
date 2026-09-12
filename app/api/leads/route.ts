@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token')
+    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token, license_number')
     .eq('id', pro_id)
     .single()
 
@@ -386,12 +386,13 @@ export async function POST(req: NextRequest) {
           subject  = `Someone enquired about your roofing services — ProGuild.ai`
           template = 'unclaimed_lead_notification'
           emailHtml = unclaimedLeadEmail({
-            proName:     proRecord.full_name,
-            proEmail:    proRecord.email,
-            contactName: contact_name,
+            proName:       proRecord.full_name,
+            proEmail:      proRecord.email,
+            contactName:   contact_name,
             message,
-            tradeSlug:   proRecord.trade_slug || undefined,
-            claimUrl:    proRecord.claim_token
+            tradeSlug:     proRecord.trade_slug || undefined,
+            licenseNumber: proRecord.license_number || undefined,
+            claimUrl:      proRecord.claim_token
               ? `${appUrl}/claim/${proRecord.claim_token}`
               : `${appUrl}/login?tab=signup&claim=${pro_id}`,
           })
