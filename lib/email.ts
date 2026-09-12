@@ -391,7 +391,12 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
     ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
     : proName.split(' ')[0]
   const tradeLabel = tradeSlug
-    ? tradeSlug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    ? (() => {
+        const base = tradeSlug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+        // Add 'Contractor' suffix for bare trade nouns that need it
+        if (['Roofing', 'Painting', 'Landscaping', 'Flooring', 'Drywall', 'Carpentry'].includes(base)) return base + ' Contractor'
+        return base
+      })()
     : 'home improvement'
 
   return `<!DOCTYPE html>
@@ -410,7 +415,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       <div style="font-size:22px;font-weight:700;color:#1a1a18;margin-bottom:6px;line-height:1.3;">A homeowner is looking for a ${tradeLabel.toLowerCase()} in your area</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:20px;line-height:1.6;">
         Hi ${firstName},<br><br>
-        A homeowner recently reached out through ProGuild looking to discuss a ${tradeLabel.toLowerCase().replace('contractor', '').replace('technician', '').trim()} project.<br><br>
+        A homeowner recently reached out through ProGuild looking to discuss a ${tradeLabel.toLowerCase().replace(' contractor', '').trim()} project.<br><br>
         Your contractor license is publicly listed with the Florida Department of Business and Professional Regulation (DBPR).
         We used that public record to create a profile for you on ProGuild, with your license verified against DBPR.
         <strong>You have not signed up or been charged anything.</strong>
@@ -469,7 +474,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
         ProGuild LLC · 30 N Gould St, Sheridan, WY 82801<br>
         You received this because your license is publicly listed with Florida DBPR.
         &nbsp;·&nbsp;
-        <a href="https://proguild.ai/unsubscribe?email=\${encodeURIComponent(proEmail)}" style="color:#9c9a92;text-decoration:underline;">Unsubscribe</a>
+        <a href="https://proguild.ai/unsubscribe?email=${encodeURIComponent(proEmail)}" style="color:#9c9a92;text-decoration:underline;">Unsubscribe</a>
       </div>
     </td></tr>
   </table>
