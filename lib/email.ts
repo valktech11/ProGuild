@@ -150,7 +150,7 @@ export function leadNotificationEmail({
         You're receiving this because you have an active ProGuild.ai pro account.
         <a href="${dashboardUrl}" style="color:#73726c;text-decoration:none;">Manage notifications</a>
       </div>
-      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · Univaro Technologies</div>
+      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · ProGuild LLC · 30 N Gould St, Sheridan, WY 82801</div>
     </td></tr>
 
   </table>
@@ -274,7 +274,7 @@ export async function sendVisualizerPickEmail({
       <div style="font-size:12px;color:#9c9a92;line-height:1.6;">
         Sent via ProGuild.ai Roof Visualizer · <a href="https://proguild.ai" style="color:#73726c;text-decoration:none;">proguild.ai</a>
       </div>
-      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · Univaro Technologies</div>
+      <div style="font-size:11px;color:#9c9a92;margin-top:6px;">© 2026 ProGuild.ai · ProGuild LLC · 30 N Gould St, Sheridan, WY 82801</div>
     </td></tr>
 
   </table>
