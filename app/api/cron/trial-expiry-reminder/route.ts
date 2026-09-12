@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { notify } from '@/lib/notifications'
 import { Resend } from 'resend'
 
 function getResend() { return new Resend(process.env.RESEND_API_KEY || '') }
@@ -207,6 +208,23 @@ export async function GET(req: NextRequest) {
             status:     'sent',
             sent_at:    new Date().toISOString(),
           })
+
+          // In-app notification → bell + mobile inbox
+          const notifBody = daysLeft <= 0
+            ? 'Your free trial has ended. Upgrade to restore access.'
+            : daysLeft === 1
+            ? 'Last day of your free trial — upgrade to keep access.'
+            : `Your trial expires in ${daysLeft} days — upgrade to keep your listing and CRM.`
+
+          void notify({
+            proId:     pro.id,
+            companyId: null,
+            type:      'trial_expiry_reminder',
+            title:     daysLeft <= 0 ? 'Free trial ended' : `Trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+            body:      notifBody,
+            leadId:    null,
+          })
+
           sent++
         }
       } catch (e: any) {

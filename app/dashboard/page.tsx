@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Lead, Review } from '@/types'
+import { Lead, Review, isPaidPlan } from '@/types'
 import { timeAgo, fmtCurrency, proFirstName } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
@@ -504,19 +504,52 @@ export default function OverviewPage() {
 
         </div>
 
-        {/* ── Google ID nudge — shown to owners without google_id set ── */}
-        {session?.role !== 'member' && !session?.google_id && leads.length > 0 && (
-          <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10,
-            padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 18 }}>⭐</span>
-            <div style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
-              <strong>Set up Google Reviews</strong> — Add your Google Business Profile ID to automatically
-              request reviews after each job.
+        {/* ── Priority banner — trial warning > Google Reviews nudge ── */}
+        {(() => {
+          const trialDate = session?.trial_ends_at ? new Date(session.trial_ends_at) : null
+          const trialActive = trialDate ? trialDate > new Date() : false
+          const daysLeft = trialDate && trialActive
+            ? Math.ceil((trialDate.getTime() - Date.now()) / 86400000) : 0
+          const showTrialWarning = !isPaidPlan(session?.plan ?? 'Free') && trialDate && daysLeft <= 14
+
+          if (showTrialWarning) return (
+            <div style={{ background: daysLeft <= 1 ? '#FEF2F2' : '#FFFBEB',
+              border: `1px solid ${daysLeft <= 1 ? '#FECACA' : '#FCD34D'}`,
+              borderRadius: 10, padding: '10px 14px', display: 'flex',
+              alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>{daysLeft <= 1 ? '🔴' : '⏱'}</span>
+              <div style={{ flex: 1, fontSize: 13, color: daysLeft <= 1 ? '#991B1B' : '#92400E' }}>
+                {daysLeft <= 0
+                  ? <><strong>Your free trial has ended.</strong> Upgrade to restore access to your leads, pipeline, and tools.</>
+                  : daysLeft === 1
+                  ? <><strong>Last day of your free trial.</strong> Upgrade now to keep uninterrupted access.</>
+                  : <><strong>{daysLeft} days left in your trial.</strong> Upgrade to Pro to keep your verified listing and CRM tools.</>
+                }
+              </div>
+              <a href="/subscribe" style={{ fontSize: 12, fontWeight: 700,
+                color: daysLeft <= 1 ? '#DC2626' : '#D97706',
+                textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                {daysLeft <= 0 ? 'Restore access →' : 'Upgrade →'}
+              </a>
             </div>
-            <a href="/edit-profile" style={{ fontSize: 12, fontWeight: 600, color: '#D97706',
-              textDecoration: 'none', whiteSpace: 'nowrap' }}>Add now →</a>
-          </div>
-        )}
+          )
+
+          // Google Reviews nudge — only when no trial warning
+          if (session?.role !== 'member' && !session?.google_id && leads.length > 0) return (
+            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10,
+              padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>⭐</span>
+              <div style={{ flex: 1, fontSize: 13, color: '#92400E' }}>
+                <strong>Set up Google Reviews</strong> — Add your Google Business Profile ID to automatically
+                request reviews after each job.
+              </div>
+              <a href="/edit-profile" style={{ fontSize: 12, fontWeight: 600, color: '#D97706',
+                textDecoration: 'none', whiteSpace: 'nowrap' }}>Add now →</a>
+            </div>
+          )
+
+          return null
+        })()}
 
         {/* ── Welcome card — trade-aware, shown for fresh accounts with no leads ── */}
         {leads.length === 0 && reviews.length === 0 && (() => {

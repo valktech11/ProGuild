@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Session, isPaidPlan } from '@/types'
-import { initials, avatarColor, planLabel } from '@/lib/utils'
+import { initials, avatarColor, planLabel, proDisplayName, proFirstName } from '@/lib/utils'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
@@ -412,7 +412,7 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
                   <Av s={session} px={42} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-white leading-tight truncate" style={{ fontSize: 17 }}>{session.name}</div>
+                  <div className="font-bold text-white leading-tight truncate" style={{ fontSize: 17 }}>{proDisplayName(session.name)}</div>
                   {tradeCity && (
                     <div className="mt-0.5 truncate" style={{ fontSize: 13, color: 'rgba(255,255,255,.62)' }}>{tradeCity}</div>
                   )}
@@ -644,7 +644,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
           <button onClick={() => { setUserOpen(o => !o) }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Av s={session} px={28} />
-            <span className="text-[14px] font-semibold" style={{ color: txt }}>{session.name?.split(' ')[0]}</span>
+            <span className="text-[14px] font-semibold" style={{ color: txt }}>{proFirstName(session.name)}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 9l6 6 6-6" />
             </svg>
@@ -656,7 +656,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 
               {/* User info */}
               <div className="px-4 py-3 border-b" style={{ borderColor: bdr }}>
-                <div className="text-[14px] font-bold" style={{ color: txt }}>{session.name}</div>
+                <div className="text-[14px] font-bold" style={{ color: txt }}>{proDisplayName(session.name)}</div>
                 <div className="text-[14px] mt-0.5" style={{ color: '#9CA3AF' }}>{session.email}</div>
               </div>
 
@@ -846,7 +846,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                     <Av s={session} px={28} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[14px] font-bold text-white truncate">{session.name}</div>
+                    <div className="text-[14px] font-bold text-white truncate">{proDisplayName(session.name)}</div>
                     <div className="text-[14px] mt-px truncate" style={{ color: 'rgba(255,255,255,.45)' }}>
                       {session.trade || planLabel(session.plan)}{session.city ? ` · ${session.city}` : ''}
                     </div>

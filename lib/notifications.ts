@@ -10,6 +10,7 @@ export type NotificationType =
   | 'job_won'
   | 'estimate_approved'
   | 'new_lead_created'
+  | 'trial_expiry_reminder'
 
 interface NotifyParams {
   proId: string          // recipient
