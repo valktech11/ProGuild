@@ -170,6 +170,12 @@ export async function POST(req: NextRequest) {
     trade_slug: clientTradeSlug,
   } = body
 
+  // Parse ZIP from property_address string if contact_zip not explicitly provided
+  // Google Places autocomplete returns "123 Main St, Tampa, FL 33601" — extract ZIP
+  const resolvedZip = contact_zip?.trim() || (
+    property_address ? (property_address.match(/(\d{5})(?:-\d{4})?/) || [])[1] || null : null
+  )
+
   // Two distinct flows share this endpoint:
   //   • Manual (is_manual): a signed-in pro creates a lead from the dashboard.
   //     Requires bearer auth; pro_id must equal the caller's own pros.id.
@@ -279,6 +285,7 @@ export async function POST(req: NextRequest) {
         address_line1: streetOnly                          || null,
         city:          contact_city?.trim()                || null,
         state:         contact_state?.trim()               || null,
+        zip_code:      resolvedZip || null,
       }).select('id').single()
       if (clientErr) console.error('Client insert failed:', clientErr.message, clientErr.details)
       if (newClient) clientId = newClient.id
@@ -299,6 +306,7 @@ export async function POST(req: NextRequest) {
           address:       streetOnly,            // legacy NOT NULL column in prod
           city:          contact_city?.trim()  || null,
           state:         contact_state?.trim() || null,
+          zip_code:      resolvedZip            || null,
           client_id:     clientId              || null,
           property_type: 'residential',
         }).select('id').single()
