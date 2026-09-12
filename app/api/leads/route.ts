@@ -383,7 +383,7 @@ export async function POST(req: NextRequest) {
           })
         } else {
           // Unclaimed pro — claim prompt email
-          subject  = `Someone enquired about your roofing services — ProGuild.ai`
+          subject  = `A homeowner contacted you through ProGuild`
           template = 'unclaimed_lead_notification'
           emailHtml = unclaimedLeadEmail({
             proName:       proRecord.full_name,
@@ -460,7 +460,7 @@ export async function POST(req: NextRequest) {
         await _resend.emails.send({
           from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
           to:      homeownerEmail,
-          subject: `Your message to ${proDisplayName(proRecord.full_name)} — ProGuild`,
+          subject: `Your message was sent to ${proDisplayName(proRecord.full_name)}`,
           html:    confirmHtml,
         })
         console.log('[leads] Homeowner confirmation sent to', homeownerEmail)

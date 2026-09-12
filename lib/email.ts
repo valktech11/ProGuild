@@ -131,14 +131,14 @@ export function leadNotificationEmail({
           <a href="${dashboardUrl}" style="display:block;background:#1D9E75;color:#ffffff;text-align:center;padding:14px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;">View lead in dashboard →</a>
         </td></tr>
         <tr><td>
-          <a href="mailto:${contactEmail}" style="display:block;border:1px solid #c8c7bf;color:#73726c;text-align:center;padding:12px;border-radius:10px;font-size:13px;text-decoration:none;">Reply directly to ${contactName.split(' ')[0]}</a>
+          <a href="mailto:${contactEmail}" style="display:block;border:1px solid #c8c7bf;color:#73726c;text-align:center;padding:12px;border-radius:10px;font-size:13px;text-decoration:none;">Message ${contactName.split(' ')[0]} →</a>
         </td></tr>
       </table>
 
       <!-- Tip -->
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="background:#FFF3CD;border-left:3px solid #EF9F27;border-radius:0 8px 8px 0;padding:12px 14px;">
-          <div style="font-size:13px;color:#633806;line-height:1.55;">Pros who respond within 1 hour are 3× more likely to win the job. Reply now while the lead is fresh.</div>
+          <div style="font-size:13px;color:#633806;line-height:1.55;">Tip: Respond while the homeowner is actively looking.</div>
         </td></tr>
       </table>
 
@@ -240,8 +240,8 @@ export async function sendVisualizerPickEmail({
 
     <tr><td style="padding:28px 32px;">
       <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">Homeowner decision</div>
-      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">${firstName === 'Roofer' ? 'Your homeowner picked a colour' : `They picked a colour, ${firstName}`}</div>
-      <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">Your homeowner reviewed the renders you sent and made a choice. Time to follow up.</div>
+      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">${firstName === 'Roofer' ? 'Your homeowner picked a colour' : `They picked a shingle color, ${firstName}`}</div>
+      <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">Your homeowner reviewed the renders you sent and selected a shingle color. This is a good time to follow up.</div>
 
       <!-- Chosen colour card -->
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;overflow:hidden;">
@@ -265,7 +265,7 @@ export async function sendVisualizerPickEmail({
 
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="background:#E1F5EE;border-left:3px solid #0d9488;border-radius:0 8px 8px 0;padding:12px 14px;">
-          <div style="font-size:13px;color:#085041;line-height:1.55;">Follow up now while momentum is high — homeowners who've chosen a colour are ready to talk next steps.</div>
+          <div style="font-size:13px;color:#085041;line-height:1.55;">Follow up now while momentum is high — Follow up while the project is fresh and the homeowner has a specific option in mind.</div>
         </td></tr>
       </table>
     </td></tr>
@@ -337,7 +337,7 @@ export function homeownerConfirmationEmail({
       <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 20px;">
         Hi ${greeting},<br><br>
         We've sent your message to <strong>${proFullName}</strong>, a licensed ${trade.toLowerCase()}${location}. 
-        They'll be in touch with you directly.
+        They can reach out to you directly.
       </p>
 
       <!-- Message recap -->
@@ -353,7 +353,7 @@ export function homeownerConfirmationEmail({
         <div style="display:flex;flex-direction:column;gap:10px;">
           ${[
             ['✓', `${proFirstName} receives your message and contact details`],
-            ['✓', 'They will reach out directly — no middleman involved'],
+            ['✓', 'They can contact you directly — no middleman involved'],
             ['✓', 'ProGuild never charges you or the contractor a lead fee'],
           ].map(([icon, text]) => `
           <div style="display:flex;align-items:flex-start;gap:10px;">
