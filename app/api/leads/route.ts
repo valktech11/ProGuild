@@ -212,11 +212,12 @@ export async function POST(req: NextRequest) {
   })
 
   // ── Resolve pro profile — trade_slug + notification email ────────────────
-  const { data: proRecord } = await supabase
+  const { data: proRecord, error: proRecordErr } = await supabase
     .from('pros')
     .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token, license_number, lead_notifications_disabled')
     .eq('id', pro_id)
     .single()
+  if (proRecordErr) console.error('[leads] proRecord lookup error:', proRecordErr.message, proRecordErr.code, 'pro_id:', pro_id)
 
   // Resolve trade_slug through a priority chain so the lead always gets the
   // correct initial stage even if pros.trade_slug hasn't been backfilled:
