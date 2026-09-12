@@ -45,7 +45,7 @@ function UnsubscribeContent() {
               style={{ width: '100%', padding: '12px 24px', background: '#EF4444', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>
               {loading ? 'Processing...' : 'Unsubscribe'}
             </button>
-            <Link href="/" style={{ fontSize: 13, color: '#A89F93' }}>Cancel — keep receiving notifications</Link>
+            <Link href="/" style={{ fontSize: 13, color: '#A89F93' }}>No thanks — keep receiving notifications</Link>
           </>
         )}
       </div>

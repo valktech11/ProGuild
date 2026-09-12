@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
   // ── Resolve pro profile — trade_slug + notification email ────────────────
   const { data: proRecord } = await supabase
     .from('pros')
-    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token, license_number')
+    .select('id, trade_slug, trade_category_id, full_name, email, phone, plan_tier, city, state, is_claimed, trial_ends_at, company_id, claim_token, license_number, lead_notifications_disabled')
     .eq('id', pro_id)
     .single()
 
@@ -367,6 +367,11 @@ export async function POST(req: NextRequest) {
         const showPhone = isClaimed && (trialActive || isPaid)
 
         let emailHtml: string
+        // Respect unsubscribe — do not send if pro opted out
+        if ((proRecord as any).lead_notifications_disabled) {
+          console.log('[leads] Email suppressed — pro unsubscribed:', proRecord.email)
+        } else {
+
         let subject: string
         let template: string
 
@@ -475,6 +480,8 @@ export async function POST(req: NextRequest) {
         // Non-fatal — pro notification already sent
       }
     }
+
+        } // end lead_notifications_disabled check
 
     // SMS only for claimed pros with phone
     if (proRecord?.is_claimed && proRecord?.phone) {
