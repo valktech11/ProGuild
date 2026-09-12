@@ -377,7 +377,7 @@ export function homeownerConfirmationEmail({
     <div style="background:#F9FAFB;padding:16px 32px;text-align:center;border-top:1px solid #F0EDE8;">
       <p style="font-size:12px;color:#9CA3AF;margin:0;line-height:1.8;">
         <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;font-weight:600;">ProGuild.ai</a> · Verified Licensed Contractors<br>
-        L-K Enterprises, Dombivali, Maharashtra, India<br>
+        ProGuild LLC · 30 N Gould St, Sheridan, WY 82801<br>
         You submitted a contact request through ProGuild.ai.
       </p>
     </div>
@@ -410,10 +410,10 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       <div style="font-size:22px;font-weight:700;color:#1a1a18;margin-bottom:6px;line-height:1.3;">A homeowner is looking for a ${tradeLabel.toLowerCase()} in your area</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:20px;line-height:1.6;">
         Hi ${firstName},<br><br>
-        A homeowner recently reached out through ProGuild looking to discuss a ${tradeLabel.toLowerCase()} project.<br><br>
+        A homeowner recently reached out through ProGuild looking to discuss a ${tradeLabel.toLowerCase().replace('contractor', '').replace('technician', '').trim()} project.<br><br>
         Your contractor license is publicly listed with the Florida Department of Business and Professional Regulation (DBPR).
-        We used that public record to create a verified profile on ProGuild —
-        <strong>you have not signed up or been charged anything.</strong>
+        We used that public record to create a profile for you on ProGuild, with your license verified against DBPR.
+        <strong>You have not signed up or been charged anything.</strong>
       </div>
 
       <!-- License verification badge -->
@@ -421,7 +421,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
         <tr><td>
           <div style="display:inline-flex;align-items:center;gap:8px;background:#f0fdf9;border:1px solid #a7f3d0;border-radius:8px;padding:8px 14px;">
             <span style="color:#0F766E;font-size:14px;font-weight:700;">✓</span>
-            <span style="font-size:12px;font-weight:600;color:#065f46;">Verified Florida License${licenseNumber ? ` · #${licenseNumber}` : ''} · DBPR</span>
+            <span style="font-size:12px;font-weight:600;color:#065f46;">Florida License Verified${licenseNumber ? ` · #${licenseNumber}` : ''} · DBPR</span>
           </div>
         </td></tr>
       </table>
@@ -432,7 +432,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
           <div style="font-size:13px;font-weight:700;color:#1a1a18;margin-bottom:4px;">${contactName}</div>
           <div style="font-size:13px;color:#73726c;font-style:italic;margin-bottom:10px;">"${message}"</div>
           <div style="font-size:12px;color:#9c9a92;border-top:1px solid #e2e1db;padding-top:10px;">
-            📞 Phone &amp; email visible after you claim your profile
+            Claim your profile to view ${contactName.split(' ')[0]}'s contact details and respond directly.
           </div>
         </td></tr>
       </table>
@@ -447,8 +447,8 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       </table>
 
       <div style="font-size:12px;color:#9c9a92;text-align:center;line-height:1.8;margin-bottom:24px;">
-        No credit card required.<br>
-        Your first 90 days are included when you claim.
+        Claiming is free — no credit card required.<br>
+        Your first 90 days are included.
       </div>
 
       <!-- Why receiving this -->
@@ -457,7 +457,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
           <div style="font-size:11px;font-weight:700;color:#9c9a92;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Why you're receiving this</div>
           <div style="font-size:12px;color:#73726c;line-height:1.6;">
             ProGuild creates verified contractor profiles from public Florida DBPR license records so homeowners can find licensed professionals.
-            You can claim your profile, update your information, or leave it unclaimed — your choice.
+            You can claim your profile, update your information, or leave it unclaimed — it's completely up to you.
           </div>
         </td></tr>
       </table>
@@ -465,8 +465,8 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
     </td></tr>
     <tr><td style="padding:16px 32px;border-top:1px solid #e2e1db;">
       <div style="font-size:11px;color:#b5b3ab;text-align:center;line-height:1.8;">
-        © 2026 <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">ProGuild.ai</a> · Serving Florida Licensed Contractors<br>
-        L-K Enterprises, Dombivali, Maharashtra, India<br>
+        © 2026 <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">ProGuild.ai</a> · Serving Licensed Contractors<br>
+        ProGuild LLC · 30 N Gould St, Sheridan, WY 82801<br>
         You received this because your license is publicly listed with Florida DBPR.
         &nbsp;·&nbsp;
         <a href="https://proguild.ai/unsubscribe?email=\${encodeURIComponent(proEmail)}" style="color:#9c9a92;text-decoration:underline;">Unsubscribe</a>
