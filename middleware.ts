@@ -116,10 +116,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // ── Dashboard auth guard — server-side redirect before page loads ──
-  // Prevents blank page flash when unauthenticated users hit /dashboard/* directly
-  // (e.g. clicking "View lead in dashboard" from email while not logged in).
-  // Lightweight cookie check only — real validation happens in /api/auth/me.
+  // ── Dashboard auth + plan guard ─────────────────────────────────────────────
+  // Two checks for /dashboard/* requests:
+  // 1. Not logged in → redirect to /login?redirect=[path]
+  // 2. Logged in but trial expired (pg_plan=free) → redirect to /subscribe
+  // pg_plan cookie is set by /api/auth/me on every session resolve (2hr expiry).
   if (pathname.startsWith('/dashboard')) {
     const hasSbSession = req.cookies.getAll().some(c =>
       c.name.includes('-auth-token') && c.value && c.value !== ''
@@ -129,6 +130,15 @@ export function middleware(req: NextRequest) {
       loginUrl.pathname = '/login'
       loginUrl.searchParams.set('redirect', pathname + req.nextUrl.search)
       return NextResponse.redirect(loginUrl)
+    }
+
+    // Plan gate — only redirect if pg_plan cookie explicitly says 'free'
+    // (not if cookie is missing — missing means session not yet resolved, let client handle)
+    const pgPlan = req.cookies.get('pg_plan')?.value
+    if (pgPlan === 'free') {
+      const subscribeUrl = req.nextUrl.clone()
+      subscribeUrl.pathname = '/subscribe'
+      return NextResponse.redirect(subscribeUrl)
     }
   }
 

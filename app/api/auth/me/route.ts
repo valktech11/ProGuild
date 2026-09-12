@@ -146,7 +146,20 @@ export async function GET(req: NextRequest) {
   const role = ((membershipRes as any).data?.role as 'owner' | 'member') ?? null
   const wasRemoved = isRemovedCandidate ? (((removedCheckRes as any).count) ?? 0) > 0 : false
 
-  return NextResponse.json({
+  // Determine plan status for middleware cookie
+  // Values: 'paid' | 'trial' | 'free'
+  // Middleware uses this to redirect /dashboard/* to /subscribe when free
+  const now = new Date()
+  const trialDateObj = trialEndsAt ? new Date(trialEndsAt) : null
+  const pgPlanStatus = (plan === 'Pro' || plan === 'Elite')
+    ? 'paid'
+    : (trialDateObj && trialDateObj > now)
+    ? 'trial'
+    : 'free'
+
+  const cookieMaxAge = 60 * 60 * 2 // 2 hours — short so expiry triggers promptly
+
+  const res = NextResponse.json({
     session: {
       // ── Existing fields (unchanged) ──
       id:             pro.id,
@@ -171,4 +184,14 @@ export async function GET(req: NextRequest) {
     needsProfile: false,
     removedFromCompany: wasRemoved,
   })
+
+  res.cookies.set('pg_plan', pgPlanStatus, {
+    httpOnly: false, // readable by middleware
+    secure: true,
+    sameSite: 'lax',
+    maxAge: cookieMaxAge,
+    path: '/',
+  })
+
+  return res
 }
