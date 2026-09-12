@@ -90,10 +90,11 @@ export async function GET(req: NextRequest) {
     const sub = subs.data[0]
     if (sub) {
       const item = sub.items.data[0]
+      const subAny = sub as any
       base.subscription = {
         status:               sub.status,
-        current_period_end:   sub.current_period_end,
-        cancel_at_period_end: sub.cancel_at_period_end,
+        current_period_end:   subAny.current_period_end ?? subAny.billing_cycle_anchor ?? 0,
+        cancel_at_period_end: subAny.cancel_at_period_end ?? false,
         amount:               item?.price?.unit_amount ?? 0,
         currency:             item?.price?.currency ?? 'usd',
         interval:             item?.price?.recurring?.interval ?? 'month',
