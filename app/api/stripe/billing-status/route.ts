@@ -114,8 +114,8 @@ export async function GET(req: NextRequest) {
       currency:    inv.currency,
       status:      inv.status ?? 'unknown',
       created:     inv.created,
-      invoice_pdf: inv.invoice_pdf,
-      hosted_url:  inv.hosted_invoice_url,
+      invoice_pdf: inv.invoice_pdf ?? null,
+      hosted_url:  inv.hosted_invoice_url ?? null,
     }))
 
   } catch (e: any) {
