@@ -22,6 +22,7 @@ export default function SubscribePage() {
     if (isPaid) router.replace('/dashboard')
   }, [loading, session, router])
 
+  const isMember  = session?.role === 'member'
   const isRoofing = ROOFING_SLUGS.has((session as any)?.trade_slug ?? '')
   const price     = isRoofing ? '$49.99' : '$29.99'
   const tradeName = isRoofing ? 'Roofing' : 'Trades'
@@ -47,6 +48,23 @@ export default function SubscribePage() {
   }
 
   if (loading) return null
+
+  // Member — can't pay, show message to contact owner
+  if (isMember) return (
+    <div style={{ minHeight: '100vh', background: '#0A1628', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 40, maxWidth: 400, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#0A1628', marginBottom: 12 }}>Subscription required</div>
+        <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.6, marginBottom: 24 }}>
+          Your company's free trial has ended. Only the account owner can renew the subscription.
+          Please contact your team owner to restore access.
+        </p>
+        <a href="mailto:hello@proguild.ai" style={{ fontSize: 13, color: '#0F766E', textDecoration: 'none', fontWeight: 600 }}>
+          Contact ProGuild support →
+        </a>
+      </div>
+    </div>
+  )
 
   return (
     <div style={{
