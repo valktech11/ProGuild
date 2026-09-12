@@ -478,8 +478,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-        } // end lead_notifications_disabled check
-
     // SMS only for claimed pros with phone
     if (proRecord?.is_claimed && proRecord?.phone) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'
