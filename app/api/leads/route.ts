@@ -279,7 +279,6 @@ export async function POST(req: NextRequest) {
         address_line1: streetOnly                          || null,
         city:          contact_city?.trim()                || null,
         state:         contact_state?.trim()               || null,
-        zip_code:      contact_zip?.trim()                 || null,
       }).select('id').single()
       if (clientErr) console.error('Client insert failed:', clientErr.message, clientErr.details)
       if (newClient) clientId = newClient.id
@@ -300,7 +299,6 @@ export async function POST(req: NextRequest) {
           address:       streetOnly,            // legacy NOT NULL column in prod
           city:          contact_city?.trim()  || null,
           state:         contact_state?.trim() || null,
-          zip_code:      contact_zip?.trim()   || null,
           client_id:     clientId              || null,
           property_type: 'residential',
         }).select('id').single()
