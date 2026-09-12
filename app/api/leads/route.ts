@@ -444,7 +444,7 @@ export async function POST(req: NextRequest) {
               leadId:    lead.id,
             })
           }
-        }
+        } // end lead_notifications_disabled check
       } catch (e) { console.error('[leads] Email failed:', e) }
     }
     // ── Homeowner confirmation email ─────────────────────────────────────────
