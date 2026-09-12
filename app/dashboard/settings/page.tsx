@@ -22,6 +22,8 @@ export default function SettingsPage() {
   const [resetBusy, setResetBusy] = useState(false)
   const [portalBusy, setPortalBusy] = useState(false)
   const [portalErr, setPortalErr]   = useState('')
+  const [billing,    setBilling]    = useState<any>(null)
+  const [billingLoading, setBillingLoading] = useState(false)
   const [delBusy, setDelBusy]     = useState(false)
   const [delDone, setDelDone]     = useState(false)
   const [delConfirm, setDelConfirm] = useState(false)
@@ -46,6 +48,16 @@ export default function SettingsPage() {
       .then(d => setConnectStatus(d))
       .catch(() => {})
   }, [session?.id, stripeConnectReturn])
+
+  useEffect(() => {
+    if (!session?.id) return
+    setBillingLoading(true)
+    apiFetch('/api/stripe/billing-status')
+      .then(r => r.json())
+      .then(d => setBilling(d))
+      .catch(() => {})
+      .finally(() => setBillingLoading(false))
+  }, [session?.id])
 
   async function handleConnectStripe() {
     if (!session?.id) return
@@ -235,20 +247,154 @@ export default function SettingsPage() {
         </div>
         )}
 
-        {/* Billing only visible to owners */}
+        {/* Billing — visible to owners only */}
         {session?.role !== 'member' && (
           <div style={{ ...card, marginBottom: 18 }}>
             <div style={sectionLabel}>BILLING & PLAN</div>
-            <div style={{ ...linkRow, borderBottom: 'none' }}>
-              <div>
-                <div style={rowLabel}>Current plan</div>
-                <div style={rowSub}>{portalErr || (session?.plan ? session.plan.replace(/_/g, ' ') : '—')}</div>
+
+            {billingLoading ? (
+              <div style={{ padding: '16px 0', color: t.textSubtle, fontSize: 13 }}>Loading billing info…</div>
+            ) : billing ? (() => {
+              const isTrialActive = billing.trial_active
+              const isPaid = billing.is_paid
+              const trialDate = billing.trial_ends_at ? new Date(billing.trial_ends_at) : null
+              const fmtDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              const fmtAmt = (cents: number, currency: string) =>
+                new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
+              const sub = billing.subscription
+              const nextPayment = sub?.current_period_end
+                ? new Date(sub.current_period_end * 1000) : null
+
+              return (
+                <>
+                  {/* Plan status card */}
+                  <div style={{ padding: '14px 0', borderBottom: `1px solid ${t.cardBorder}` }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>
+                          {isPaid ? `ProGuild ${billing.plan_tier}` : isTrialActive ? 'Free Trial' : 'Free Plan'}
+                        </div>
+
+                        {/* Trial info */}
+                        {isTrialActive && !isPaid && trialDate && (
+                          <div style={{ fontSize: 12.5, color: '#B45309', fontWeight: 600, marginBottom: 4 }}>
+                            Trial expires {fmtDate(trialDate)} · {billing.trial_days_left} day{billing.trial_days_left !== 1 ? 's' : ''} left
+                          </div>
+                        )}
+                        {!isTrialActive && !isPaid && (
+                          <div style={{ fontSize: 12.5, color: '#DC2626', fontWeight: 600, marginBottom: 4 }}>
+                            Trial ended{trialDate ? ` ${fmtDate(trialDate)}` : ''} — upgrade to restore access
+                          </div>
+                        )}
+
+                        {/* Subscription info */}
+                        {isPaid && sub && (
+                          <>
+                            <div style={{ fontSize: 12.5, color: t.textSecondary, marginBottom: 2 }}>
+                              {fmtAmt(sub.amount, sub.currency)}/{sub.interval} ·{' '}
+                              {sub.cancel_at_period_end
+                                ? <span style={{ color: '#DC2626' }}>Cancels {nextPayment ? fmtDate(nextPayment) : '—'}</span>
+                                : <span>Renews {nextPayment ? fmtDate(nextPayment) : '—'}</span>
+                              }
+                            </div>
+                            <div style={{ fontSize: 12, color: t.textSubtle }}>
+                              Status: <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{sub.status}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Trial progress bar */}
+                      {isTrialActive && !isPaid && (
+                        <div style={{ textAlign: 'right', minWidth: 80 }}>
+                          <div style={{ fontSize: 11, color: t.textSubtle, marginBottom: 4 }}>Trial progress</div>
+                          <div style={{ width: 80, height: 6, background: t.cardBorder, borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%', borderRadius: 3,
+                              width: `${Math.max(5, Math.min(100, 100 - (billing.trial_days_left / 90) * 100))}%`,
+                              background: billing.trial_days_left < 14 ? '#DC2626' : billing.trial_days_left < 30 ? '#F59E0B' : '#0F766E',
+                            }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Upgrade CTA for trial/free */}
+                    {!isPaid && (
+                      <a href="/subscribe"
+                        style={{ display: 'inline-block', marginTop: 12, padding: '8px 18px', background: 'linear-gradient(135deg,#0F766E,#0C5F57)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+                        {isTrialActive ? 'Upgrade to Pro →' : 'Restore access →'}
+                      </a>
+                    )}
+
+                    {/* Manage billing for paid */}
+                    {isPaid && (
+                      <button onClick={handleManageBilling} disabled={portalBusy}
+                        style={{ marginTop: 12, padding: '8px 18px', background: 'none', border: `1px solid ${t.cardBorder}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#2DD4BF', cursor: portalBusy ? 'default' : 'pointer', opacity: portalBusy ? 0.6 : 1 }}>
+                        {portalBusy ? 'Opening…' : 'Manage billing →'}
+                      </button>
+                    )}
+                    {portalErr && <div style={{ fontSize: 12, color: '#DC2626', marginTop: 6 }}>{portalErr}</div>}
+                  </div>
+
+                  {/* Payment history */}
+                  {billing.invoices?.length > 0 && (
+                    <div style={{ paddingTop: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: t.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 10 }}>Payment history</div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 1 }}>
+                        {billing.invoices.map((inv: any) => (
+                          <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${t.cardBorder}`, gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: t.textPri }}>
+                                {fmtAmt(inv.amount_paid, inv.currency)}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: t.textSubtle }}>
+                                {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {inv.number ? ` · ${inv.number}` : ''}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+                                background: inv.status === 'paid' ? '#DCFCE7' : '#FEE2E2',
+                                color: inv.status === 'paid' ? '#15803D' : '#DC2626',
+                                textTransform: 'capitalize' as const,
+                              }}>{inv.status}</span>
+                              {inv.invoice_pdf && (
+                                <a href={inv.invoice_pdf} target="_blank" rel="noopener noreferrer"
+                                  style={{ fontSize: 12, color: '#0F766E', fontWeight: 600, textDecoration: 'none' }}>
+                                  PDF ↗
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No payment history yet */}
+                  {(!billing.invoices || billing.invoices.length === 0) && isPaid && (
+                    <div style={{ paddingTop: 12, fontSize: 13, color: t.textSubtle }}>No payment history yet.</div>
+                  )}
+                </>
+              )
+            })() : (
+              <div style={{ padding: '16px 0', color: t.textSubtle, fontSize: 13 }}>
+                <div style={{ marginBottom: 8, fontWeight: 600, color: t.textPri }}>
+                  {session?.plan === 'Pro' ? 'ProGuild Pro' : 'Free Trial'}
+                </div>
+                {session?.trial_ends_at && (
+                  <div style={{ fontSize: 12.5, color: '#B45309' }}>
+                    Trial expires {new Date(session.trial_ends_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                )}
+                <button onClick={handleManageBilling} disabled={portalBusy}
+                  style={{ marginTop: 10, fontSize: 13, color: '#2DD4BF', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
+                  {portalBusy ? 'Opening…' : 'Manage billing →'}
+                </button>
               </div>
-              <button onClick={handleManageBilling} disabled={portalBusy}
-                style={{ fontSize: 13.5, color: '#2DD4BF', fontWeight: 600, background: 'none', border: 'none', cursor: portalBusy ? 'default' : 'pointer', opacity: portalBusy ? 0.6 : 1 }}>
-                {portalBusy ? 'Opening…' : 'Manage billing →'}
-              </button>
-            </div>
+            )}
           </div>
         )}
 
