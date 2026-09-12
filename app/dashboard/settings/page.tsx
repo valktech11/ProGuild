@@ -290,7 +290,7 @@ export default function SettingsPage() {
                         {/* Subscription info */}
                         {isPaid && sub && (
                           <>
-                            <div style={{ fontSize: 12.5, color: t.textSecondary, marginBottom: 2 }}>
+                            <div style={{ fontSize: 12.5, color: t.textMuted, marginBottom: 2 }}>
                               {fmtAmt(sub.amount, sub.currency)}/{sub.interval} ·{' '}
                               {sub.cancel_at_period_end
                                 ? <span style={{ color: '#DC2626' }}>Cancels {nextPayment ? fmtDate(nextPayment) : '—'}</span>

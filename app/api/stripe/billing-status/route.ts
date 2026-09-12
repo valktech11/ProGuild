@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
       limit:    12,
     })
 
-    base.invoices = invoiceList.data.map(inv => ({
+    base.invoices = invoiceList.data.map((inv: Stripe.Invoice) => ({
       id:          inv.id,
       number:      inv.number,
       amount_paid: inv.amount_paid,
