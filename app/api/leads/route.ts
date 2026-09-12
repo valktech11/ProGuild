@@ -366,85 +366,82 @@ export async function POST(req: NextRequest) {
         // Phone visible only to claimed pros within trial or paying
         const showPhone = isClaimed && (trialActive || isPaid)
 
-        let emailHtml: string
         // Respect unsubscribe — do not send if pro opted out
-        if ((proRecord as any).lead_notifications_disabled) {
-          console.log('[leads] Email suppressed — pro unsubscribed:', proRecord.email)
-        } else {
+        if (!(proRecord as any).lead_notifications_disabled) {
+          let subject: string
+          let template: string
+          let emailHtml: string
 
-        let subject: string
-        let template: string
-
-        if (isClaimed) {
-          // Claimed pro — full lead notification
-          subject  = `New lead from ${contact_name} — ProGuild.ai`
-          template = 'lead_notification'
-          emailHtml = leadNotificationEmail({
-            proName:      proRecord.full_name,
-            proEmail:     proRecord.email,
-            contactName:  contact_name,
-            contactEmail: contact_email,
-            contactPhone: showPhone ? (contact_phone || null) : null,
-            message,
-            city:         proRecord.city,
-            state:        proRecord.state,
-            leadSource:   lead_source || 'Profile_Page',
-            dashboardUrl: `${appUrl}/dashboard/pipeline/${lead.id}`,
-            isPaid:       showPhone,
-          })
-        } else {
-          // Unclaimed pro — claim prompt email
-          subject  = `A homeowner contacted you through ProGuild`
-          template = 'unclaimed_lead_notification'
-          emailHtml = unclaimedLeadEmail({
-            proName:       proRecord.full_name,
-            proEmail:      proRecord.email,
-            contactName:   contact_name,
-            message,
-            tradeSlug:     proRecord.trade_slug || undefined,
-            licenseNumber: proRecord.license_number || undefined,
-            claimUrl:      proRecord.claim_token
-              ? `${appUrl}/claim/${proRecord.claim_token}`
-              : `${appUrl}/login?tab=signup&claim=${pro_id}`,
-          })
-        }
-
-        const { data: emailData, error: emailError } = await resend.emails.send({
-          from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
-          to:      proRecord.email,
-          subject,
-          html:    emailHtml,
-        })
-
-        if (emailError) {
-          console.error('[leads] Resend error:', emailError)
-        } else {
-          void supabase.from('email_log').insert({
-            pro_id:     pro_id,
-            lead_id:    lead.id,
-            to_email:   proRecord.email,
-            from_email: process.env.EMAIL_FROM || 'leads@proguild.ai',
-            subject,
-            template,
-            resend_id:  emailData?.id || null,
-            status:     'sent',
-            sent_at:    new Date().toISOString(),
-          })
-          console.log('[leads] Email sent to', proRecord.email, 'template:', template, 'resend_id:', emailData?.id)
-
-          // In-app notification → mobile inbox Notifications tab + web bell
-          if (template === 'leadNotificationEmail') {
-            const contactFirst = (contact_name || 'Someone').split(' ')[0]
-            void notify({
-              proId:     proRecord.id,
-              companyId: _manualCompanyId ?? null,
-              type:      'new_lead_created',
-              title:     `New enquiry from ${contactFirst}`,
-              body:      message ? `"${String(message).slice(0, 80)}${String(message).length > 80 ? '…' : ''}"` : 'A homeowner wants to discuss a project.',
-              leadId:    lead.id,
+          if (isClaimed) {
+            subject  = `New lead from ${contact_name} — ProGuild.ai`
+            template = 'lead_notification'
+            emailHtml = leadNotificationEmail({
+              proName:      proRecord.full_name,
+              proEmail:     proRecord.email,
+              contactName:  contact_name,
+              contactEmail: contact_email,
+              contactPhone: showPhone ? (contact_phone || null) : null,
+              message,
+              city:         proRecord.city,
+              state:        proRecord.state,
+              leadSource:   lead_source || 'Profile_Page',
+              dashboardUrl: `${appUrl}/dashboard/pipeline/${lead.id}`,
+              isPaid:       showPhone,
+            })
+          } else {
+            subject  = `A homeowner contacted you through ProGuild`
+            template = 'unclaimed_lead_notification'
+            emailHtml = unclaimedLeadEmail({
+              proName:       proRecord.full_name,
+              proEmail:      proRecord.email,
+              contactName:   contact_name,
+              message,
+              tradeSlug:     proRecord.trade_slug || undefined,
+              licenseNumber: proRecord.license_number || undefined,
+              claimUrl:      proRecord.claim_token
+                ? `${appUrl}/claim/${proRecord.claim_token}`
+                : `${appUrl}/login?tab=signup&claim=${pro_id}`,
             })
           }
-        } // end lead_notifications_disabled check
+
+          const { data: emailData, error: emailError } = await resend.emails.send({
+            from:    process.env.EMAIL_FROM || 'leads@proguild.ai',
+            to:      proRecord.email,
+            subject,
+            html:    emailHtml,
+          })
+
+          if (emailError) {
+            console.error('[leads] Resend error:', emailError)
+          } else {
+            void supabase.from('email_log').insert({
+              pro_id:     pro_id,
+              lead_id:    lead.id,
+              to_email:   proRecord.email,
+              from_email: process.env.EMAIL_FROM || 'leads@proguild.ai',
+              subject,
+              template,
+              resend_id:  emailData?.id || null,
+              status:     'sent',
+              sent_at:    new Date().toISOString(),
+            })
+            console.log('[leads] Email sent to', proRecord.email, 'template:', template, 'resend_id:', emailData?.id)
+
+            if (template === 'lead_notification') {
+              const contactFirst = (contact_name || 'Someone').split(' ')[0]
+              void notify({
+                proId:     proRecord.id,
+                companyId: _manualCompanyId ?? null,
+                type:      'new_lead_created',
+                title:     `New enquiry from ${contactFirst}`,
+                body:      message ? `"${String(message).slice(0, 80)}${String(message).length > 80 ? '…' : ''}"` : 'A homeowner wants to discuss a project.',
+                leadId:    lead.id,
+              })
+            }
+          }
+        } else {
+          console.log('[leads] Email suppressed — pro unsubscribed:', proRecord.email)
+        }
       } catch (e) { console.error('[leads] Email failed:', e) }
     }
     // ── Homeowner confirmation email ─────────────────────────────────────────
