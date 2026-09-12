@@ -386,10 +386,13 @@ export function homeownerConfirmationEmail({
 </html>`
 }
 
-export function unclaimedLeadEmail({ proName, proEmail, contactName, message, claimUrl }: UnclaimedLeadEmailProps): string {
+export function unclaimedLeadEmail({ proName, proEmail, contactName, message, claimUrl, tradeSlug }: UnclaimedLeadEmailProps & { tradeSlug?: string }): string {
   const firstName = proName.includes(',')
     ? (proName.split(',')[1]?.trim().split(' ')[0] || 'there')
     : proName.split(' ')[0]
+  const tradeLabel = tradeSlug
+    ? tradeSlug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    : 'home improvement'
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -407,7 +410,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">Someone wants to hire you, ${firstName}</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">
         We built a verified profile for you on ProGuild using your public DBPR license record — and a homeowner just found it.<br><br>
-        <strong>${contactName}</strong> wants to discuss a roofing project. Claim your profile to see their contact details and respond directly.
+        <strong>${contactName}</strong> wants to discuss a ${tradeLabel.toLowerCase()} project. Claim your profile to see their contact details and respond directly.
       </div>
 
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf8;border-radius:12px;border:1px solid #e2e1db;margin-bottom:24px;">
@@ -429,7 +432,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       </table>
 
       <div style="font-size:12px;color:#9c9a92;text-align:center;line-height:1.6;">
-        Claiming is free. No credit card required.<br>
+        No credit card required · Cancel anytime.<br>
         Your 90-day free trial starts the moment you claim.
       </div>
     </td></tr>

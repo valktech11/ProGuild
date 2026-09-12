@@ -390,6 +390,7 @@ export async function POST(req: NextRequest) {
             proEmail:    proRecord.email,
             contactName: contact_name,
             message,
+            tradeSlug:   proRecord.trade_slug || undefined,
             claimUrl:    proRecord.claim_token
               ? `${appUrl}/claim/${proRecord.claim_token}`
               : `${appUrl}/login?tab=signup&claim=${pro_id}`,
