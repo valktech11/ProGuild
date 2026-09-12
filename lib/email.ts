@@ -76,7 +76,7 @@ export function leadNotificationEmail({
               </td>
               <td style="padding-left:12px;" valign="middle">
                 <div style="font-size:15px;font-weight:600;color:#1a1a18;">${contactName}</div>
-                <div style="font-size:13px;color:#73726c;">${contactEmail}</div>
+                <div style="font-size:13px;color:#73726c;">${isPaid ? contactEmail : '<span style="color:#9c9a92;font-style:italic;">Upgrade to Pro to view contact details</span>'}</div>
               </td>
               <td align="right" valign="middle">
                 <span style="background:#E1F5EE;color:#085041;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;">New</span>
@@ -112,11 +112,9 @@ export function leadNotificationEmail({
               <td width="50%" style="padding-top:10px;">
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#9c9a92;margin-bottom:3px;">Phone</div>
                 <div style="font-size:13px;font-weight:600;color:#1a1a18;">${
-                  isPaid && contactPhone
-                    ? contactPhone
-                    : contactPhone
-                      ? '<span style="color:#9c9a92;font-style:italic;">Upgrade to Pro to view</span>'
-                      : '<span style="color:#9c9a92;">Not provided</span>'
+                  isPaid
+                    ? (contactPhone || '<span style="color:#9c9a92;">Not provided</span>')
+                    : '<span style="color:#9c9a92;font-style:italic;">Upgrade to Pro to view</span>'
                 }</div>
               </td>
             </tr>
@@ -131,7 +129,7 @@ export function leadNotificationEmail({
           <a href="${dashboardUrl}" style="display:block;background:#1D9E75;color:#ffffff;text-align:center;padding:14px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;">View lead in dashboard →</a>
         </td></tr>
         <tr><td>
-          <a href="mailto:${contactEmail}" style="display:block;border:1px solid #c8c7bf;color:#73726c;text-align:center;padding:12px;border-radius:10px;font-size:13px;text-decoration:none;">Message ${contactName.split(' ')[0]} →</a>
+          ${isPaid ? `<a href="mailto:${contactEmail}" style="display:block;border:1px solid #c8c7bf;color:#73726c;text-align:center;padding:12px;border-radius:10px;font-size:13px;text-decoration:none;">Message ${contactName.split(' ')[0]} →</a>` : `<a href="https://proguild.ai/subscribe" style="display:block;border:1px solid #1D9E75;color:#1D9E75;text-align:center;padding:12px;border-radius:10px;font-size:13px;text-decoration:none;">Upgrade to Pro to view contact details →</a>`}
         </td></tr>
       </table>
 

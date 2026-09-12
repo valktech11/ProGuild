@@ -890,6 +890,13 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const pg  = t.pageBg; const card=t.cardBg; const bdr=t.cardBorder
   const tp  = t.textPri; const tb=t.textBody; const ts=t.textMuted; const tsu=t.textSubtle
 
+  // Gate contact details behind paid plan OR active trial
+  // Free plan with expired/no trial = see lead exists but not homeowner contact info
+  const sessionTrialActive = session?.trial_ends_at
+    ? new Date(session.trial_ends_at) > new Date()
+    : false
+  const canViewContact = isPaidPlan(session?.plan ?? 'Free') || sessionTrialActive
+
   const inputCls: React.CSSProperties = {
     fontSize:T.fontBody, padding:'9px 11px', borderRadius:T.radSm,
     border:`1px solid ${t.inputBorder}`, background:t.inputBg,
@@ -1194,7 +1201,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
           const addr        = (lead as any).property_address as string|null|undefined
           const heroLabel   = addr ? addr.replace(/, USA$/,'') : capName(lead.contact_name)
           const heroName    = addr ? capName(lead.contact_name) : ''
-          const heroMeta    = [heroName, lead.contact_phone?fmtPhone(lead.contact_phone):null, lead.contact_email||null].filter(Boolean) as string[]
+          const heroMeta    = [heroName, canViewContact&&lead.contact_phone?fmtPhone(lead.contact_phone):null, canViewContact?lead.contact_email||null:null].filter(Boolean) as string[]
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
@@ -1291,7 +1298,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         </div>
                         {/* Action buttons */}
                         <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,flexWrap:'wrap',justifyContent:isWide?'flex-end':'flex-start',paddingLeft:isWide?0:66}}>
-                          {lead.contact_phone&&(
+                          {canViewContact&&lead.contact_phone&&(
                             <a href={`tel:${lead.contact_phone.replace(/\D/g,'')}`}
                               style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:T.radSm,border:`1px solid ${bdr}`,background:card,color:BRAND.teal,fontSize:13,textDecoration:'none',fontWeight:700,whiteSpace:'nowrap'}}>
                               <Svg size={13} stroke={BRAND.teal}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></Svg>
@@ -2139,7 +2146,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
 
                             {/* ── Homeowner Portal card ──────────────────── */}
-                            {lead.contact_email && (
+                            {canViewContact && lead.contact_email && (
                               <HomeownerPortalCard
                                 leadId={lead.id}
                                 proId={session!.id}
@@ -2197,9 +2204,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               </div>
                               <div style={{marginTop:10,display:'grid',gridTemplateColumns:isWide?'1fr 1fr':'1fr',gap:1,background:bdr,border:`1px solid ${bdr}`,borderRadius:T.radMd,overflow:'hidden'}}>
                                 {([
-                                  {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:fmtPhone(lead.contact_phone), copy:lead.contact_phone},
-                                  {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:lead.contact_email||'—', copy:lead.contact_email},
-                                  {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await apiFetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await apiFetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
+                                  {label:'Phone',    color:'#0F766E', icon:<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>, val:canViewContact?fmtPhone(lead.contact_phone):'Upgrade to Pro to view', copy:canViewContact?lead.contact_phone:null},
+                                  {label:'Email',    color:'#0F766E', icon:<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>, val:canViewContact?(lead.contact_email||'—'):'Upgrade to Pro to view', copy:canViewContact?lead.contact_email:null},
+                                  {!canViewContact && (
+                              <div style={{gridColumn:'1/-1',background:'linear-gradient(135deg,rgba(15,118,110,0.06),rgba(15,118,110,0.03))',border:`1px solid rgba(15,118,110,0.2)`,borderRadius:12,padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+                                <div>
+                                  <div style={{fontWeight:700,fontSize:13,color:tp,marginBottom:2}}>🔒 Contact details locked</div>
+                                  <div style={{fontSize:12,color:ts}}>Upgrade to Pro to view phone, email and address.</div>
+                                </div>
+                                <a href="/subscribe" style={{flexShrink:0,padding:'8px 16px',background:'linear-gradient(135deg,#0F766E,#0C5F57)',color:'#fff',borderRadius:8,fontSize:12,fontWeight:700,textDecoration:'none'}}>Upgrade →</a>
+                              </div>
+                            )}
+                            {label:'Address',  color:'#0F766E', icon:<><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></>, val:<span style={{display:'flex',flexDirection:'column',gap:3}}><span>{(lead as any).property_address||[lead.contact_city,lead.contact_state].filter(Boolean).join(', ')||'—'}</span>{!lead.client_id&&lead.contact_name&&<button onClick={async(e)=>{e.stopPropagation();if(!session)return;const r=await apiFetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,full_name:lead.contact_name,phone:lead.contact_phone||null,email:lead.contact_email||null,address_line1:((lead as any).property_address||'').split(',')[0]?.trim()||null,city:lead.contact_city||null,state:lead.contact_state||null})});const d=await r.json();if(d.client?.id){await apiFetch('/api/leads/'+lead.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({pro_id:session.id,client_id:d.client.id})});setLead(l=>l?{...l,client_id:d.client.id}:l);addToast('Saved as property','success')}}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>+ Save as Property</button>}{lead.client_id&&<button onClick={e=>{e.stopPropagation();router.push('/dashboard/clients/'+lead.client_id)}} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:6,background:'#F0FDFA',color:'#0F766E',border:'1px solid #CCFBF1',cursor:'pointer',alignSelf:'flex-start'}}>View Property →</button>}</span>, copy:null},
                                   {label:'Source',   color:'#64748B', icon:<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>, val:(lead.lead_source||'—').replace(/_/g,' '), copy:null},
                                   // Inspection / Job date / Follow-up move to the rail's Key Dates card under the spine (kept here on flag-off or narrow)
                                   ...(!(useSpine && isWide) ? [
