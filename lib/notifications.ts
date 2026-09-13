@@ -186,3 +186,28 @@ async function getFirebaseAccessToken(serviceAccount: {
   const tokenData = await tokenRes.json() as { access_token: string }
   return tokenData.access_token
 }
+
+
+// ── sendPushToProId ────────────────────────────────────────────────────────────
+// Convenience wrapper: fetches fcm_token for a pro and fires FCM push.
+// Use this from any route instead of manually fetching the token first.
+// Fire-and-forget — never throws, never blocks response.
+
+export async function sendPushToProId(
+  proId: string,
+  title: string,
+  body: string,
+): Promise<void> {
+  try {
+    const { getSupabaseAdmin } = await import('@/lib/supabase')
+    const { data } = await getSupabaseAdmin()
+      .from('pros')
+      .select('fcm_token')
+      .eq('id', proId)
+      .single()
+    const token = (data as any)?.fcm_token as string | null
+    if (token) await sendPushToFcmToken(token, title, body)
+  } catch (e) {
+    console.error('[FCM] sendPushToProId error (non-fatal):', e)
+  }
+}
