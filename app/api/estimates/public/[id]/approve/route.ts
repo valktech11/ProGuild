@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { notify, notifyOwners, sendPushToFcmToken } from '@/lib/notifications'
 
+// Helper: fetch fcm_token via direct REST (avoids JS client cold-start)
+async function getFcmToken(proId: string): Promise<string | null> {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceKey) return null
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${proId}&select=fcm_token`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    })
+    const rows = await res.json() as { fcm_token: string | null }[]
+    return rows?.[0]?.fcm_token ?? null
+  } catch { return null }
+}
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,7 +23,7 @@ export async function POST(
   const { id } = await params
   const sb = getSupabaseAdmin()
 
-  // Single fetch — get everything needed for both validation and notification
+  // Single fetch — everything needed for validation + notification
   const { data: est } = await sb
     .from('estimates')
     .select('status, valid_until, lead_id, estimate_number, pro_id, lead_name, company_id')
@@ -27,7 +41,7 @@ export async function POST(
     approved_at: new Date().toISOString(),
   }).eq('id', id)
 
-  // Auto-void all other active estimates for the same lead
+  // Auto-void other estimates for same lead
   if (est.lead_id) {
     await sb.from('estimates')
       .update({
@@ -40,7 +54,6 @@ export async function POST(
       .in('status', ['draft', 'sent', 'viewed'])
   }
 
-  // In-app notify + FCM push — all data already in hand, no second DB fetch
   const proId     = est.pro_id as string | null
   const companyId = est.company_id as string | null
   const leadLabel = est.lead_name || 'A homeowner'
@@ -55,24 +68,23 @@ export async function POST(
       leadId: est.lead_id ?? null,
     })
 
-    // FCM — fetch token directly via REST (avoids JS client cold-start)
-    void (async () => {
-      try {
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
-        if (!supabaseUrl || !serviceKey) return
-        const res = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${proId}&select=fcm_token`, {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
-        })
-        const rows = await res.json() as { fcm_token: string | null }[]
-        const token = rows?.[0]?.fcm_token
-        if (token) await sendPushToFcmToken(token, 'Estimate approved! 🎉', `${leadLabel} approved your estimate`)
-      } catch (e) {
-        console.error('[approve] FCM push failed:', e)
+    // FCM push — awaited with 5s timeout so Vercel doesn't kill it before it fires
+    try {
+      const token = await Promise.race([
+        getFcmToken(proId),
+        new Promise<null>(r => setTimeout(() => r(null), 5000))
+      ])
+      if (token) {
+        await sendPushToFcmToken(token, 'Estimate approved! 🎉', `${leadLabel} approved your estimate`)
+        console.log('[approve] FCM push sent to pro:', proId)
+      } else {
+        console.log('[approve] No FCM token for pro:', proId)
       }
-    })()
+    } catch (e) {
+      console.error('[approve] FCM push error:', e)
+    }
 
-    // Notify company owners
+    // Notify + push owners
     if (companyId) {
       void notifyOwners(companyId, proId, {
         type:   'estimate_approved',
@@ -80,28 +92,23 @@ export async function POST(
         body:   `${leadLabel} approved an estimate`,
         leadId: est.lead_id ?? null,
       })
-      void (async () => {
-        try {
-          const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-          const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
-          if (!supabaseUrl || !serviceKey) return
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (supabaseUrl && serviceKey) {
           const res = await fetch(
             `${supabaseUrl}/rest/v1/company_members?company_id=eq.${companyId}&role=eq.owner&pro_id=neq.${proId}&select=pro_id`,
             { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
           )
           const members = await res.json() as { pro_id: string }[]
           for (const m of members ?? []) {
-            const r2 = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${m.pro_id}&select=fcm_token`, {
-              headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
-            })
-            const rows2 = await r2.json() as { fcm_token: string | null }[]
-            const t2 = rows2?.[0]?.fcm_token
-            if (t2) await sendPushToFcmToken(t2, 'Estimate approved! 🎉', `${leadLabel} approved an estimate`)
+            const t = await getFcmToken(m.pro_id)
+            if (t) await sendPushToFcmToken(t, 'Estimate approved! 🎉', `${leadLabel} approved an estimate`)
           }
-        } catch (e) {
-          console.error('[approve] Owner FCM push failed:', e)
         }
-      })()
+      } catch (e) {
+        console.error('[approve] Owner FCM push error:', e)
+      }
     }
   }
 
