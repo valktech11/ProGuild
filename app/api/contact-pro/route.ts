@@ -72,10 +72,38 @@ function outreachEmail(pro: any, contact: {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { pro_id, contact_name, contact_email, contact_phone, message } = body
+    const { pro_id, contact_name, contact_email, contact_phone, message, property_address } = body
 
     if (!pro_id || !contact_name || !message) {
       return NextResponse.json({ error: 'pro_id, contact_name and message are required' }, { status: 400 })
+    }
+
+    // Normalize address — homeowner may type full "123 Main St, Tampa, FL 33601"
+    // Split into street / city / state / zip so it's consistent with mobile modal leads.
+    let streetOnly: string | null = null
+    let contactCity: string | null = null
+    let contactState: string | null = null
+    let contactZip: string | null = null
+    if (property_address?.trim()) {
+      const parts = property_address.split(',').map((p: string) => p.trim()).filter(Boolean)
+      streetOnly = parts[0] || null
+      if (parts.length >= 3) {
+        contactCity  = parts[1] || null
+        // Last part may be "FL 33601" or "FL" or "USA" — extract state + zip
+        const last = parts[parts.length - 1]
+        const stateZipMatch = last.match(/^([A-Z]{2})\s*(\d{5})?/)
+        if (stateZipMatch) {
+          contactState = stateZipMatch[1]
+          contactZip   = stateZipMatch[2] || null
+        }
+      } else if (parts.length === 2) {
+        contactCity = parts[1] || null
+      }
+      // Fallback: extract zip from anywhere in the address string
+      if (!contactZip) {
+        const zipMatch = property_address.match(/(\d{5})(?:-\d{4})?/)
+        contactZip = zipMatch ? zipMatch[1] : null
+      }
     }
 
     const sb = getSupabaseAdmin()
@@ -101,9 +129,13 @@ export async function POST(req: NextRequest) {
       .insert({
         pro_id,
         contact_name,
-        contact_email: contact_email?.toLowerCase().trim() || null,
-        contact_phone: contact_phone || null,
+        contact_email:   contact_email?.toLowerCase().trim() || null,
+        contact_phone:   contact_phone || null,
         message,
+        property_address: streetOnly,
+        contact_city:     contactCity,
+        contact_state:    contactState,
+        contact_zip:      contactZip,
         lead_status: getInitialStage(pro?.trade_slug),
         lead_source: 'Registry_Card',
       })
@@ -170,3 +202,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
+
