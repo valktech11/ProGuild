@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
+import { notify, sendPushToProId } from '@/lib/notifications'
 
 function getResend() { return new Resend(process.env.RESEND_API_KEY || '') }
 
@@ -139,6 +140,15 @@ export async function GET(req: NextRequest) {
           })
           await logSent(sb, pro.id, alertType)
           emailsSent++
+          // FCM push for license expiry (3d, 7d, 0d)
+          if (daysLeft <= 7) {
+            const pushTitle = daysLeft <= 0 ? 'License expired' : `License expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`
+            const pushBody  = daysLeft <= 0
+              ? `Your ${lic.trade_name} license (${lic.license_number}) has expired. Renew now to keep your verified badge.`
+              : `Your ${lic.trade_name} license (${lic.license_number}) expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew at DBPR.`
+            void notify({ proId: pro.id, companyId: null, type: 'trial_expiry_reminder', title: pushTitle, body: pushBody, leadId: null })
+            void sendPushToProId(pro.id, pushTitle, pushBody)
+          }
         } catch(e) { console.error('License email error:', e) }
       }
     }
@@ -163,3 +173,4 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, dryRun, expiring: 0, expired: 0, wouldSend, emailsSent, preview })
 }
+
