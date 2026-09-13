@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { auditedAdmin } from '@/lib/audit-context'
 import { leadNotificationEmail, unclaimedLeadEmail, homeownerConfirmationEmail } from '@/lib/email'
-import { notify } from '@/lib/notifications'
+import { notify, sendPushToFcmToken } from '@/lib/notifications'
 import { sendProSms, newLeadSmsBody } from '@/lib/sms'
 import { Resend } from 'resend'
 const _resend = new Resend(process.env.RESEND_API_KEY)
@@ -438,6 +438,29 @@ export async function POST(req: NextRequest) {
                 body:      message ? `"${String(message).slice(0, 80)}${String(message).length > 80 ? '…' : ''}"` : 'A homeowner wants to discuss a project.',
                 leadId:    lead.id,
               })
+              // ── FCM push notification ──────────────────────────────────
+              // Fetch fcm_token for this pro and send push if available.
+              // Fire-and-forget — never blocks lead creation response.
+              void (async () => {
+                try {
+                  const { data: proWithToken } = await getSupabaseAdmin()
+                    .from('pros')
+                    .select('fcm_token')
+                    .eq('id', proRecord.id)
+                    .single()
+                  const fcmToken = (proWithToken as any)?.fcm_token as string | null
+                  if (fcmToken) {
+                    await sendPushToFcmToken(
+                      fcmToken,
+                      `New lead from ${contactFirst}`,
+                      message ? String(message).slice(0, 100) : 'A homeowner wants to discuss a project.',
+                    )
+                  }
+                } catch (e) {
+                  console.error('[leads] FCM push failed (non-fatal):', e)
+                }
+              })()
+              // ── End FCM ───────────────────────────────────────────────
             }
           }
         } else {
@@ -553,3 +576,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ lead }, { status: 201 })
 }
+
