@@ -1,7 +1,6 @@
 // PATCH /api/leads/[id]/assign
 // Owner-only. Reassigns a lead to a different team member (or unassigns).
 // Body: { assigned_to_pro_id: string | null }
-// The target pro must be a member of the same company.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
@@ -23,17 +22,15 @@ export async function PATCH(
 
   const sb = getSupabaseAdmin()
 
-  // Verify lead belongs to this company
   const { data: lead } = await sb
     .from('leads')
-    .select('id, company_id')
+    .select('id, company_id, contact_name, property_address')
     .eq('id', leadId)
     .eq('company_id', companyId)
     .single()
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
-  // If assigning to someone, verify they are a member of this company
   if (assigned_to_pro_id) {
     const { data: member } = await sb
       .from('company_members')
@@ -60,18 +57,25 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notify assigned member
+  // Notify + push assigned member
   if (assigned_to_pro_id && assigned_to_pro_id !== proId) {
-    const { data: lead_info } = await sb.from('leads').select('contact_name, property_address').eq('id', leadId).single()
-    const { notify } = await import('@/lib/notifications')
+    const leadLabel = (lead as any).contact_name || (lead as any).property_address || 'A lead'
+    const { notify, sendPushToProId } = await import('@/lib/notifications')
+
     await notify({
-      proId: assigned_to_pro_id,
+      proId:     assigned_to_pro_id,
       companyId,
-      type: 'lead_assigned',
-      title: 'New lead assigned to you',
-      body: (lead_info as any)?.contact_name || (lead_info as any)?.property_address || 'A lead has been assigned to you',
+      type:      'lead_assigned',
+      title:     'New lead assigned to you',
+      body:      leadLabel,
       leadId,
     })
+
+    void sendPushToProId(
+      assigned_to_pro_id,
+      'New lead assigned to you',
+      leadLabel,
+    )
   }
 
   return NextResponse.json({ ok: true, lead: data })
