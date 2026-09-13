@@ -2,11 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { applyEstimateSignedEffects } from '@/lib/trades/roofing/applySignedEffects'
 import { uploadToR2 } from '@/lib/r2'
+import { sendPushToFcmToken } from '@/lib/notifications'
 import crypto from 'crypto'
 
 // POST /api/estimates/public/[id]/sign
 // Accepts: { signer_name, sig_data_url, selected_tier? }
 // Uploads PNG → R2, records in signatures table, marks estimate approved.
+
+async function getFcmToken(proId: string): Promise<string | null> {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceKey) return null
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${proId}&select=fcm_token`, {
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    })
+    const rows = await res.json() as { fcm_token: string | null }[]
+    return rows?.[0]?.fcm_token ?? null
+  } catch { return null }
+}
 
 export async function POST(
   req: NextRequest,
@@ -25,7 +39,7 @@ export async function POST(
   // Validate estimate exists and is signable
   const { data: est } = await sb
     .from('estimates')
-    .select('id, status, valid_until, pro_id, lead_id, tax_rate, revision_of, estimate_number')
+    .select('id, status, valid_until, pro_id, lead_id, tax_rate, revision_of, estimate_number, lead_name')
     .eq('id', id).single()
 
   if (!est) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -80,6 +94,21 @@ export async function POST(
     selectedTier: selected_tier,
     signerName: signer_name,
   })
+
+  // ── FCM push — awaited before return so Vercel doesn't kill it ────────────
+  try {
+    const token = await getFcmToken(est.pro_id)
+    const leadLabel = (est as any).lead_name || signer_name || 'A homeowner'
+    if (token) {
+      await sendPushToFcmToken(token, 'Estimate approved! 🎉', `${leadLabel} approved your estimate`)
+      console.log('[sign] FCM push sent to pro:', est.pro_id)
+    } else {
+      console.log('[sign] No FCM token for pro:', est.pro_id)
+    }
+  } catch (e) {
+    console.error('[sign] FCM push error (non-fatal):', e)
+  }
+  // ── End FCM ───────────────────────────────────────────────────────────────
 
   return NextResponse.json({ ok: true })
 }
