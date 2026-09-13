@@ -4,7 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
+
+export const maxDuration = 30 // seconds — overrides Vercel default for this route
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,10 +15,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'pro_id and fcm_token are required' }, { status: 400 })
     }
 
-    const { error } = await getSupabaseAdmin()
+    const sb = getSupabaseAdmin()
+
+    // Race the Supabase update against an 8s timeout so we never hit Vercel's wall
+    const updatePromise = sb
       .from('pros')
       .update({ fcm_token })
       .eq('id', pro_id)
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase update timed out after 8s')), 8000)
+    )
+
+    const { error } = await Promise.race([updatePromise, timeoutPromise]) as any
 
     if (error) {
       console.error('[device-token] Update error:', error.message)
@@ -25,8 +35,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error('[device-token] Error:', err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[device-token] Error:', err?.message ?? err)
+    return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
   }
 }
