@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
 import { getInitialStage } from '@/lib/trades/_registry'
+import { sendPushToFcmToken } from '@/lib/notifications'
 
 // ── Feature flag — set true when ready for Phase 2 auto-send ─────────────────
 const AUTO_SEND_EMAIL = false
@@ -79,10 +80,10 @@ export async function POST(req: NextRequest) {
 
     const sb = getSupabaseAdmin()
 
-    // Fetch the pro
+    // Fetch the pro (include fcm_token for push notification)
     const { data: pro, error: proErr } = await sb
       .from('pros')
-      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_slug, trade_category:trade_categories(category_name)')
+      .select('id, full_name, email, phone_cell, phone_work, city, state, license_number, is_claimed, trade_slug, fcm_token, trade_category:trade_categories(category_name)')
       .eq('id', pro_id)
       .single()
 
@@ -113,6 +114,17 @@ export async function POST(req: NextRequest) {
       console.error('[contact-pro] Lead insert error:', JSON.stringify(leadErr))
       return NextResponse.json({ error: leadErr.message || 'Failed to save lead', detail: leadErr }, { status: 500 })
     }
+
+    // ── FCM push notification — fire-and-forget ───────────────────────────
+    const fcmToken = (pro as any).fcm_token as string | null
+    if (fcmToken) {
+      sendPushToFcmToken(
+        fcmToken,
+        'New lead from ProGuild',
+        `${contact_name} is looking for a ${tradeName} in ${pro.city || 'your area'}`,
+      ).catch(() => {}) // already non-fatal inside helper, double-guard here
+    }
+    // ── End FCM ───────────────────────────────────────────────────────────
 
     // Send outreach email to pro only if AUTO_SEND_EMAIL is enabled
     const proEmail = pro.email
