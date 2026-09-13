@@ -8,7 +8,6 @@ export async function POST(
   const { id } = await params
   const sb = getSupabaseAdmin()
 
-  // Guard: status AND expiry check server-side
   const { data: est } = await sb
     .from('estimates')
     .select('status, valid_until, lead_id, estimate_number')
@@ -21,14 +20,12 @@ export async function POST(
   if (new Date(est.valid_until) < new Date())
     return NextResponse.json({ error: 'Estimate has expired' }, { status: 400 })
 
-  // Approve this estimate
   await sb.from('estimates').update({
     status:      'approved',
     approved_at: new Date().toISOString(),
   }).eq('id', id)
 
   // Auto-void all other active estimates for the same lead
-  // Prevents double-counting and orphaned sent estimates (Vaibhav scenario)
   if (est.lead_id) {
     await sb.from('estimates')
       .update({
@@ -41,33 +38,61 @@ export async function POST(
       .in('status', ['draft', 'sent', 'viewed'])
   }
 
-  // Notify the pro who created the estimate + owner (if different)
+  // Notify + push
   try {
-    const { data: fullEst } = await sb.from('estimates').select('pro_id, lead_name, company_id').eq('id', id).single()
-    if (fullEst) {
-      const { notify, notifyOwners } = await import('@/lib/notifications')
-      const leadLabel = (fullEst as any).lead_name || 'a homeowner'
+    const { data: fullEst } = await sb
+      .from('estimates')
+      .select('pro_id, lead_name, company_id')
+      .eq('id', id)
+      .single()
 
-      // Notify the estimate creator (the member or owner who sent it)
-      if ((fullEst as any).pro_id) {
+    if (fullEst) {
+      const { notify, notifyOwners, sendPushToProId } = await import('@/lib/notifications')
+      const leadLabel = (fullEst as any).lead_name || 'A homeowner'
+      const proId     = (fullEst as any).pro_id
+      const companyId = (fullEst as any).company_id ?? null
+
+      if (proId) {
         await notify({
-          proId:     (fullEst as any).pro_id,
-          companyId: (fullEst as any).company_id ?? null,
-          type:      'estimate_approved',
-          title:     'Estimate approved! 🎉',
-          body:      `${leadLabel} approved your estimate`,
-          leadId:    est.lead_id ?? null,
+          proId, companyId,
+          type:   'estimate_approved',
+          title:  'Estimate approved! 🎉',
+          body:   `${leadLabel} approved your estimate`,
+          leadId: est.lead_id ?? null,
         })
+        // FCM push to estimate creator
+        void sendPushToProId(
+          proId,
+          'Estimate approved! 🎉',
+          `${leadLabel} approved your estimate`,
+        )
       }
 
-      // Also notify owners (if creator was a member)
-      if ((fullEst as any).company_id && (fullEst as any).pro_id) {
-        await notifyOwners((fullEst as any).company_id, (fullEst as any).pro_id, {
+      if (companyId && proId) {
+        await notifyOwners(companyId, proId, {
           type:   'estimate_approved',
           title:  'Estimate approved! 🎉',
           body:   `${leadLabel} approved an estimate`,
           leadId: est.lead_id ?? null,
         })
+        // FCM push to owners — fetch owner pro_ids and push each
+        void (async () => {
+          try {
+            const { data: owners } = await sb
+              .from('company_members')
+              .select('pro_id')
+              .eq('company_id', companyId)
+              .eq('role', 'owner')
+              .neq('pro_id', proId)
+            for (const o of owners ?? []) {
+              void sendPushToProId(
+                o.pro_id,
+                'Estimate approved! 🎉',
+                `${leadLabel} approved an estimate`,
+              )
+            }
+          } catch {}
+        })()
       }
     }
   } catch {}
