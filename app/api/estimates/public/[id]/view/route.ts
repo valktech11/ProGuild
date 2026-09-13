@@ -16,11 +16,8 @@ export async function POST(
     .single()
 
   if (!est) return NextResponse.json({ ok: true })
-
-  // B4 FIX: skip view tracking for drafts
   if (est.status === 'draft') return NextResponse.json({ ok: true })
 
-  // B5: use Postgres atomic increment via raw SQL to avoid race condition
   await sb.from('estimates').update({
     viewed_count: (est.viewed_count || 0) + 1,
     viewed_at:    est.viewed_at || new Date().toISOString(),
@@ -31,8 +28,15 @@ export async function POST(
   // Notify roofer only on first view
   if (!est.viewed_at) {
     const { data: estFull } = await sb
-      .from('estimates').select('pro_id, lead_id, lead_name, estimate_number').eq('id', id).maybeSingle()
+      .from('estimates')
+      .select('pro_id, lead_id, lead_name, estimate_number')
+      .eq('id', id)
+      .maybeSingle()
+
     if (estFull) {
+      const leadLabel = estFull.lead_name || 'A homeowner'
+
+      // Email notification
       await notifyRoofer({
         proId:    estFull.pro_id,
         subject:  `👀 Proposal viewed — ${estFull.lead_name}`,
@@ -41,6 +45,25 @@ export async function POST(
         leadId:   estFull.lead_id,
         sb,
       })
+
+      // In-app notification
+      try {
+        const { notify, sendPushToProId } = await import('@/lib/notifications')
+        await notify({
+          proId:     estFull.pro_id,
+          companyId: null,
+          type:      'estimate_approved', // closest type available
+          title:     '👀 Proposal viewed',
+          body:      `${leadLabel} opened your proposal`,
+          leadId:    estFull.lead_id ?? null,
+        })
+        // FCM push
+        void sendPushToProId(
+          estFull.pro_id,
+          '👀 Proposal viewed',
+          `${leadLabel} opened your proposal — follow up now`,
+        )
+      } catch {}
     }
   }
 
