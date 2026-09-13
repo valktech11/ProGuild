@@ -225,6 +225,18 @@ export async function GET(req: NextRequest) {
             leadId:    null,
           })
 
+          // FCM push for trial reminder
+          void (async () => {
+            try {
+              const { sendPushToProId } = await import('@/lib/notifications')
+              await sendPushToProId(
+                pro.id,
+                daysLeft <= 0 ? 'Free trial ended' : `Trial expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+                notifBody,
+              )
+            } catch {}
+          })()
+
           sent++
         }
       } catch (e: any) {
@@ -236,3 +248,4 @@ export async function GET(req: NextRequest) {
   console.log(`[trial-expiry-reminder] sent=${sent} skipped=${skipped} errors=${errors.length}`)
   return NextResponse.json({ ok: true, sent, skipped, errors })
 }
+
