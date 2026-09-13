@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { notify, notifyOwners, sendPushToFcmToken } from '@/lib/notifications'
 
 export async function POST(
   _req: NextRequest,
@@ -8,9 +9,10 @@ export async function POST(
   const { id } = await params
   const sb = getSupabaseAdmin()
 
+  // Single fetch — get everything needed for both validation and notification
   const { data: est } = await sb
     .from('estimates')
-    .select('status, valid_until, lead_id, estimate_number')
+    .select('status, valid_until, lead_id, estimate_number, pro_id, lead_name, company_id')
     .eq('id', id)
     .single()
 
@@ -38,64 +40,70 @@ export async function POST(
       .in('status', ['draft', 'sent', 'viewed'])
   }
 
-  // Notify + push
-  try {
-    const { data: fullEst } = await sb
-      .from('estimates')
-      .select('pro_id, lead_name, company_id')
-      .eq('id', id)
-      .single()
+  // In-app notify + FCM push — all data already in hand, no second DB fetch
+  const proId     = est.pro_id as string | null
+  const companyId = est.company_id as string | null
+  const leadLabel = est.lead_name || 'A homeowner'
 
-    if (fullEst) {
-      const { notify, notifyOwners, sendPushToProId } = await import('@/lib/notifications')
-      const leadLabel = (fullEst as any).lead_name || 'A homeowner'
-      const proId     = (fullEst as any).pro_id
-      const companyId = (fullEst as any).company_id ?? null
+  if (proId) {
+    // In-app notification
+    void notify({
+      proId, companyId,
+      type:   'estimate_approved',
+      title:  'Estimate approved! 🎉',
+      body:   `${leadLabel} approved your estimate`,
+      leadId: est.lead_id ?? null,
+    })
 
-      if (proId) {
-        await notify({
-          proId, companyId,
-          type:   'estimate_approved',
-          title:  'Estimate approved! 🎉',
-          body:   `${leadLabel} approved your estimate`,
-          leadId: est.lead_id ?? null,
+    // FCM — fetch token directly via REST (avoids JS client cold-start)
+    void (async () => {
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (!supabaseUrl || !serviceKey) return
+        const res = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${proId}&select=fcm_token`, {
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
         })
-        // FCM push to estimate creator
-        void sendPushToProId(
-          proId,
-          'Estimate approved! 🎉',
-          `${leadLabel} approved your estimate`,
-        )
+        const rows = await res.json() as { fcm_token: string | null }[]
+        const token = rows?.[0]?.fcm_token
+        if (token) await sendPushToFcmToken(token, 'Estimate approved! 🎉', `${leadLabel} approved your estimate`)
+      } catch (e) {
+        console.error('[approve] FCM push failed:', e)
       }
+    })()
 
-      if (companyId && proId) {
-        await notifyOwners(companyId, proId, {
-          type:   'estimate_approved',
-          title:  'Estimate approved! 🎉',
-          body:   `${leadLabel} approved an estimate`,
-          leadId: est.lead_id ?? null,
-        })
-        // FCM push to owners — fetch owner pro_ids and push each
-        void (async () => {
-          try {
-            const { data: owners } = await sb
-              .from('company_members')
-              .select('pro_id')
-              .eq('company_id', companyId)
-              .eq('role', 'owner')
-              .neq('pro_id', proId)
-            for (const o of owners ?? []) {
-              void sendPushToProId(
-                o.pro_id,
-                'Estimate approved! 🎉',
-                `${leadLabel} approved an estimate`,
-              )
-            }
-          } catch {}
-        })()
-      }
+    // Notify company owners
+    if (companyId) {
+      void notifyOwners(companyId, proId, {
+        type:   'estimate_approved',
+        title:  'Estimate approved! 🎉',
+        body:   `${leadLabel} approved an estimate`,
+        leadId: est.lead_id ?? null,
+      })
+      void (async () => {
+        try {
+          const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+          const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY
+          if (!supabaseUrl || !serviceKey) return
+          const res = await fetch(
+            `${supabaseUrl}/rest/v1/company_members?company_id=eq.${companyId}&role=eq.owner&pro_id=neq.${proId}&select=pro_id`,
+            { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+          )
+          const members = await res.json() as { pro_id: string }[]
+          for (const m of members ?? []) {
+            const r2 = await fetch(`${supabaseUrl}/rest/v1/pros?id=eq.${m.pro_id}&select=fcm_token`, {
+              headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+            })
+            const rows2 = await r2.json() as { fcm_token: string | null }[]
+            const t2 = rows2?.[0]?.fcm_token
+            if (t2) await sendPushToFcmToken(t2, 'Estimate approved! 🎉', `${leadLabel} approved an estimate`)
+          }
+        } catch (e) {
+          console.error('[approve] Owner FCM push failed:', e)
+        }
+      })()
     }
-  } catch {}
+  }
 
   return NextResponse.json({ ok: true })
 }
