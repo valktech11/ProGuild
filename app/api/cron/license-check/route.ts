@@ -101,16 +101,26 @@ export async function GET(req: NextRequest) {
   const today  = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
-  // ── LICENSE STATUS UPDATE — from pro_licenses table (134K imported pros) ──
-  const { data: allLicenses } = await sb
-    .from('pro_licenses')
-    .select('id, pro_id, trade_name, license_number, license_expiry_date, license_status, pros!inner(id, full_name, email, is_claimed)')
-    .not('license_expiry_date', 'is', null)
-
+  // ── LICENSE STATUS UPDATE — paginated (134K+ rows, Supabase default limit 1000) ──
   let wouldSend = 0; let emailsSent = 0
   const preview: any[] = []
+  const PAGE = 1000
+  let page = 0
+  let hasMore = true
 
-  for (const lic of (allLicenses || [])) {
+  while (hasMore) {
+    const { data: allLicenses, error: licErr } = await sb
+      .from('pro_licenses')
+      .select('id, pro_id, trade_name, license_number, license_expiry_date, license_status, pros!inner(id, full_name, email, is_claimed)')
+      .not('license_expiry_date', 'is', null)
+      .range(page * PAGE, (page + 1) * PAGE - 1)
+
+    if (licErr) { console.error('[license-check] query error:', licErr.message); break }
+    if (!allLicenses || allLicenses.length === 0) { hasMore = false; break }
+    if (allLicenses.length < PAGE) hasMore = false
+    page++
+
+  for (const lic of allLicenses) {
     const expiry   = new Date(lic.license_expiry_date)
     const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / 86400000)
     const newStatus = daysLeft <= 0 ? 'expired' : daysLeft <= 30 ? 'expiring_soon' : 'active'
@@ -153,6 +163,8 @@ export async function GET(req: NextRequest) {
       }
     }
   }
+
+  } // end while (pagination)
 
   // ── INSURANCE CHECK ────────────────────────────────────────────────────────
   const { data: insData } = await sb.from('pro_insurance').select('*, pros!inner(id, full_name, email, is_claimed)')
