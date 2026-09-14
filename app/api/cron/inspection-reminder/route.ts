@@ -50,13 +50,13 @@ export async function GET(req: NextRequest) {
 
     for (const proId of recipientIds) {
       try {
-        // Dedup: skip if already notified for this lead + type within 24h
+        // Dedup: skip if already notified for this lead + title within 24h
         const { data: existing } = await sb
           .from('pro_notifications')
           .select('id')
           .eq('pro_id', proId)
           .eq('lead_id', lead.id)
-          .eq('type', 'new_lead_created')
+          .eq('title', title)
           .gte('created_at', new Date(Date.now() - 86400000).toISOString())
           .limit(1)
           .maybeSingle()
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     await sendReminder(
       lead,
       'Inspection tomorrow',
-      `Reminder: inspection at ${label} is scheduled for tomorrow`,
+      `Reminder: Inspection at ${label} is scheduled for tomorrow`,
       'inspection'
     )
   }
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
     await sendReminder(
       lead,
       'Job scheduled tomorrow',
-      `Reminder: job at ${label} is scheduled for tomorrow`,
+      `Reminder: Job at ${label} is scheduled for tomorrow`,
       'job'
     )
   }
@@ -103,3 +103,4 @@ export async function GET(req: NextRequest) {
   console.log(`[reminders] date=${tomorrowKey} sent=${sent} skipped=${skipped}`)
   return NextResponse.json({ ok: true, sent, skipped, date: tomorrowKey })
 }
+
