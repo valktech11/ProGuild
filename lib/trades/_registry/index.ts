@@ -41,7 +41,6 @@ const REGISTRY: Record<string, AnyTradeConfig> = {
   // Roofing — DBPR slug variants
   'roofing':              roofingConfig,
   'roofing-contractor':   roofingConfig,
-  'roofing':              roofingConfig,
   'roofer':               roofingConfig,
 
   // HVAC
