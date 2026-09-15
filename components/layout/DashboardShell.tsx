@@ -486,6 +486,12 @@ function MoreDrawer({ open, onClose, session, nl, dk, onToggleDark }: { open: bo
             </button>
             <DrawerNavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} onNav={handleClose} />
             <DrawerNavLink item={{ label: 'Team', href: '/dashboard/settings/team', icon: (a: boolean) => <I sw={a?2.2:1.6} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 100 8 4 4 0 000-8z" /> }} active={p === '/dashboard/settings/team'} onNav={handleClose} />
+            <button
+              onClick={async () => { try { const sb = getSupabaseBrowser(); await sb.auth.signOut() } catch {} sessionStorage.removeItem('pg_pro'); window.location.href = '/login' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '13px 16px', borderRadius: 16, border: 'none', background: 'rgba(239,68,68,0.10)', cursor: 'pointer', marginTop: 4 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#EF4444' }}>Sign out</span>
+            </button>
           </div>
         </div>
       </div>
