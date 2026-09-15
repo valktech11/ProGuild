@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { apiFetch } from '@/lib/api-fetch'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 const ROOFING_SLUGS = new Set(['roofing', 'roofing-contractor', 'roofer'])
 
@@ -164,9 +165,15 @@ export default function SubscribePage() {
 
         {/* Sign out link */}
         <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #F1F5F9' }}>
-          <a href="/login" style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'none' }}>
-            Sign in with a different account
-          </a>
+          <button
+            onClick={async () => {
+              const supabase = getSupabaseBrowser()
+              await supabase.auth.signOut()
+              window.location.href = '/login'
+            }}
+            style={{ fontSize: 13, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+            Sign out
+          </button>
         </div>
       </div>
     </div>
