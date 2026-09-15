@@ -17,7 +17,7 @@ const PRIMARY_TRADES = [
   { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '15,252' },
   { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '14,057' },
   { slug: 'plumber',            label: 'Plumber',            icon: '🪠', count: '9,550' },
-  { slug: 'roofer',             label: 'Roofer',             icon: '🏠', count: '11,501' },
+  { slug: 'roofing',            label: 'Roofer',             icon: '🏠', count: '11,501' },
   { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '68,341' },
   { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '5,569' },
 ]
@@ -26,7 +26,7 @@ const PRIMARY_TRADES = [
 const SECONDARY_TRADES = [
   { slug: 'painter',                label: 'Painter' },
   { slug: 'landscaper',             label: 'Landscaper' },
-  { slug: 'solar-installer',        label: 'Solar Installer' },
+  { slug: 'solar-energy',           label: 'Solar Installer' },
   { slug: 'drywall',                label: 'Drywall' },
   { slug: 'impact-window-shutter',  label: 'Impact Windows' },
   { slug: 'flooring',               label: 'Flooring' },

@@ -14,9 +14,9 @@ const TOP_CITIES = FL_SEO_CITIES.slice(0, 10)
 // Same groups as homepage/search — for related trades sidebar
 const TRADE_GROUPS = [
   { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0F766E',
-    trades: ['hvac-technician','electrician','plumber','solar-installer','gas-fitter','fire-sprinkler'] },
+    trades: ['hvac-technician','electrician','plumber','solar-energy','gas-fitter','fire-sprinkler'] },
   { id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
-    trades: ['roofer','general-contractor','impact-window-shutter','carpenter','mason','concrete-contractor','foundation-specialist'] },
+    trades: ['roofing','general-contractor','impact-window-shutter','carpenter','mason','concrete-contractor','foundation-specialist'] },
   { id: 'finishing', label: 'Finishing', icon: '🎨', accent: '#F59E0B',
     trades: ['painter','flooring','drywall','tile-setter','insulation-contractor','windows-doors'] },
   { id: 'property', label: 'Property', icon: '🌿', accent: '#10B981',
