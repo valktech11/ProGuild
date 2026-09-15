@@ -43,7 +43,7 @@ export const DBPR_TRADES: DBPRTrade[] = [
     floridaStatute: 'F.S. 489.105',
   },
   {
-    slug:          'roofer',
+    slug:          'roofing',
     label:         'Roofing Contractor',
     dbprCategory:  'Roofing',
     licenseCodes:  ['CCC', 'RCC'],
@@ -61,7 +61,7 @@ export const DBPR_TRADES: DBPRTrade[] = [
     floridaStatute: 'F.S. 489.105',
   },
   {
-    slug:          'solar-installer',
+    slug:          'solar-energy',
     label:         'Solar Contractor',
     dbprCategory:  'Solar',
     licenseCodes:  ['CVC', 'RV'],

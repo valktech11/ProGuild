@@ -269,8 +269,8 @@ export default async function CityTradePage(
 // Pre-generate top trade × city combinations at build time
 export async function generateStaticParams() {
   const topTrades = [
-    'hvac-technician', 'electrician', 'plumber', 'roofer',
-    'general-contractor', 'pool-spa', 'painter', 'solar-installer',
+    'hvac-technician', 'electrician', 'plumber', 'roofing',
+    'general-contractor', 'pool-spa', 'painter', 'solar-energy',
   ]
   const params = []
   for (const slug of topTrades) {

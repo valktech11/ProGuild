@@ -16,7 +16,7 @@ const TRADE_CHIPS = [
   { label: 'Plumbing',   slug: 'plumber' },
   { label: 'HVAC',       slug: 'hvac-technician' },
   { label: 'Carpentry',  slug: 'carpenter' },
-  { label: 'Roofing',    slug: 'roofer' },
+  { label: 'Roofing',    slug: 'roofing' },
   { label: 'Painting',   slug: 'painter' },
   { label: 'GC',         slug: 'general-contractor' },
   { label: 'Drywall',    slug: 'drywall' },

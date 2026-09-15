@@ -16,7 +16,7 @@ const TRADE_GROUPS = [
       { label: 'HVAC Technician',     slug: 'hvac-technician' },
       { label: 'Electrician',         slug: 'electrician' },
       { label: 'Plumber',             slug: 'plumber' },
-      { label: 'Solar Installer',     slug: 'solar-installer' },
+      { label: 'Solar Installer',     slug: 'solar-energy' },
       { label: 'Gas Fitter',          slug: 'gas-fitter' },
       { label: 'Fire Sprinkler',      slug: 'fire-sprinkler' },
     ],
@@ -24,7 +24,7 @@ const TRADE_GROUPS = [
   {
     id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
     trades: [
-      { label: 'Roofer',                    slug: 'roofer' },
+      { label: 'Roofer',                    slug: 'roofing' },
       { label: 'General Contractor',        slug: 'general-contractor' },
       { label: 'Impact Window & Shutter',   slug: 'impact-window-shutter' },
       { label: 'Framing Carpenter',         slug: 'carpenter' },
