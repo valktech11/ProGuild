@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
   try {
     const { pro_id, fcm_token } = await req.json()
 
-    if (!pro_id || !fcm_token) {
-      return NextResponse.json({ error: 'pro_id and fcm_token are required' }, { status: 400 })
+    if (!pro_id) {
+      return NextResponse.json({ error: 'pro_id is required' }, { status: 400 })
     }
 
     const supabaseUrl  = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
