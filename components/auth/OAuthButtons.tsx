@@ -18,6 +18,12 @@ export default function OAuthButtons({ mode }: { mode: 'login' | 'signup' }) {
     setBusy(provider)
     setError('')
     try {
+      // Store any post-OAuth redirect before leaving the page
+      try {
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get('redirect')
+        if (redirect) sessionStorage.setItem('pg_oauth_redirect', redirect)
+      } catch {}
       const supabase = getSupabaseBrowser()
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

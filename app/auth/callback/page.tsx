@@ -79,7 +79,13 @@ function CallbackInner() {
           if (d.removedFromCompany) {
             router.replace('/removed-from-team')
           } else {
-            router.replace('/dashboard')
+            // Check for post-OAuth redirect stored before OAuth started
+            let postOAuthRedirect = '/dashboard'
+            try { 
+              const stored = sessionStorage.getItem('pg_oauth_redirect')
+              if (stored) { postOAuthRedirect = stored; sessionStorage.removeItem('pg_oauth_redirect') }
+            } catch {}
+            router.replace(postOAuthRedirect)
           }
         } else if (r.ok && d.needsProfile) {
           // If this was an invite signup, they have a company — go to dashboard
