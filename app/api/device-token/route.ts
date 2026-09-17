@@ -8,7 +8,7 @@ export const maxDuration = 30
 
 export async function POST(req: NextRequest) {
   try {
-    const { pro_id, fcm_token } = await req.json()
+    const { pro_id, fcm_token, fcm_diag } = await req.json()
 
     if (!pro_id) {
       return NextResponse.json({ error: 'pro_id is required' }, { status: 400 })
@@ -22,6 +22,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
     }
 
+    // Build patch payload — always update fcm_diag if provided; only update fcm_token if it's a real token
+    const patch: Record<string, string | null> = {}
+    if (fcm_diag !== undefined) patch.fcm_diag = fcm_diag
+    if (fcm_token !== undefined) patch.fcm_token = fcm_token
+
     const res = await fetch(
       `${supabaseUrl}/rest/v1/pros?id=eq.${pro_id}`,
       {
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
           'Authorization': `Bearer ${serviceKey}`,
           'Prefer': 'return=minimal',
         },
-        body: JSON.stringify({ fcm_token }),
+        body: JSON.stringify(patch),
       }
     )
 
@@ -42,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: text }, { status: 500 })
     }
 
-    console.log('[device-token] fcm_token stored for pro:', pro_id)
+    console.log('[device-token] stored for pro:', pro_id, '| token:', !!fcm_token, '| diag:', !!fcm_diag)
     return NextResponse.json({ success: true })
 
   } catch (err: any) {
