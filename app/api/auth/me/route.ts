@@ -179,6 +179,7 @@ export async function GET(req: NextRequest) {
       company_id:     healedCompany?.id    ?? null,
       company_name:   healedCompany?.name  ?? null,
       google_id:      (pro as any).google_id ?? null,
+      photo_url:      (pro as any).profile_photo_url ?? null,
       role,
     },
     needsProfile: false,
