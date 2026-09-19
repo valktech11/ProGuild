@@ -40,6 +40,54 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
   const cleanEmail = email.trim().toLowerCase()
 
+  // ── Ghost-user guard ──────────────────────────────────────────────────────
+  // Uses the Supabase Admin REST endpoint (service role) which returns ALL users
+  // including soft-deleted tombstones that block re-registration.
+  // listUsers() paginates and misses deleted records; direct REST does not.
+  try {
+    const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const searchUrl     = `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(cleanEmail)}`
+
+    const resp = await fetch(searchUrl, {
+      headers: { 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY }
+    })
+
+    if (resp.ok) {
+      const result = await resp.json()
+      // Result shape: { users: [...] } or { users: [...], aud: '...' }
+      const users: any[] = Array.isArray(result) ? result : (result.users ?? [])
+      const ghostUser = users.find((u: any) => u.email === cleanEmail)
+
+      if (ghostUser) {
+        console.warn('[signup] found existing auth user for', cleanEmail, 'id=', ghostUser.id, 'banned_until=', ghostUser.banned_until, 'deleted_at=', ghostUser.deleted_at)
+        const ghostId = ghostUser.id
+        const { data: ghostPro } = await admin.from('pros').select('id').eq('auth_user_id', ghostId).maybeSingle()
+        if (!ghostPro) {
+          // Ghost: auth user exists but no pros row — safe to delete so signup can proceed
+          console.warn('[signup] deleting ghost auth user for', cleanEmail)
+          const { error: delErr } = await admin.auth.admin.deleteUser(ghostId)
+          if (delErr) {
+            console.error('[signup] deleteUser failed:', delErr)
+          } else {
+            console.warn('[signup] ghost deleted, proceeding with fresh createUser')
+          }
+        } else {
+          // Has a pros row → real account; let createUser fail with 409
+          console.warn('[signup] auth user has pros row, not a ghost — will return 409')
+        }
+      } else {
+        console.log('[signup] ghost check: no auth user found for', cleanEmail)
+      }
+    } else {
+      const errText = await resp.text()
+      console.warn('[signup] ghost-check REST call failed:', resp.status, errText)
+    }
+  } catch (ghostErr) {
+    // Ghost check failure is non-fatal — proceed normally
+    console.warn('[signup] ghost check threw:', ghostErr)
+  }
+
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email: cleanEmail,
     password,
@@ -47,6 +95,8 @@ export async function POST(req: NextRequest) {
   })
 
   if (createErr || !created?.user) {
+    // Log the FULL error so Vercel logs show exactly what Supabase returned
+    console.error('[signup] createUser failed — message:', createErr?.message, '| status:', (createErr as any)?.status, '| code:', (createErr as any)?.code, '| full:', JSON.stringify(createErr))
     const msg = (createErr?.message || '').toLowerCase()
     if (msg.includes('already') || msg.includes('exists') || msg.includes('registered')) {
       return NextResponse.json({ error: 'An account with this email already exists. Please log in.' }, { status: 409 })
@@ -114,6 +164,16 @@ export async function POST(req: NextRequest) {
     return { companyId: company.id }
   }
 
+  // Rollback helper: delete pros row (if any) + auth user so signup can be retried cleanly
+  async function rollback(proId?: string) {
+    try {
+      if (proId) await admin.from('pros').delete().eq('id', proId)
+      await admin.auth.admin.deleteUser(authUserId)
+    } catch (e) {
+      console.error('[signup] rollback failed:', e)
+    }
+  }
+
   try {
     // ── Case B: claim an existing unclaimed pros row ──
     if (claim_pro_id) {
@@ -124,7 +184,7 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (existing?.is_claimed || existing?.auth_user_id) {
-        await admin.auth.admin.deleteUser(authUserId)
+        await rollback()
         return NextResponse.json({ error: 'This profile has already been claimed.' }, { status: 409 })
       }
 
@@ -153,7 +213,7 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (proErr || !pro) {
-        await admin.auth.admin.deleteUser(authUserId)
+        await rollback()
         return NextResponse.json({ error: 'Could not link profile' }, { status: 500 })
       }
 
@@ -167,12 +227,13 @@ export async function POST(req: NextRequest) {
         state:           (existing as any).state || null,
         phoneCell:       (existing as any).phone_cell || null,
         email:           email || null,
-        planTier:        'Free',
+        planTier:        'Starter',
         trialEndsAt,
       })
 
       if ('error' in companyResult) {
         console.error('[signup] company creation failed for claim:', companyResult.error)
+        await rollback()
         return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
       }
 
@@ -188,7 +249,7 @@ export async function POST(req: NextRequest) {
       const { data: existing } = await admin.from('pros').select('id').eq('slug', c).maybeSingle()
       if (!existing) { slug = c; break }
     }
-    if (!slug) slug = `${candidates[0]}-${Date.now().toString(36)}`
+    if (!slug) slug = candidates[0] + '-' + Date.now().toString(36)
 
     const tradeSlug = await resolveTradeSlug(trade_category_id)
 
@@ -216,7 +277,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insErr || !pro) {
-      await admin.auth.admin.deleteUser(authUserId)
+      await rollback()
       return NextResponse.json({ error: insErr?.message || 'Could not create profile' }, { status: 500 })
     }
 
@@ -242,7 +303,7 @@ export async function POST(req: NextRequest) {
         })
         if (memberErr) {
           console.error('[signup] company_members insert failed:', memberErr.message)
-          // Don't fall through — return error so user knows to contact support
+          await rollback(pro.id)
           return NextResponse.json({ error: 'Failed to join team — please contact support.' }, { status: 500 })
         }
         await admin.from('pros').update({ company_id: invite.company_id }).eq('id', pro.id)
@@ -258,8 +319,8 @@ export async function POST(req: NextRequest) {
           const { notifyOwners } = await import('@/lib/notifications')
           await notifyOwners(invite.company_id, pro.id, {
             type:  'new_lead_created',
-            title: `${memberName} joined your team`,
-            body:  `${full_name ?? 'A new member'} accepted your invite and created an account`,
+            title: memberName + ' joined your team',
+            body:  (full_name ?? 'A new member') + ' accepted your invite and created an account',
           })
         } catch {}
 
@@ -279,18 +340,20 @@ export async function POST(req: NextRequest) {
       state:           state || null,
       phoneCell:       phone || null,
       email:           email || null,
-      planTier:        'Free',
+      planTier:        'Starter',
       trialEndsAt,
     })
 
     if ('error' in companyResult) {
       console.error('[signup] company creation failed for new pro:', companyResult.error)
+      await rollback(pro.id)
       return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true, pro, claimed: false })
-  } catch (e: any) {
-    await admin.auth.admin.deleteUser(authUserId)
-    return NextResponse.json({ error: e?.message || 'Signup failed' }, { status: 500 })
+  } catch (e) {
+    const err = e as any
+    await rollback()
+    return NextResponse.json({ error: err?.message || 'Signup failed' }, { status: 500 })
   }
 }
