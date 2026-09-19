@@ -40,25 +40,52 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
   const cleanEmail = email.trim().toLowerCase()
 
-  // ── Guard: detect ghost auth user (auth exists but no pros row) ──
-  // This happens when a previous signup attempt failed mid-way (auth created,
-  // pros/company insert failed, deleteUser cleanup was missed).
-  // In that case we delete the ghost and allow re-registration with the same email.
+  // ── Ghost-user guard ──────────────────────────────────────────────────────
+  // Uses the Supabase Admin REST endpoint (service role) which returns ALL users
+  // including soft-deleted tombstones that block re-registration.
+  // listUsers() paginates and misses deleted records; direct REST does not.
   try {
-    const { data: listData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-    const ghostUser = listData?.users?.find((u: any) => u.email === cleanEmail)
-    if (ghostUser) {
-      const ghostId = ghostUser.id
-      const { data: ghostPro } = await admin.from('pros').select('id').eq('auth_user_id', ghostId).maybeSingle()
-      if (!ghostPro) {
-        // Ghost: auth user exists but no pros row — safe to delete so signup can proceed
-        console.warn('[signup] deleting ghost auth user for', cleanEmail)
-        await admin.auth.admin.deleteUser(ghostId)
+    const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const searchUrl     = `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(cleanEmail)}`
+
+    const resp = await fetch(searchUrl, {
+      headers: { 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY }
+    })
+
+    if (resp.ok) {
+      const result = await resp.json()
+      // Result shape: { users: [...] } or { users: [...], aud: '...' }
+      const users: any[] = Array.isArray(result) ? result : (result.users ?? [])
+      const ghostUser = users.find((u: any) => u.email === cleanEmail)
+
+      if (ghostUser) {
+        console.warn('[signup] found existing auth user for', cleanEmail, 'id=', ghostUser.id, 'banned_until=', ghostUser.banned_until, 'deleted_at=', ghostUser.deleted_at)
+        const ghostId = ghostUser.id
+        const { data: ghostPro } = await admin.from('pros').select('id').eq('auth_user_id', ghostId).maybeSingle()
+        if (!ghostPro) {
+          // Ghost: auth user exists but no pros row — safe to delete so signup can proceed
+          console.warn('[signup] deleting ghost auth user for', cleanEmail)
+          const { error: delErr } = await admin.auth.admin.deleteUser(ghostId)
+          if (delErr) {
+            console.error('[signup] deleteUser failed:', delErr)
+          } else {
+            console.warn('[signup] ghost deleted, proceeding with fresh createUser')
+          }
+        } else {
+          // Has a pros row → real account; let createUser fail with 409
+          console.warn('[signup] auth user has pros row, not a ghost — will return 409')
+        }
+      } else {
+        console.log('[signup] ghost check: no auth user found for', cleanEmail)
       }
-      // If pros row exists → real account, fall through to createUser which will return 409
+    } else {
+      const errText = await resp.text()
+      console.warn('[signup] ghost-check REST call failed:', resp.status, errText)
     }
-  } catch (_) {
-    // ghost check failure is non-fatal — proceed normally
+  } catch (ghostErr) {
+    // Ghost check failure is non-fatal — proceed normally
+    console.warn('[signup] ghost check threw:', ghostErr)
   }
 
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -68,6 +95,8 @@ export async function POST(req: NextRequest) {
   })
 
   if (createErr || !created?.user) {
+    // Log the FULL error so Vercel logs show exactly what Supabase returned
+    console.error('[signup] createUser failed — message:', createErr?.message, '| status:', (createErr as any)?.status, '| code:', (createErr as any)?.code, '| full:', JSON.stringify(createErr))
     const msg = (createErr?.message || '').toLowerCase()
     if (msg.includes('already') || msg.includes('exists') || msg.includes('registered')) {
       return NextResponse.json({ error: 'An account with this email already exists. Please log in.' }, { status: 409 })
