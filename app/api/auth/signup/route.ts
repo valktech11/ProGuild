@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
   // pros/company insert failed, deleteUser cleanup was missed).
   // In that case we delete the ghost and allow re-registration with the same email.
   try {
-    const { data: ghostData } = await admin.auth.admin.getUserByEmail(cleanEmail)
-    if (ghostData?.user) {
-      const ghostId = ghostData.user.id
+    const { data: listData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    const ghostUser = listData?.users?.find((u: any) => u.email === cleanEmail)
+    if (ghostUser) {
+      const ghostId = ghostUser.id
       const { data: ghostPro } = await admin.from('pros').select('id').eq('auth_user_id', ghostId).maybeSingle()
       if (!ghostPro) {
         // Ghost: auth user exists but no pros row — safe to delete so signup can proceed
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
       // If pros row exists → real account, fall through to createUser which will return 409
     }
   } catch (_) {
-    // getUserByEmail failure is non-fatal — proceed normally
+    // ghost check failure is non-fatal — proceed normally
   }
 
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
