@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
     .from('pros')
     .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,is_claimed,license_number,email,phone_cell,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
     .eq('profile_status', status)
-    // Show claimed pros + unclaimed pros who have a license number (contactable supply)
-    .or('is_claimed.eq.true,license_number.not.is.null')
+    // Claimed pros always shown; unclaimed only if licensed AND has phone OR non-placeholder email
+    .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
 
   // Filters
   if (trade)     query = query.eq('trade_category_id', trade)
