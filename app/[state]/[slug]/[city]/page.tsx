@@ -11,6 +11,17 @@ const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   fl: { name: 'Florida', abbr: 'FL' },
 }
 
+const SLUG_ALIAS: Record<string, string> = {
+  'roofer':             'roofing',
+  'roofing-contractor': 'roofing',
+  'hvac':               'hvac-technician',
+  'ac-repair':          'hvac-technician',
+  'electricians':       'electrician',
+  'plumbers':           'plumber',
+  'pool':               'pool-spa',
+  'pools':              'pool-spa',
+}
+
 function slugToTitle(slug: string) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
@@ -69,12 +80,13 @@ export async function generateMetadata(
   { params }: { params: Promise<{ state: string; slug: string; city: string }> }
 ): Promise<Metadata> {
   const { state, slug, city } = await params
+  const resolvedSlug = SLUG_ALIAS[slug] ?? slug
   const info      = STATE_MAP[state.toLowerCase()]
   if (!info) return {}
   const cityName  = slugToCity(city) || city.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-  const category  = await getTradeCategory(slug)
-  const tradeName = category?.category_name || slugToTitle(slug)
-  const dbpr      = getDBPRTrade(slug)
+  const category  = await getTradeCategory(resolvedSlug)
+  const tradeName = category?.category_name || slugToTitle(resolvedSlug)
+  const dbpr      = getDBPRTrade(resolvedSlug)
   const licenseNote = dbpr ? ` ${dbpr.licenseLabel} (${dbpr.licenseCodes.join('/')}).` : ''
 
   return {
@@ -95,15 +107,16 @@ export default async function CityTradePage(
   { params }: { params: Promise<{ state: string; slug: string; city: string }> }
 ) {
   const { state, slug, city } = await params
+  const resolvedSlug = SLUG_ALIAS[slug] ?? slug
   const info = STATE_MAP[state.toLowerCase()]
   if (!info) notFound()
 
   const cityDisplay = slugToCity(city) || city.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-  const category    = await getTradeCategory(slug)
+  const category    = await getTradeCategory(resolvedSlug)
   if (!category) notFound()
 
-  const tradeName   = category.category_name || slugToTitle(slug)
-  const dbpr        = getDBPRTrade(slug)
+  const tradeName   = category.category_name || slugToTitle(resolvedSlug)
+  const dbpr        = getDBPRTrade(resolvedSlug)
 
   const [pros, count] = await Promise.all([
     getCityPros(category.id, info.abbr, cityDisplay),
