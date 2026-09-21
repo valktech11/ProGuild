@@ -90,7 +90,9 @@ export async function generateMetadata(
 async function getProCount(stateAbbr: string): Promise<number> {
   const { count } = await getSupabaseAdmin()
     .from('pros').select('id', { count: 'exact', head: true })
-    .ilike('state', stateAbbr).eq('profile_status', 'Active')
+    .ilike('state', stateAbbr)
+    .eq('profile_status', 'Active')
+    .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
   return count || 0
 }
 
@@ -125,11 +127,11 @@ export default async function StateLandingPage(
             Verified Trade Professionals in {info.name}
           </h1>
           <p className="text-sm leading-relaxed mb-4 max-w-2xl" style={{ color: '#6B7280' }}>
-            Browse {totalCount.toLocaleString()}+ DBPR-verified trade professionals across {info.name}.
+            Browse {totalCount.toLocaleString()} DBPR-verified trade professionals across {info.name}.
             Every pro is license-checked against the state database. Zero lead fees — contact them directly.
           </p>
           <div className="flex items-center gap-4 text-xs" style={{ color: '#A89F93' }}>
-            <span><span className="font-bold" style={{ color: '#0A1628' }}>{totalCount.toLocaleString()}+</span> verified pros</span>
+            <span><span className="font-bold" style={{ color: '#0A1628' }}>{totalCount.toLocaleString()}</span> verified pros</span>
             <span>·</span><span>DBPR license verified</span>
             <span>·</span><span>Zero lead fees</span>
           </div>
