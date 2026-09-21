@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 const FLORIDA_TRADES = [
   { slug: 'hvac-technician',       label: 'HVAC Technician',          keywords: ['ac', 'air conditioning', 'hvac', 'heating', 'cooling', 'furnace', 'heat pump', 'ductwork', 'refrigerant', 'air handler', 'thermostat'] },
   { slug: 'electrician',           label: 'Electrician',               keywords: ['electric', 'electrical', 'wiring', 'outlet', 'breaker', 'panel', 'circuit', 'fuse', 'light', 'power', 'generator', 'voltage', 'ev charger'] },
-  { slug: 'plumber',               label: 'Plumber',                   keywords: ['plumb', 'pipe', 'leak', 'drain', 'water', 'toilet', 'sink', 'shower', 'faucet', 'sewer', 'water heater', 'repipe'] },
-  { slug: 'roofer',                label: 'Roofer',                    keywords: ['roof', 'shingle', 'gutter', 'leak', 'storm damage', 'tile roof', 'flat roof', 'soffit', 'fascia'] },
+  { slug: 'plumber',               label: 'Plumber',                   keywords: ['plumb', 'pipe', 'water leak', 'pipe leak', 'drain', 'toilet', 'sink', 'shower', 'faucet', 'sewer', 'water heater', 'repipe', 'clog', 'burst pipe'] },
+  { slug: 'roofer',                label: 'Roofer',                    keywords: ['roof', 'shingle', 'gutter', 'roof leak', 'ceiling leak', 'attic leak', 'roof damage', 'storm damage', 'tile roof', 'flat roof', 'soffit', 'fascia', 'roofing', 'roof repair'] },
   { slug: 'general-contractor',    label: 'General Contractor',        keywords: ['renovation', 'remodel', 'addition', 'construction', 'build', 'contractor', 'kitchen', 'bathroom', 'home improvement'] },
   { slug: 'pool-spa',              label: 'Pool & Spa Contractor',     keywords: ['pool', 'spa', 'hot tub', 'jacuzzi', 'swimming', 'pool pump', 'pool filter', 'pool heater', 'pool plaster'] },
   { slug: 'painter',               label: 'Painter',                   keywords: ['paint', 'painting', 'stain', 'primer', 'exterior paint', 'interior paint', 'wall', 'ceiling'] },
