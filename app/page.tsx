@@ -68,6 +68,7 @@ export default function HomePage() {
   const [trade, setTrade]               = useState('')
   const [city, setCity]                 = useState('')
   const [zipResolving, setZipResolving] = useState(false)
+  const [searching, setSearching]       = useState(false)
   const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
 
   const scopeLabel = getScopeLabel()
@@ -108,24 +109,29 @@ export default function HomePage() {
     const c = (overrideCity  ?? city).trim()
     if (!t && !c) return
 
-    if (t) {
-      const res  = await fetch('/api/match-trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: t }),
-      })
-      const data = await res.json()
-      const threshold = data.method === 'keyword' ? 0.80 : 0.85
-      if (data.slug && data.confidence >= threshold) {
-        await navigate(data.slug, c)
-        return
+    setSearching(true)
+    try {
+      if (t) {
+        const res  = await fetch('/api/match-trade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: t }),
+        })
+        const data = await res.json()
+        const threshold = data.method === 'keyword' ? 0.80 : 0.85
+        if (data.slug && data.confidence >= threshold) {
+          await navigate(data.slug, c)
+          return
+        }
       }
-    }
 
-    const params = new URLSearchParams()
-    if (t) params.set('q', t)
-    if (c) params.set('city', c)
-    router.push(`/search?${params}`)
+      const params = new URLSearchParams()
+      if (t) params.set('q', t)
+      if (c) params.set('city', c)
+      router.push(`/search?${params}`)
+    } finally {
+      setSearching(false)
+    }
   }
 
   async function handleTileTap(slug: string) {
@@ -167,7 +173,7 @@ export default function HomePage() {
             onTradeChange={setTrade}
             onCityChange={setCity}
             onSearch={(t, c) => handleSearch(undefined, t, c)}
-            loading={zipResolving}
+            loading={zipResolving || searching}
           />
         </div>
 
