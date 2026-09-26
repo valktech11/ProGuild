@@ -643,9 +643,15 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                   </div>
                 </div>
               )}
+              {licenseChecking && (
+                <div style={{ fontSize:12, color:C.teal, marginTop:-8, marginBottom:12, paddingLeft:2, display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ width:10, height:10, border:`1.5px solid ${C.teal}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite', flexShrink:0 }} />
+                  Checking license records…
+                </div>
+              )}
               {licenseNotFound && licenseNum.trim().length > 3 && (
                 <div style={{ fontSize:12, color:C.muted, marginTop:-8, marginBottom:12, paddingLeft:2 }}>
-                  No unclaimed profile found for that license — you&apos;ll create a new account.
+                  No unclaimed profile found — you&apos;ll create a new account.
                 </div>
               )}
             </div>
@@ -682,16 +688,18 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
             </div>
           )}
 
-          <Field label="Email address">
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              style={inputStyle(focused==='email')} {...f('email')} />
-          </Field>
-          <Field label="Password" hint="At least 8 characters">
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Create a password"
-              style={inputStyle(focused==='password')} {...f('password')} />
-          </Field>
+          <div style={{ opacity: licenseChecking ? 0.4 : 1, pointerEvents: licenseChecking ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+            <Field label="Email address">
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={inputStyle(focused==='email')} {...f('email')} />
+            </Field>
+            <Field label="Password" hint="At least 8 characters">
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="Create a password"
+                style={inputStyle(focused==='password')} {...f('password')} />
+            </Field>
+          </div>
         </div>
       )}
 
@@ -781,17 +789,19 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {/* CTA */}
       <button
         onClick={step < 2 ? handleNext : handleSignup}  // step 2 always calls handleSignup
-        disabled={loading}
+        disabled={loading || licenseChecking}
         style={{
           width:'100%', padding:'14px',
           background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`,
           color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-          cursor: loading ? 'wait' : 'pointer',
+          cursor: (loading || licenseChecking) ? 'wait' : 'pointer',
           boxShadow:`0 4px 16px rgba(15,118,110,0.35)`,
-          opacity: loading ? 0.7 : 1, transition:'all 0.15s',
+          opacity: (loading || licenseChecking) ? 0.6 : 1, transition:'all 0.15s',
           letterSpacing:'-0.01em', fontFamily:'system-ui',
         }}>
         {loading ? (isClaiming ? 'Claiming your profile…' : 'Creating your profile…')
+          : licenseChecking ? 'Checking license…'
+          : step === 0 && licenseFound ? 'Continue to claim →'
           : step === 0 ? 'Continue →'
           : step === 1 ? 'Almost done →'
           : isClaiming ? '🔒 Claim my profile →'
