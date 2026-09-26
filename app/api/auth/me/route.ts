@@ -133,18 +133,22 @@ export async function GET(req: NextRequest) {
   const plan        = healedCompany?.plan_tier        ?? (pro as any).plan_tier        ?? 'Free'
   const trialEndsAt = healedCompany?.trial_ends_at    ?? (pro as any).trial_ends_at    ?? null
 
-  // Resolve role + removed status in parallel for speed
+  // Resolve role + removed status + auth user metadata in parallel for speed
   const isRemovedCandidate = (pro as any).is_claimed === true && !(pro as any).company_id
-  const [membershipRes, removedCheckRes] = await Promise.all([
+  const [membershipRes, removedCheckRes, authUserRes] = await Promise.all([
     company?.id
       ? admin.from('company_members').select('role').eq('company_id', company.id).eq('pro_id', pro.id).maybeSingle()
       : Promise.resolve({ data: null }),
     isRemovedCandidate
       ? admin.from('company_members').select('id', { count: 'exact', head: true }).eq('pro_id', pro.id)
       : Promise.resolve({ count: 0 }),
+    admin.auth.admin.getUserById(authUser.id),
   ])
   const role = ((membershipRes as any).data?.role as 'owner' | 'member') ?? null
   const wasRemoved = isRemovedCandidate ? (((removedCheckRes as any).count) ?? 0) > 0 : false
+  // Avatar: prefer profile_photo_url from pros table, fall back to Google OAuth avatar_url
+  const googleAvatar = (authUserRes as any)?.data?.user?.user_metadata?.avatar_url ?? null
+  const resolvedPhotoUrl = (pro as any).profile_photo_url ?? googleAvatar
 
   // Determine plan status for middleware cookie
   // Values: 'paid' | 'trial' | 'free'
@@ -179,6 +183,7 @@ export async function GET(req: NextRequest) {
       company_id:     healedCompany?.id    ?? null,
       company_name:   healedCompany?.name  ?? null,
       google_id:      (pro as any).google_id ?? null,
+      photo_url:      resolvedPhotoUrl,
       role,
     },
     needsProfile: false,
