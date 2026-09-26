@@ -22,6 +22,8 @@ interface PerfData {
 
 const fmt = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : `$${n.toLocaleString()}`)
 
+const INDUSTRY_CLOSE = 25 // roofing industry avg close rate %
+
 export default function PerformancePage() {
   const router = useRouter()
   const { session, loading: _authLoading } = useProSession()
@@ -45,6 +47,11 @@ export default function PerformancePage() {
   const cardLabel: React.CSSProperties = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: t.textSubtle }
   const cardValue: React.CSSProperties = { fontSize: 26, fontWeight: 800, color: t.textPri, marginTop: 6, letterSpacing: '-0.02em' }
 
+  // Compute funnel taper: widths proportional to count relative to first stage
+  const funnelMax = data?.funnel?.[0]?.count ?? 1
+
+  const isEmpty = data && data.totalLeads === 0
+
   return (
     <DashboardShell session={session} newLeads={0} darkMode={dk} onToggleDark={toggleDark}>
       <div style={{ background: t.pageBg, minHeight: '100vh', padding: '16px 16px 28px' }}>
@@ -63,13 +70,31 @@ export default function PerformancePage() {
             <div style={{ color: t.textMuted }}>Loading…</div>
           ) : !data ? (
             <div style={{ color: t.textMuted }}>No data yet.</div>
+          ) : isEmpty ? (
+            /* ── Empty state ── */
+            <div style={{ ...card, textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: t.textPri, marginBottom: 6 }}>No decided jobs yet</div>
+              <div style={{ fontSize: 14, color: t.textMuted, maxWidth: 360, margin: '0 auto', lineHeight: 1.6 }}>
+                Once you win or lose your first job, your close rate, funnel, and lead source breakdown will appear here.
+              </div>
+              <Link href="/dashboard/pipeline" style={{ display: 'inline-block', marginTop: 20, padding: '10px 22px', borderRadius: 10, background: '#0F766E', color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+                Go to Pipeline →
+              </Link>
+            </div>
           ) : (
             <>
+              {/* ── KPI Cards ── */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 20 }}>
                 <div style={card}>
                   <div style={cardLabel}>Win rate · all time</div>
                   <div style={cardValue}>{data.winRate == null ? '—' : `${data.winRate}%`}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{data.wonAll} won · {data.lostAll} lost</div>
+                  {data.winRate != null && (
+                    <div style={{ fontSize: 11, marginTop: 6, color: data.winRate >= INDUSTRY_CLOSE ? '#059669' : '#EA580C', fontWeight: 600 }}>
+                      {data.winRate >= INDUSTRY_CLOSE ? '▲' : '▼'} Industry avg {INDUSTRY_CLOSE}%
+                    </div>
+                  )}
                 </div>
                 <div style={card}>
                   <div style={cardLabel}>Win rate · this month</div>
@@ -80,14 +105,20 @@ export default function PerformancePage() {
                   <div style={cardLabel}>Avg sales cycle</div>
                   <div style={cardValue}>{data.avgCycle == null ? '—' : `${data.avgCycle} d`}</div>
                   <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>lead → won</div>
+                  {data.avgCycle != null && (
+                    <div style={{ fontSize: 11, marginTop: 6, color: data.avgCycle <= 14 ? '#059669' : '#EA580C', fontWeight: 600 }}>
+                      {data.avgCycle <= 14 ? '▲ Fast close' : '▼ Industry ~14 d'}
+                    </div>
+                  )}
                 </div>
                 <div style={card}>
                   <div style={cardLabel}>Total leads</div>
                   <div style={cardValue}>{data.totalLeads}</div>
-                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>all time</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>all time · {data.wonAll + data.lostAll} decided</div>
                 </div>
               </div>
 
+              {/* ── Stale proposals banner ── */}
               {data.staleProposals > 0 && (
                 <a href="/dashboard/pipeline?stage=proposal_sent" style={{ textDecoration: 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, marginBottom: 20, background: dk ? 'rgba(234,88,12,0.12)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}` }}>
@@ -103,36 +134,66 @@ export default function PerformancePage() {
                 </a>
               )}
 
+              {/* ── Tapered Conversion Funnel ── */}
               <div style={{ ...card, marginBottom: 20 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Conversion funnel</div>
-                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16 }}>How far your leads get. The biggest drop between two stages is where you&apos;re losing deals.</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 2 }}>Conversion funnel</div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 18 }}>Each stage is sized by how many leads reach it. The highlighted gap is where you lose the most.</div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                   {data.funnel.map((f, i) => {
                     const isBiggest = i === data.biggestDropIndex
+                    const rawWidth = funnelMax > 0 ? (f.count / funnelMax) * 100 : 100
+                    const barWidth = Math.max(rawWidth, f.count > 0 ? 8 : 0)
+                    const barColor = isBiggest ? '#EA580C' : '#0F766E'
+                    const showDropGap = i > 0 && f.drop != null
+
                     return (
-                      <div key={f.stage} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ minWidth: 120, width: 120, flexShrink: 0, fontSize: 13, fontWeight: isBiggest ? 700 : 600, color: t.textPri }}>{f.stage}</div>
-                        <div style={{ flex: 1, height: 20, borderRadius: 6, background: dk ? '#1E293B' : '#F1F5F9', overflow: 'hidden', position: 'relative', minWidth: 40 }}>
-                          <div style={{ height: '100%', width: `${f.conversion}%`, background: '#0F766E', borderRadius: 6, minWidth: f.count > 0 ? 2 : 0, transition: 'width .4s' }} />
-                        </div>
-                        <div style={{ minWidth: 70, textAlign: 'right', flexShrink: 0, fontSize: 12 }}>
-                          <span style={{ fontWeight: 700, color: t.textPri }}>{f.count}</span>
-                          <span style={{ color: t.textMuted }}> · {f.conversion}%</span>
-                        </div>
-                        <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontSize: 12, fontWeight: 600 }}>
-                          {isBiggest && (
-                            <div style={{ fontSize: 9, fontWeight: 700, color: '#C2410C', background: dk ? 'rgba(234,88,12,0.18)' : '#FFF7ED', border: `1px solid ${dk ? '#7C2D12' : '#FED7AA'}`, borderRadius: 4, padding: '1px 4px', marginBottom: 2, whiteSpace: 'nowrap' as const }}>↓ most</div>
-                          )}
-                          <span style={{ color: f.drop != null && isBiggest ? '#C2410C' : (f.drop != null && f.drop >= 50 ? '#DC2626' : t.textSubtle) }}>
-                            {f.drop != null ? `−${f.drop}%` : ''}
-                          </span>
+                      <div key={f.stage} style={{ width: '100%' }}>
+                        {/* Drop gap between stages */}
+                        {showDropGap && (
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 22, marginBottom: 2 }}>
+                            <div style={{ height: isBiggest ? 20 : 14, width: 2, background: isBiggest ? '#EA580C' : (dk ? '#334155' : '#CBD5E1'), borderRadius: 1, marginRight: 6 }} />
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: isBiggest ? 800 : 600,
+                              color: isBiggest ? '#EA580C' : t.textSubtle,
+                              background: isBiggest ? (dk ? 'rgba(234,88,12,0.15)' : '#FFF7ED') : 'transparent',
+                              border: isBiggest ? `1px solid ${dk ? '#7C2D12' : '#FED7AA'}` : 'none',
+                              borderRadius: 6,
+                              padding: isBiggest ? '1px 7px' : 0,
+                            }}>
+                              {isBiggest ? `↓ ${f.drop}% · biggest drop` : `↓ ${f.drop}%`}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Bar row */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                          {/* Stage label above */}
+                          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                            <span style={{ fontSize: 12, fontWeight: isBiggest ? 700 : 600, color: isBiggest ? '#EA580C' : t.textPri }}>
+                              {f.stage}
+                            </span>
+                            <span style={{ fontSize: 12, color: t.textMuted }}>
+                              <span style={{ fontWeight: 700, color: t.textPri }}>{f.count}</span>
+                              {' '}leads · <span style={{ fontWeight: 600, color: i === 0 ? t.textMuted : (f.conversion >= 50 ? '#059669' : t.textMuted) }}>{f.conversion}%</span>
+                            </span>
+                          </div>
+                          {/* Tapered bar — centered, shrinks as funnel narrows */}
+                          <div style={{ width: `${barWidth}%`, height: 28, borderRadius: 8, background: barColor, transition: 'width 0.5s ease', boxShadow: isBiggest ? `0 0 0 2px ${dk ? '#7C2D12' : '#FED7AA'}` : undefined }} />
                         </div>
                       </div>
                     )
                   })}
                 </div>
+
+                {/* Industry benchmark note */}
+                <div style={{ marginTop: 18, padding: '10px 14px', borderRadius: 10, background: dk ? 'rgba(15,118,110,0.1)' : '#F0FDF9', border: `1px solid ${dk ? '#134E4A' : '#A7F3D0'}`, fontSize: 12, color: t.textMuted }}>
+                  <span style={{ fontWeight: 700, color: t.textPri }}>Industry benchmark:</span> Roofing contractors typically close <strong style={{ color: '#0F766E' }}>{INDUSTRY_CLOSE}–35%</strong> of leads. Your overall rate: <strong style={{ color: data.winRate != null && data.winRate >= INDUSTRY_CLOSE ? '#059669' : '#EA580C' }}>{data.winRate ?? '—'}%</strong>
+                </div>
               </div>
 
+              {/* ── Lead Sources ── */}
               <div style={card}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: t.textPri, marginBottom: 4 }}>Lead sources</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>Which sources actually win work — put more into the ones that pay.</div>
