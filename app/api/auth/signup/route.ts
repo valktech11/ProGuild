@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
         state:           (existing as any).state || null,
         phoneCell:       (existing as any).phone_cell || null,
         email:           email || null,
-        planTier:        'Starter',
+        planTier: 'Free',
         trialEndsAt,
       })
 
@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
       state:           state || null,
       phoneCell:       phone || null,
       email:           email || null,
-      planTier:        'Starter',
+      planTier: 'Free',
       trialEndsAt,
     })
 
