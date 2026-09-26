@@ -145,7 +145,7 @@ export default function PerformancePage() {
                     const rawWidth = funnelMax > 0 ? (f.count / funnelMax) * 100 : 100
                     const barWidth = Math.max(rawWidth, f.count > 0 ? 8 : 0)
                     const barColor = isBiggest ? '#EA580C' : '#0F766E'
-                    const showDropGap = i > 0 && f.drop != null
+                    const showDropGap = i > 0 && f.drop != null && f.drop > 0
 
                     return (
                       <div key={f.stage} style={{ width: '100%' }}>
