@@ -1,4 +1,5 @@
 'use client'
+import ReactDOM from 'react-dom'
 import NotificationBell from '@/components/ui/NotificationBell'
 import React, { useState } from 'react'
 import Link from 'next/link'
@@ -255,36 +256,42 @@ function NavLink({ item, active, onNav }: { item: NavItem; active: boolean; onNa
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Av({ s, px, enlargeable }: { s: Session; px: number; enlargeable?: boolean }) {
   const [bg, fg] = avatarColor(s.name || 'P')
-  const [hovered, setHovered] = React.useState(false)
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null)
   const canZoom = enlargeable && !!s.photo_url
   const face = s.photo_url
     ? <img src={s.photo_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px }} />
     : <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0" style={{ width: px, height: px, background: bg, color: fg, fontSize: px * 0.38 }}>{initials(s.name || 'P')}</div>
   if (!canZoom) return face
   return (
-    <div className="relative flex-shrink-0"
-      style={{ width: px, height: px }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {face}
-      {hovered && (
+    <>
+      <div className="flex-shrink-0 cursor-default"
+        onMouseEnter={e => {
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+          setPos({ x: r.left + r.width / 2, y: r.bottom + 8 })
+        }}
+        onMouseLeave={() => setPos(null)}
+      >
+        {face}
+      </div>
+      {pos && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div style={{
-          position: 'absolute', top: px + 10, right: 0,
-          zIndex: 300, pointerEvents: 'none',
+          position: 'fixed', left: pos.x, top: pos.y,
+          transform: 'translateX(-50%)',
+          zIndex: 9999, pointerEvents: 'none',
         }}>
           <img
             src={s.photo_url!} alt={s.name}
             style={{
               width: 120, height: 120, borderRadius: '50%', objectFit: 'cover',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-              border: '3px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              border: '3px solid rgba(255,255,255,0.25)',
               display: 'block',
             }}
           />
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 
