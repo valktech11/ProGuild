@@ -255,7 +255,7 @@ function NavLink({ item, active, onNav }: { item: NavItem; active: boolean; onNa
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Av({ s, px }: { s: Session; px: number }) {
   const [bg, fg] = avatarColor(s.name || 'P')
-  if ((s as any).avatar_url) return <img src={(s as any).avatar_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px }} />
+  if (s.photo_url) return <img src={s.photo_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px }} />
   return <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0" style={{ width: px, height: px, background: bg, color: fg, fontSize: px * 0.38 }}>{initials(s.name || 'P')}</div>
 }
 
