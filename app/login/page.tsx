@@ -640,11 +640,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                     setLicenseNum(e.target.value.toUpperCase())
                     setLicenseFoundPro(null); setLicenseNotInDb(false); setLicenseError('')
                   }}
-                  onBlur={() => licenseNum.trim() && checkLicense(licenseNum)}
+                  onFocus={() => setFocused('lic')}
+                  onBlur={() => { setFocused(null); licenseNum.trim() && checkLicense(licenseNum) }}
                   onKeyDown={e => e.key === 'Enter' && licenseNum.trim() && checkLicense(licenseNum)}
                   placeholder="e.g. CCC123456"
                   style={{ ...inputStyle(focused==='lic'), paddingRight: licenseChecking ? 44 : 16 }}
-                  {...f('lic')}
                 />
                 {licenseChecking && (
                   <div style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', width:16, height:16, border:`2px solid ${C.teal}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.6s linear infinite' }} />
