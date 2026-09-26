@@ -253,10 +253,24 @@ function NavLink({ item, active, onNav }: { item: NavItem; active: boolean; onNa
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-function Av({ s, px }: { s: Session; px: number }) {
+function Av({ s, px, enlargeable }: { s: Session; px: number; enlargeable?: boolean }) {
   const [bg, fg] = avatarColor(s.name || 'P')
-  if (s.photo_url) return <img src={s.photo_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px }} />
-  return <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0" style={{ width: px, height: px, background: bg, color: fg, fontSize: px * 0.38 }}>{initials(s.name || 'P')}</div>
+  const [zoomed, setZoomed] = React.useState(false)
+  const canZoom = enlargeable && !!s.photo_url
+  const img = s.photo_url
+    ? <img src={s.photo_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px, cursor: canZoom ? 'zoom-in' : undefined }} onClick={canZoom ? () => setZoomed(true) : undefined} />
+    : <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0" style={{ width: px, height: px, background: bg, color: fg, fontSize: px * 0.38 }}>{initials(s.name || 'P')}</div>
+  return (
+    <>
+      {img}
+      {zoomed && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)' }} onClick={() => setZoomed(false)}>
+          <img src={s.photo_url!} alt={s.name} style={{ width: 220, height: 220, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 8px 48px rgba(0,0,0,0.6)', border: '3px solid rgba(255,255,255,0.15)' }} onClick={e => e.stopPropagation()} />
+          <button style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: 'white', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setZoomed(false)}>✕</button>
+        </div>
+      )}
+    </>
+  )
 }
 
 // ── Scrollbar CSS ─────────────────────────────────────────────────────────────
@@ -649,7 +663,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
         <div className="relative">
           <button onClick={() => { setUserOpen(o => !o) }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Av s={session} px={28} />
+            <Av s={session} px={28} enlargeable />
             <span className="text-[14px] font-semibold" style={{ color: txt }}>{proFirstName(session.name)}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 9l6 6 6-6" />
@@ -662,8 +676,13 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 
               {/* User info */}
               <div className="px-4 py-3 border-b" style={{ borderColor: bdr }}>
-                <div className="text-[14px] font-bold" style={{ color: txt }}>{proDisplayName(session.name)}</div>
-                <div className="text-[14px] mt-0.5" style={{ color: '#9CA3AF' }}>{session.email}</div>
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <Av s={session} px={36} enlargeable />
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-bold truncate" style={{ color: txt }}>{proDisplayName(session.name)}</div>
+                    <div className="text-[12px] mt-0.5 truncate" style={{ color: '#9CA3AF' }}>{session.email}</div>
+                  </div>
+                </div>
               </div>
 
               {/* Dark mode toggle */}
