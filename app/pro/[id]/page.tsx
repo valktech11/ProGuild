@@ -796,7 +796,7 @@ export default function ProProfilePage() {
               )}
 
               {/* Unclaimed claim prompt — inline below identity */}
-              {!pro.is_claimed && !isOwner && (
+              {contactState === 'claimed-expired' && !isOwner && (
                 <div className="mt-4 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap"
                   style={{ background: 'linear-gradient(100deg, #FDF9EF 0%, #FBF6E8 100%)', border: '1px solid #F0E2C4' }}>
                   <div className="flex items-start gap-3">
