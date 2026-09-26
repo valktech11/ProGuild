@@ -3,6 +3,19 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
+
+  // License lookup — used by signup page to detect existing unclaimed row
+  const licenseParam = searchParams.get('license')?.trim().toUpperCase()
+  if (licenseParam) {
+    const { data } = await getSupabaseAdmin()
+      .from('pros')
+      .select('id,full_name,trade_category_id,state,license_number,is_claimed,trade_category:trade_categories(category_name)')
+      .ilike('license_number', licenseParam)
+      .eq('is_claimed', false)
+      .maybeSingle()
+    return NextResponse.json({ pro: data || null })
+  }
+
   const trade  = searchParams.get('trade')
   const search = searchParams.get('search')?.trim()
   const city   = searchParams.get('city')?.trim()   // exact city filter
@@ -18,9 +31,8 @@ export async function GET(req: NextRequest) {
     .from('pros')
     .select(`id,full_name,city,state,avg_rating,review_count,is_verified,available_for_work,profile_photo_url,plan_tier,years_experience,trade_category_id,osha_card_type,insurance_status,profile_view_count,is_claimed,license_number,email,phone_cell,trade_category:trade_categories(id,category_name,slug)`, { count: 'exact' })
     .eq('profile_status', status)
-    // Show claimed pros + unclaimed pros who have email or phone (contactable supply)
-    // Only show claimed pros OR unclaimed with real contact (exclude placeholder emails)
-    .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.gt.)')
+    // Claimed pros always shown; unclaimed only if licensed AND has phone OR non-placeholder email
+    .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
 
   // Filters
   if (trade)     query = query.eq('trade_category_id', trade)
