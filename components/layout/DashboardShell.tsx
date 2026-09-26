@@ -257,32 +257,34 @@ function Av({ s, px, enlargeable }: { s: Session; px: number; enlargeable?: bool
   const [bg, fg] = avatarColor(s.name || 'P')
   const [hovered, setHovered] = React.useState(false)
   const canZoom = enlargeable && !!s.photo_url
-  const img = s.photo_url
-    ? <img
-        src={s.photo_url} alt={s.name}
-        className="rounded-full object-cover flex-shrink-0"
-        style={{ width: px, height: px }}
-        onMouseEnter={canZoom ? () => setHovered(true) : undefined}
-        onMouseLeave={canZoom ? () => setHovered(false) : undefined}
-      />
+  const face = s.photo_url
+    ? <img src={s.photo_url} alt={s.name} className="rounded-full object-cover flex-shrink-0" style={{ width: px, height: px }} />
     : <div className="rounded-full flex items-center justify-center font-semibold flex-shrink-0" style={{ width: px, height: px, background: bg, color: fg, fontSize: px * 0.38 }}>{initials(s.name || 'P')}</div>
+  if (!canZoom) return face
   return (
-    <>
-      {img}
-      {hovered && canZoom && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
-          onMouseEnter={() => setHovered(false)}
-          onClick={() => setHovered(false)}
-        >
+    <div className="relative flex-shrink-0"
+      style={{ width: px, height: px }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {face}
+      {hovered && (
+        <div style={{
+          position: 'absolute', top: px + 10, right: 0,
+          zIndex: 300, pointerEvents: 'none',
+        }}>
           <img
             src={s.photo_url!} alt={s.name}
-            style={{ width: 220, height: 220, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 8px 48px rgba(0,0,0,0.6)', border: '3px solid rgba(255,255,255,0.15)', pointerEvents: 'none' }}
+            style={{
+              width: 120, height: 120, borderRadius: '50%', objectFit: 'cover',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+              border: '3px solid rgba(255,255,255,0.2)',
+              display: 'block',
+            }}
           />
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -674,14 +676,16 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
       {/* Avatar + name — click for user menu */}
       {session && (
         <div className="relative">
-          <button onClick={() => { setUserOpen(o => !o) }}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <div className="flex items-center gap-2">
             <Av s={session} px={28} enlargeable />
-            <span className="text-[14px] font-semibold" style={{ color: txt }}>{proFirstName(session.name)}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+            <button onClick={() => { setUserOpen(o => !o) }}
+              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+              <span className="text-[14px] font-semibold" style={{ color: txt }}>{proFirstName(session.name)}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          </div>
 
           {userOpen && (
             <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-xl z-50 overflow-hidden py-1"
