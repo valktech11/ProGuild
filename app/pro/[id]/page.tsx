@@ -726,22 +726,21 @@ export default function ProProfilePage() {
 
                     {/* Unclaimed state — softer card */}
                     {contactState === 'unclaimed' && (
-                      <>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: '#FAF9F6' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        </div>
-                        <div className="text-base font-bold mb-1" style={{ color: '#0A1628' }}>Send {firstName} a message</div>
-                        <p className="text-xs mb-4 leading-relaxed" style={{ color: '#6B7280' }}>
-                          They haven't claimed this profile yet — we'll notify them by email.
-                        </p>
-                        <button onClick={() => setShowModal(true)}
-                          className="w-full py-2.5 rounded-xl text-sm font-bold border transition-all"
-                          style={{ borderColor: '#0F766E', color: '#0F766E', background: 'rgba(15,118,110,0.04)' }}>
-                          Send a message
-                        </button>
-                        <p className="text-xs text-center mt-3 leading-relaxed" style={{ color: '#A89F93' }}>Free · Direct · No fees</p>
-                      </>
-                    )}
+        <>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: '#FAF9F6' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div className="text-base font-bold mb-1" style={{ color: '#0A1628' }}>Profile not yet claimed</div>
+          <p className="text-xs mb-4 leading-relaxed" style={{ color: '#6B7280' }}>
+            This contractor hasn&apos;t joined ProGuild yet. Once they claim their profile, you&apos;ll be able to message them directly.
+          </p>
+          <Link href={'/login?tab=signup&claim=' + pro.id}
+            className="w-full py-2.5 rounded-xl text-sm font-bold border transition-all text-center block"
+            style={{ borderColor: '#D97706', color: '#D97706', background: 'rgba(217,119,6,0.06)' }}>
+            Claim this profile →
+          </Link>
+        </>
+      )}
 
                     {/* Claimed states — active or expired */}
                     {(contactState === 'claimed-active' || contactState === 'claimed-expired') && (
