@@ -693,7 +693,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
           <Field label="Business name" hint="How your company appears to homeowners">
             <input value={businessName} onChange={e => setBusinessName(e.target.value)}
-              placeholder={`${fname} ${lname} Roofing`}
+              placeholder="Your business name"
               style={inputStyle(focused==='bizname')} {...f('bizname')} />
           </Field>
 
