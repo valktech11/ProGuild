@@ -49,18 +49,18 @@ const HeroPanel = () => (
       <div style={{ marginBottom:40 }}>
         <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(15,118,110,0.2)', border:'1px solid rgba(20,184,166,0.3)', borderRadius:100, padding:'4px 14px', marginBottom:20 }}>
           <div style={{ width:6, height:6, borderRadius:'50%', background:C.tealL, boxShadow:`0 0 8px ${C.tealL}` }} />
-          <span style={{ color:C.tealL, fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Florida Contractors</span>
+          <span style={{ color:C.tealL, fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>Verified Contractors</span>
         </div>
         <h1 style={{ color:'#fff', fontSize:38, fontWeight:800, lineHeight:1.12, letterSpacing:'-0.03em', margin:0, fontFamily:'system-ui' }}>
           Claim your verified<br/>contractor profile.
         </h1>
         <p style={{ color:'rgba(180,210,220,0.8)', fontSize:16, lineHeight:1.6, marginTop:16, maxWidth:360 }}>
-          Already preloaded from Florida DBPR records. Get found by homeowners in minutes.
+          Already preloaded from state license records. Get found by homeowners in minutes.
         </p>
         {/* Trust pills — contractors scan, they don't read */}
         <div style={{ display:'flex', gap:20, flexWrap:'wrap', marginTop:22 }}>
           {[
-            { t:'State verified', s:'DBPR records' },
+            { t:'State verified', s:'Official license records' },
             { t:'Secure & private', s:'Your data is protected' },
             { t:'You own your profile', s:'Claim only your business' },
           ].map(p => (
@@ -78,7 +78,7 @@ const HeroPanel = () => (
       {/* Stats row */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:36 }}>
         {[
-          { n:'5,000+', l:'Verified Florida contractors' },
+          { n:'5,000+', l:'Verified contractors' },
           { n:'$0', l:'Per-lead fee. Ever.' },
           { n:'From $29.99', l:'Roofing $49.99 · Other trades $29.99' },
           { n:'1st lead', l:'Pays for your subscription' },
@@ -314,6 +314,12 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [claimExpiry, setClaimExpiry] = useState('')
   const [claimBlocked, setClaimBlocked] = useState(false)  // already-claimed → no re-claim
 
+  // Direct signup license lookup (non-claim path)
+  const [licenseNum, setLicenseNum] = useState('')
+  const [licenseFound, setLicenseFound] = useState<{ id: string; full_name: string; trade_category?: { category_name: string } } | null>(null)
+  const [licenseChecking, setLicenseChecking] = useState(false)
+  const [licenseNotFound, setLicenseNotFound] = useState(false)
+
   // Focus states
   const [focused, setFocused] = useState<string | null>(null)
   const f = (name: string) => ({ onFocus: () => setFocused(name), onBlur: () => setFocused(null) })
@@ -359,6 +365,27 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
   }
 
+  async function checkLicenseDirect(num: string) {
+    const val = num.trim().toUpperCase()
+    if (!val) { setLicenseFound(null); setLicenseNotFound(false); return }
+    setLicenseChecking(true)
+    setLicenseFound(null)
+    setLicenseNotFound(false)
+    try {
+      const r = await fetch(`/api/pros?license=${encodeURIComponent(val)}`)
+      const d = await r.json()
+      if (d.pro) {
+        setLicenseFound(d.pro)
+        setLicenseNotFound(false)
+      } else {
+        setLicenseFound(null)
+        setLicenseNotFound(true)
+      }
+    } catch { /* silent */ } finally {
+      setLicenseChecking(false)
+    }
+  }
+
   function validateStep(): string {
     if (step === 0) {
       if (!fname.trim()) return 'First name is required'
@@ -381,6 +408,11 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     setError('')
     const err = validateStep()
     if (err) { setError(err); return }
+    // If direct signup and license was found, redirect into the claim flow
+    if (step === 0 && !isClaiming && licenseFound) {
+      router.replace(`/login?tab=signup&claim=${licenseFound.id}`)
+      return
+    }
     // Invite flow: step 0 (identity) → step 2 (business name + phone), skip trade/location
     if (inviteToken && step === 0) { setStep(2); return }
     setStep(s => s + 1)
@@ -497,6 +529,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
   return (
     <div>
+      <style>{`@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }`}</style>
       {/* Step header */}
       <div style={{ marginBottom:8 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
@@ -524,7 +557,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9.5 11 14.5 8 11.5"/></svg>
                 </span>
                 <div style={{ lineHeight:1.35 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:C.teal }}>Florida License Found</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:C.teal }}>License Found</div>
                   <div style={{ fontSize:12.5, color:C.muted }}><span style={{ fontWeight:600, color:C.text }}>{claimLicense}</span> has been matched to your business.</div>
                 </div>
               </div>
@@ -543,7 +576,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         ) : (
           <>
             <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Claim your free profile</h2>
-            <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Your FL license is already in our system. Takes 60 seconds.</p>
+            <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>Your license is already in our system. Takes 60 seconds.</p>
           </>
         )}
       </>}
@@ -579,6 +612,45 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
             </Field>
           </div>
 
+          {/* Direct signup: license lookup to detect existing DBPR row */}
+          {!isClaiming && (
+            <div style={{ marginBottom: 4 }}>
+              <Field label="Contractor License # (optional)">
+                <div style={{ position: 'relative' }}>
+                  <input
+                    value={licenseNum}
+                    onChange={e => { setLicenseNum(e.target.value.toUpperCase()); setLicenseFound(null); setLicenseNotFound(false) }}
+                    onBlur={e => checkLicenseDirect(e.target.value)}
+                    placeholder="e.g. CGC059304"
+                    style={{ ...inputStyle(focused === 'licenseNum'), paddingRight: licenseChecking ? 40 : 16 }}
+                    {...f('licenseNum')}
+                  />
+                  {licenseChecking && (
+                    <div style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', width:16, height:16, border:`2px solid ${C.teal}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+                  )}
+                </div>
+              </Field>
+              {licenseFound && (
+                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:10, background:'rgba(15,118,110,0.06)', border:`1px solid rgba(15,118,110,0.2)`, marginTop:-8, marginBottom:16 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 9.5 11 14.5 8 11.5"/></svg>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:C.teal }}>Profile found</div>
+                    <div style={{ fontSize:12, color:C.muted }}>
+                      <span style={{ fontWeight:600, color:C.text }}>{licenseFound.full_name}</span>
+                      {licenseFound.trade_category?.category_name ? ` · ${licenseFound.trade_category.category_name}` : ''}
+                      {' — click Continue to claim'}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {licenseNotFound && licenseNum.trim().length > 3 && (
+                <div style={{ fontSize:12, color:C.muted, marginTop:-8, marginBottom:12, paddingLeft:2 }}>
+                  No unclaimed profile found for that license — you&apos;ll create a new account.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Claim verification — framed as confirmation, not a form to fill */}
           {isClaiming && (
             <div style={{ padding:'16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:16 }}>
@@ -605,7 +677,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:10 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
-                <span style={{ fontSize:11.5, color:C.muted }}>Matches Florida DBPR records. You can still claim and verify later.</span>
+                <span style={{ fontSize:11.5, color:C.muted }}>Matches state license records. You can still claim and verify later.</span>
               </div>
             </div>
           )}
