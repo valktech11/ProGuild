@@ -13,16 +13,17 @@ type Stage = 'search' | 'preview' | 'done'
 
 export default function ClaimFindPage() {
   const router = useRouter()
-  const [license, setLicense] = useState('')
-  const [email, setEmail]     = useState('')
-  const [pw, setPw]           = useState('')
-  const [pwConf, setPwConf]   = useState('')
-  const [pro, setPro]         = useState<any>(null)
-  const [stage, setStage]     = useState<Stage>('search')
-  const [errMsg, setErrMsg]   = useState('')
-  const [pwErr, setPwErr]     = useState('')
-  const [busy, setBusy]       = useState(false)
-  const [focused, setFocused] = useState<string | null>(null)
+  const [license, setLicense]         = useState('')
+  const [email, setEmail]             = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [pw, setPw]                   = useState('')
+  const [pwConf, setPwConf]           = useState('')
+  const [pro, setPro]                 = useState<any>(null)
+  const [stage, setStage]             = useState<Stage>('search')
+  const [errMsg, setErrMsg]           = useState('')
+  const [pwErr, setPwErr]             = useState('')
+  const [busy, setBusy]               = useState(false)
+  const [focused, setFocused]         = useState<string | null>(null)
 
   const inp = (name: string): React.CSSProperties => ({
     width: '100%', padding: '12px 14px', boxSizing: 'border-box',
@@ -39,7 +40,9 @@ export default function ClaimFindPage() {
     const d = await res.json()
     setBusy(false)
     if (!res.ok) { setErrMsg(d.error || 'Not found.'); return }
-    setPro(d); setStage('preview')
+    setPro(d)
+    setDisplayName(d.first_name || proFirstName(d.full_name || ''))
+    setStage('preview')
   }
 
   async function handleClaim() {
@@ -50,7 +53,12 @@ export default function ClaimFindPage() {
     setBusy(true)
     const res = await fetch('/api/claim/by-license', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ license_number: pro.license_number, email: email.trim(), password: pw }),
+      body: JSON.stringify({
+        license_number: pro.license_number,
+        email: email.trim(),
+        password: pw,
+        display_name: displayName.trim() || undefined,
+      }),
     })
     const d = await res.json()
     if (!res.ok) { setPwErr(d.error || 'Something went wrong.'); setBusy(false); return }
@@ -124,7 +132,15 @@ export default function ClaimFindPage() {
                   <div style={{ color: C.muted, fontSize: 13 }}>{pro.trade} · {pro.city}, {pro.state}</div>
                 </div>
               </div>
-              <p style={{ color: C.muted, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>This is your ProGuild profile. Enter your email and set a password to claim it.</p>
+
+              <p style={{ color: C.muted, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>This is your ProGuild profile. Fill in your details to claim it.</p>
+
+              <label style={{ display: 'block', color: C.muted, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Display Name <span style={{ color: '#6B7280', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(how you appear on ProGuild)</span></label>
+              <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                onFocus={() => setFocused('dn')} onBlur={() => setFocused(null)}
+                placeholder="e.g. John Smith"
+                style={{ ...inp('dn'), marginBottom: 12 }} />
+
               <label style={{ display: 'block', color: C.muted, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 onFocus={() => setFocused('email')} onBlur={() => setFocused(null)}
