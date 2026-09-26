@@ -19,13 +19,13 @@ export async function GET(req: NextRequest) {
   if (pro.is_claimed) return NextResponse.json({ error: 'This profile has already been claimed. If this is your license, contact support@proguild.ai.' }, { status: 410 })
 
   return NextResponse.json({
-    id:        pro.id,
-    full_name: pro.full_name,
-    first_name: proFirstName(pro.full_name || ''),
-    city:      pro.city,
-    state:     pro.state,
-    trade:     (pro as any).trade_category?.category_name || pro.trade_slug || 'Trade Professional',
-    photo_url: pro.profile_photo_url || null,
+    id:           pro.id,
+    full_name:    pro.full_name,
+    first_name:   proFirstName(pro.full_name || ''),
+    city:         pro.city,
+    state:        pro.state,
+    trade:        (pro as any).trade_category?.category_name || pro.trade_slug || 'Trade Professional',
+    photo_url:    pro.profile_photo_url || null,
     license_number: license,
   })
 }
@@ -34,7 +34,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const sb = getSupabaseAdmin()
   const body = await req.json().catch(() => ({}))
-  const { license_number, password } = body as { license_number?: string; password?: string }
+  const { license_number, password, display_name } = body as {
+    license_number?: string
+    password?: string
+    display_name?: string
+  }
 
   if (!license_number?.trim()) return NextResponse.json({ error: 'License number is required.' }, { status: 400 })
   if (!password || password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 })
@@ -75,10 +79,19 @@ export async function POST(req: NextRequest) {
   }
 
   const trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+
+  // display_name: use what the pro provided, otherwise fall back to proFirstName(full_name)
+  const resolvedDisplayName = display_name?.trim() || proFirstName(pro.full_name || '') || null
+
   const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
-    is_claimed: true, claimed_at: new Date().toISOString(),
-    auth_user_id: authUserId, email: claimEmail,
-    claim_token: null, claim_token_expires_at: null, trial_ends_at: trialEndsAt,
+    is_claimed:              true,
+    claimed_at:              new Date().toISOString(),
+    auth_user_id:            authUserId,
+    email:                   claimEmail,
+    claim_token:             null,
+    claim_token_expires_at:  null,
+    trial_ends_at:           trialEndsAt,
+    display_name:            resolvedDisplayName,
   }).eq('id', pro.id).select('id, full_name, email, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number').single()
 
   if (updateErr || !claimedPro) {
@@ -88,13 +101,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const { data: company, error: compErr } = await sb.from('companies').insert({
-      name: claimedPro.business_name || claimedPro.full_name || 'My Company',
-      email: claimEmail, trade_slug: claimedPro.trade_slug || null,
+      name:              claimedPro.business_name || claimedPro.full_name || 'My Company',
+      email:             claimEmail,
+      trade_slug:        claimedPro.trade_slug || null,
       trade_category_id: claimedPro.trade_category_id || null,
-      business_name: claimedPro.business_name || null, license_number: claimedPro.license_number || null,
-      city: claimedPro.city || null, state: claimedPro.state || null,
-      phone_cell: claimedPro.phone_cell || null, plan_tier: 'Free',
-      trial_ends_at: trialEndsAt, owner_pro_id: claimedPro.id,
+      business_name:     claimedPro.business_name || null,
+      license_number:    claimedPro.license_number || null,
+      city:              claimedPro.city || null,
+      state:             claimedPro.state || null,
+      phone_cell:        claimedPro.phone_cell || null,
+      plan_tier:         'Free',
+      trial_ends_at:     trialEndsAt,
+      owner_pro_id:      claimedPro.id,
     }).select('id').single()
     if (company && !compErr) {
       await sb.from('pros').update({ company_id: company.id }).eq('id', claimedPro.id)
