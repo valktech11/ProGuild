@@ -168,6 +168,7 @@ export interface Session {
   company_id: string | null
   company_name: string | null
   google_id: string | null
+  photo_url: string | null
   role: 'owner' | 'member' | null
 }
 
