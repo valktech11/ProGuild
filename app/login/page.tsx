@@ -294,25 +294,33 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const [success, setSuccess] = useState(false)
 
   // Fields
-  const [fname, setFname] = useState('')
-  const [lname, setLname] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [phone, setPhone] = useState('')
-  const [trade, setTrade] = useState('')
-  const [stateVal, setStateVal] = useState('')
-  const [city, setCity] = useState('')
-  const [otherCity, setOtherCity] = useState('')
-  const [yrs, setYrs] = useState('')
+  const [fname, setFname]               = useState('')
+  const [lname, setLname]               = useState('')
+  const [displayName, setDisplayName]   = useState('')
+  const [email, setEmail]               = useState('')
+  const [password, setPassword]         = useState('')
+  const [phone, setPhone]               = useState('')
+  const [trade, setTrade]               = useState('')
+  const [stateVal, setStateVal]         = useState('')
+  const [city, setCity]                 = useState('')
+  const [otherCity, setOtherCity]       = useState('')
+  const [yrs, setYrs]                   = useState('')
   const [businessName, setBusinessName] = useState('')
-  const [cities, setCities] = useState<string[]>([])
+  const [cities, setCities]             = useState<string[]>([])
   const [citiesLoading, setCitiesLoading] = useState(false)
 
+  // License lookup (new — deduplication)
+  const [licenseNum, setLicenseNum]       = useState('')
+  const [licenseChecking, setLicenseChecking] = useState(false)
+  const [licenseFoundPro, setLicenseFoundPro] = useState<any>(null)   // pro row from DB if found
+  const [licenseNotInDb, setLicenseNotInDb]   = useState(false)        // true after lookup returned 404
+  const [licenseError, setLicenseError]       = useState('')
+
   // Claim mode — license verification + the profile being claimed
-  const [claimName, setClaimName] = useState('')
+  const [claimName, setClaimName]     = useState('')
   const [claimLicense, setClaimLicense] = useState('')
   const [claimExpiry, setClaimExpiry] = useState('')
-  const [claimBlocked, setClaimBlocked] = useState(false)  // already-claimed → no re-claim
+  const [claimBlocked, setClaimBlocked] = useState(false)
 
   // Focus states
   const [focused, setFocused] = useState<string | null>(null)
@@ -329,8 +337,6 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         const p = d.pro
         if (!p) return
         if (p.is_claimed) {
-          // Already claimed — block re-claim. Show a message; the user leaves via
-          // the 'View profile' button (no forced auto-redirect).
           setClaimBlocked(true)
           return
         }
@@ -359,10 +365,48 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
   }
 
+  // License lookup — called on blur or when user presses Enter in the license field
+  async function checkLicense(raw: string) {
+    const lic = raw.trim().toUpperCase()
+    if (!lic) return
+    setLicenseChecking(true); setLicenseError(''); setLicenseFoundPro(null); setLicenseNotInDb(false)
+    const res = await fetch(`/api/claim/by-license?license=${encodeURIComponent(lic)}`)
+    const d = await res.json()
+    setLicenseChecking(false)
+    if (res.status === 410) {
+      // already claimed
+      setLicenseError('This license has already been claimed. Try logging in instead.')
+      return
+    }
+    if (res.status === 404) {
+      // not in DB — new pro, proceed normally
+      setLicenseNotInDb(true)
+      return
+    }
+    if (!res.ok) {
+      setLicenseError(d.error || 'Could not verify license. Please try again.')
+      return
+    }
+    // Found in DB — pre-fill from their existing row
+    setLicenseFoundPro(d)
+    const firstName = d.first_name || ''
+    const parts = (d.full_name || '').trim().split(/\s+/)
+    setFname(firstName)
+    setLname(parts.length > 1 ? parts.slice(1).join(' ') : '')
+    setDisplayName(firstName)
+    if (d.state) setStateVal(d.state)
+  }
+
   function validateStep(): string {
     if (step === 0) {
-      if (!fname.trim()) return 'First name is required'
-      if (!lname.trim()) return 'Last name is required'
+      if (!licenseNum.trim()) return 'Florida license number is required'
+      if (licenseError) return licenseError
+      if (licenseChecking) return 'Please wait — verifying license…'
+      // If license found in DB, skip name validation (we have it from DB)
+      if (!licenseFoundPro) {
+        if (!fname.trim()) return 'First name is required'
+        if (!lname.trim()) return 'Last name is required'
+      }
       if (!email.trim() || !email.includes('@')) return 'Valid email is required'
       if (!password || password.length < 8) return 'Password must be at least 8 characters'
     }
@@ -381,6 +425,8 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     setError('')
     const err = validateStep()
     if (err) { setError(err); return }
+    // If license found in DB → skip trade/location steps (already have them), go straight to phone
+    if (licenseFoundPro && step === 0) { setStep(2); return }
     // Invite flow: step 0 (identity) → step 2 (business name + phone), skip trade/location
     if (inviteToken && step === 0) { setStep(2); return }
     setStep(s => s + 1)
@@ -391,6 +437,36 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     const err = validateStep()
     if (err) { setError(err); return }
     setLoading(true)
+
+    // If license found in DB — use the claim-by-license API directly
+    if (licenseFoundPro) {
+      const r = await fetch('/api/claim/by-license', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          license_number: licenseNum.trim().toUpperCase(),
+          email: email.trim().toLowerCase(),
+          password,
+          display_name: displayName.trim() || undefined,
+        }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setLoading(false); setError(d.error || 'Could not claim profile.'); return }
+      // Sign in
+      const supabase = getSupabaseBrowser()
+      let signInErr: any = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
+        signInErr = res.error
+        if (!signInErr) break
+        await new Promise(r => setTimeout(r, 500))
+      }
+      if (signInErr) { setLoading(false); setError('Profile claimed. Please log in.'); onSwitchTab(); return }
+      try { sessionStorage.setItem('pg_just_signed_up', '1') } catch {}
+      setSuccess(true)
+      setTimeout(() => router.push('/auth/callback'), 600)
+      return
+    }
+
     const finalCity = city === '__other__' ? otherCity : city
 
     const r = await fetch('/api/auth/signup', {
@@ -399,12 +475,14 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         email,
         password,
         full_name:`${fname} ${lname}`,
+        display_name: displayName.trim() || fname.trim() || undefined,
         business_name: businessName.trim() || null,
         phone,
         trade_category_id:trade,
         state:stateVal,
         city:finalCity,
         years_experience:yrs ? parseInt(yrs) : undefined,
+        license_number: licenseNum.trim().toUpperCase() || undefined,
         ...(isClaiming ? {
           claim_pro_id: claimId,
           claim_license: claimLicense.trim() || null,
@@ -416,10 +494,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     const d = await r.json()
     if (!r.ok) { setLoading(false); setError(d.error || 'Could not create account.'); return }
 
-    // Account created on the server. Now establish a real browser session.
     const supabase = getSupabaseBrowser()
-    // Sign in to establish the browser session. The just-created auth user can take a
-    // moment to be fully usable, so retry briefly before giving up.
     let signInErr: any = null
     for (let attempt = 0; attempt < 3; attempt++) {
       const res = await supabase.auth.signInWithPassword({
@@ -432,32 +507,22 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
     }
     if (signInErr) {
       setLoading(false)
-      // Account exists but auto-login failed — send them to login
       setError('Account created. Please log in.')
       onSwitchTab()
       return
     }
 
-    // Mark this as a fresh signup so onboarding shows if the callback routes there.
     try { sessionStorage.setItem('pg_just_signed_up', '1') } catch {}
-    // If the roofer came from the visualizer, carry the session through so the
-    // callback can link it and redirect back to the report.
     if (vizSession) {
       try { sessionStorage.setItem('pg_visualizer_session', vizSession) } catch {}
     }
 
     setSuccess(true)
-    // If signed up via invite, go via callback (handles session establishment)
     if (inviteToken) {
       try { sessionStorage.setItem('pg_invite_join', '1') } catch {}
       setTimeout(() => router.push('/auth/callback'), 600)
       return
     }
-    // Route through the shared callback, which reliably waits for the session to be
-    // readable, calls /api/auth/me, and routes: linked pro → /dashboard,
-    // authed-but-no-pro → /complete-profile. This avoids the race where a blind
-    // push to /onboarding mounts before the session cookie is established and bounces
-    // back to /login.
     setTimeout(() => router.push('/auth/callback'), 600)
   }
 
@@ -474,7 +539,6 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
   const stepLabels = ['Your identity', 'Your trade', 'Contact']
   const selectedTrade = cats.find(c => c.id === trade)
 
-  // Already-claimed profile — block re-claim with a clear message (redirect runs in effect).
   if (claimBlocked) {
     return (
       <div style={{ textAlign:'center', padding:'24px 8px' }}>
@@ -517,7 +581,6 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {step === 0 && <>
         {isClaiming && claimName ? (
           <>
-            {/* License-found success banner — "claim an asset", not "fill a form" */}
             {claimLicense && (
               <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background:'rgba(15,118,110,0.06)', border:`1px solid rgba(15,118,110,0.18)`, marginBottom:16 }}>
                 <span style={{ flexShrink:0, width:32, height:32, borderRadius:'50%', background:'rgba(15,118,110,0.12)', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -529,7 +592,6 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                 </div>
               </div>
             )}
-            {/* Avatar + welcome — makes ownership feel real */}
             <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
               <div style={{ flexShrink:0, width:52, height:52, borderRadius:'50%', background:'#D7EFE9', color:'#0A5F58', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:18, fontFamily:'system-ui' }}>
                 {claimName.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
@@ -552,7 +614,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
         <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>We'll match you with homeowners in your area.</p>
       </>}
       {step === 2 && <>
-        <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Almost done, {fname}.</h2>
+        <h2 style={{ fontSize:24, fontWeight:800, color:C.text, margin:'0 0 4px', letterSpacing:'-0.02em', fontFamily:'system-ui' }}>Almost done, {fname || displayName}.</h2>
         <p style={{ color:C.muted, fontSize:13, margin:'0 0 28px', lineHeight:1.6 }}>{inviteToken ? 'Almost done — add your phone number.' : 'Add your business name and phone to complete your profile.'}</p>
       </>}
 
@@ -566,20 +628,72 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
       {/* Step 0: Identity */}
       {step === 0 && (
         <div>
-          {/* OAuth — generic signup only; claiming ties to the license, so email/password */}
           {!isClaiming && <OAuthButtons mode="signup" />}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <Field label="First name">
-              <input value={fname} onChange={e => setFname(e.target.value)} placeholder="James"
-                style={inputStyle(focused==='fname')} {...f('fname')} />
-            </Field>
-            <Field label="Last name">
-              <input value={lname} onChange={e => setLname(e.target.value)} placeholder="Harrington"
-                style={inputStyle(focused==='lname')} {...f('lname')} />
-            </Field>
-          </div>
 
-          {/* Claim verification — framed as confirmation, not a form to fill */}
+          {/* ── License number — required, deduplication key ────────────── */}
+          {!isClaiming && (
+            <Field label="Florida License Number" hint="Enter your DBPR license (e.g. CCC123456). We'll check if your profile exists.">
+              <div style={{ position:'relative' }}>
+                <input
+                  value={licenseNum}
+                  onChange={e => {
+                    setLicenseNum(e.target.value.toUpperCase())
+                    setLicenseFoundPro(null); setLicenseNotInDb(false); setLicenseError('')
+                  }}
+                  onBlur={() => licenseNum.trim() && checkLicense(licenseNum)}
+                  onKeyDown={e => e.key === 'Enter' && licenseNum.trim() && checkLicense(licenseNum)}
+                  placeholder="e.g. CCC123456"
+                  style={{ ...inputStyle(focused==='lic'), paddingRight: licenseChecking ? 44 : 16 }}
+                  {...f('lic')}
+                />
+                {licenseChecking && (
+                  <div style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', width:16, height:16, border:`2px solid ${C.teal}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.6s linear infinite' }} />
+                )}
+              </div>
+              {licenseError && (
+                <p style={{ fontSize:12, color:C.error, marginTop:5 }}>{licenseError}</p>
+              )}
+              {licenseFoundPro && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 12px', background:'rgba(15,118,110,0.06)', borderRadius:8, border:`1px solid rgba(15,118,110,0.2)` }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.teal} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span style={{ fontSize:12.5, color:C.teal, fontWeight:600 }}>
+                    Found: {licenseFoundPro.first_name}, {licenseFoundPro.trade} · {licenseFoundPro.city}, {licenseFoundPro.state}
+                  </span>
+                </div>
+              )}
+              {licenseNotInDb && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, padding:'8px 12px', background:'rgba(15,118,110,0.04)', borderRadius:8, border:`1px solid rgba(15,118,110,0.12)` }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span style={{ fontSize:12.5, color:C.muted }}>Not in our database — fill in your details below to create a new profile.</span>
+                </div>
+              )}
+            </Field>
+          )}
+
+          {/* Name fields — only show if license NOT found in DB (or claim mode) */}
+          {(!licenseFoundPro || isClaiming) && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="First name">
+                <input value={fname} onChange={e => setFname(e.target.value)} placeholder="James"
+                  style={inputStyle(focused==='fname')} {...f('fname')} />
+              </Field>
+              <Field label="Last name">
+                <input value={lname} onChange={e => setLname(e.target.value)} placeholder="Harrington"
+                  style={inputStyle(focused==='lname')} {...f('lname')} />
+              </Field>
+            </div>
+          )}
+
+          {/* Display name — shown when license found (pre-filled from DB, editable) */}
+          {licenseFoundPro && !isClaiming && (
+            <Field label="Display Name" hint="How you appear on ProGuild. You can change this anytime.">
+              <input value={displayName} onChange={e => setDisplayName(e.target.value)}
+                placeholder="e.g. John Smith"
+                style={inputStyle(focused==='displayname')} {...f('displayname')} />
+            </Field>
+          )}
+
+          {/* Claim verification block (existing wave-1 flow) */}
           {isClaiming && (
             <div style={{ padding:'16px', borderRadius:12, background:'rgba(15,118,110,0.04)', border:`1px solid rgba(15,118,110,0.12)`, marginBottom:16 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
@@ -620,6 +734,14 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
               placeholder="Create a password"
               style={inputStyle(focused==='password')} {...f('password')} />
           </Field>
+
+          {/* Already licensed hint */}
+          {!isClaiming && (
+            <p style={{ fontSize:12.5, color:C.muted, textAlign:'center', marginTop:4 }}>
+              Found your profile via Google?{' '}
+              <a href="/claim/find" style={{ color:C.teal, fontWeight:600, textDecoration:'none' }}>Claim it directly →</a>
+            </p>
+          )}
         </div>
       )}
 
@@ -677,10 +799,12 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
             <div style={{ fontSize:12, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>Your profile</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               {[
-                { l:'Name', v:`${fname} ${lname}` },
+                { l:'Name', v: displayName || `${fname} ${lname}`.trim() },
                 { l:'Email', v:email },
-                { l:'Trade', v:selectedTrade?.category_name || '—' },
-                { l:'Location', v:`${city === '__other__' ? otherCity : city}, ${stateVal}` },
+                { l:'Trade', v: licenseFoundPro ? licenseFoundPro.trade : (selectedTrade?.category_name || '—') },
+                { l:'Location', v: licenseFoundPro
+                    ? `${licenseFoundPro.city}, ${licenseFoundPro.state}`
+                    : `${city === '__other__' ? otherCity : city}, ${stateVal}` },
                 ...(businessName ? [{ l:'Business', v:businessName }] : []),
               ].map(r => (
                 <div key={r.l}>
@@ -693,7 +817,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
           <Field label="Business name" hint="How your company appears to homeowners">
             <input value={businessName} onChange={e => setBusinessName(e.target.value)}
-              placeholder={`${fname} ${lname} Roofing`}
+              placeholder={`${fname || displayName} Roofing`}
               style={inputStyle(focused==='bizname')} {...f('bizname')} />
           </Field>
 
@@ -708,7 +832,7 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
 
       {/* CTA */}
       <button
-        onClick={step < 2 ? handleNext : handleSignup}  // step 2 always calls handleSignup
+        onClick={step < 2 ? handleNext : handleSignup}
         disabled={loading}
         style={{
           width:'100%', padding:'14px',
@@ -719,10 +843,10 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
           opacity: loading ? 0.7 : 1, transition:'all 0.15s',
           letterSpacing:'-0.01em', fontFamily:'system-ui',
         }}>
-        {loading ? (isClaiming ? 'Claiming your profile…' : 'Creating your profile…')
+        {loading ? (isClaiming || licenseFoundPro ? 'Claiming your profile…' : 'Creating your profile…')
           : step === 0 ? 'Continue →'
           : step === 1 ? 'Almost done →'
-          : isClaiming ? '🔒 Claim my profile →'
+          : isClaiming || licenseFoundPro ? '🔒 Claim my profile →'
           : 'Create my profile →'}
       </button>
 
