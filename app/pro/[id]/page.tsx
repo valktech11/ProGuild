@@ -734,11 +734,7 @@ export default function ProProfilePage() {
           <p className="text-xs mb-4 leading-relaxed" style={{ color: '#6B7280' }}>
             This contractor hasn&apos;t joined ProGuild yet. Once they claim their profile, you&apos;ll be able to message them directly.
           </p>
-          <Link href={'/login?tab=signup&claim=' + pro.id}
-            className="w-full py-2.5 rounded-xl text-sm font-bold border transition-all text-center block"
-            style={{ borderColor: '#D97706', color: '#D97706', background: 'rgba(217,119,6,0.06)' }}>
-            Claim this profile →
-          </Link>
+
         </>
       )}
 
@@ -796,7 +792,7 @@ export default function ProProfilePage() {
               )}
 
               {/* Unclaimed claim prompt — inline below identity */}
-              {contactState === 'claimed-expired' && !isOwner && (
+              {!pro.is_claimed && !isOwner && (
                 <div className="mt-4 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap"
                   style={{ background: 'linear-gradient(100deg, #FDF9EF 0%, #FBF6E8 100%)', border: '1px solid #F0E2C4' }}>
                   <div className="flex items-start gap-3">
