@@ -3,6 +3,19 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
+
+  // License lookup — used by signup page to detect existing unclaimed row
+  const licenseParam = searchParams.get('license')?.trim().toUpperCase()
+  if (licenseParam) {
+    const { data } = await getSupabaseAdmin()
+      .from('pros')
+      .select('id,full_name,trade_category_id,state,license_number,is_claimed,trade_category:trade_categories(category_name)')
+      .ilike('license_number', licenseParam)
+      .eq('is_claimed', false)
+      .maybeSingle()
+    return NextResponse.json({ pro: data || null })
+  }
+
   const trade  = searchParams.get('trade')
   const search = searchParams.get('search')?.trim()
   const city   = searchParams.get('city')?.trim()   // exact city filter
