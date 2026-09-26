@@ -663,7 +663,7 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
         <div className="relative">
           <button onClick={() => { setUserOpen(o => !o) }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Av s={session} px={28} enlargeable />
+            <Av s={session} px={28} />
             <span className="text-[14px] font-semibold" style={{ color: txt }}>{proFirstName(session.name)}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={txt} strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 9l6 6 6-6" />
