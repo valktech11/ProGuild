@@ -5,21 +5,13 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
 
-// ── Colour tokens ─────────────────────────────────────────────────────────────
-// BG:      #FAF9F6  warm cream
-// CARD:    #FFFFFF  white
-// DARK:    #0A1628  navy
-// TEAL:    #0F766E  primary accent
-// BORDER:  #E8E2D9  warm gray
-
-// ── Primary trade tiles ───────────────────────────────────────────────────────
 const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️', count: '15,252' },
-  { slug: 'electrician',        label: 'Electrician',        icon: '⚡', count: '14,057' },
-  { slug: 'plumber',            label: 'Plumber',            icon: '🪠', count: '9,550' },
-  { slug: 'roofing',            label: 'Roofer',             icon: '🏠', count: '11,501' },
-  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️', count: '68,341' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊', count: '5,569' },
+  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️' },
+  { slug: 'electrician',        label: 'Electrician',        icon: '⚡' },
+  { slug: 'plumber',            label: 'Plumber',            icon: '🪠' },
+  { slug: 'roofing',            label: 'Roofer',             icon: '🏠' },
+  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️' },
+  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊' },
 ]
 
 const SECONDARY_TRADES = [
@@ -47,7 +39,6 @@ const HOW_STEPS_PRO = [
   { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Unlimited leads, estimates, invoices, and measurements.' },
 ]
 
-// ── Scope helpers ─────────────────────────────────────────────────────────────
 function getScopeState(): string {
   return (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').split(',')[0].trim().toUpperCase()
 }
@@ -62,7 +53,6 @@ function getScopeLabel(): string {
   return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
   const [trade, setTrade]               = useState('')
@@ -154,9 +144,10 @@ export default function HomePage() {
           <span style={{ color: '#0F766E' }}>you can actually reach.</span>
         </h1>
 
+        {/* Subheadline — honest, no false claims */}
         <p className="text-lg mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          Every pro on ProGuild has claimed their profile and is ready to take your job.
-          Search by trade and city — contact them directly, no middleman.
+          Browse DBPR-verified licensed contractors in {scopeLabel}.
+          Every pro you see is reachable — contact them directly, no middleman, no lead fees.
         </p>
 
         {/* Search bar */}
@@ -179,12 +170,12 @@ export default function HomePage() {
           </span>
         </div>
 
-        {/* Trust stats — honest */}
+        {/* Trust stats — honest, no fake counts */}
         <div className="flex items-center justify-center gap-10 flex-wrap">
           {[
+            { num: 'DBPR',  label: 'Every license verified' },
             { num: '$0',    label: 'Per-lead fees, ever' },
-            { num: 'DBPR',  label: 'License verified' },
-            { num: '1',     label: 'Pro per enquiry' },
+            { num: 'Direct', label: 'Contact them yourself' },
           ].map(s => (
             <div key={s.num} className="text-center">
               <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
@@ -303,7 +294,7 @@ export default function HomePage() {
             Search your name — your profile is waiting. Claim it free in 30 seconds.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/login?tab=signup"
+            <Link href="/claim/find"
               className="px-8 py-3.5 rounded-xl font-bold text-white transition-all hover:opacity-90"
               style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
               Claim Your Profile — Free
