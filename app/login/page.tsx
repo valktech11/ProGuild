@@ -620,10 +620,10 @@ function SignupForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: 
                   <input
                     value={licenseNum}
                     onChange={e => { setLicenseNum(e.target.value.toUpperCase()); setLicenseFound(null); setLicenseNotFound(false) }}
-                    onBlur={e => checkLicenseDirect(e.target.value)}
+                    onFocus={() => setFocused('licenseNum')}
+                    onBlur={e => { setFocused(null); checkLicenseDirect(e.target.value) }}
                     placeholder="e.g. CGC059304"
                     style={{ ...inputStyle(focused === 'licenseNum'), paddingRight: licenseChecking ? 40 : 16 }}
-                    {...f('licenseNum')}
                   />
                   {licenseChecking && (
                     <div style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', width:16, height:16, border:`2px solid ${C.teal}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
