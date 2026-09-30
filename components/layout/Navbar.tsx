@@ -28,13 +28,13 @@ const HOMEOWNER_LINKS = [
   { href: '/',           label: 'Find a Pro',      match: (p: string) => p === '/' },
   { href: '/fl',         label: 'Browse Trades',   match: (p: string) => p === '/fl' },
   { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
-  { href: '/contractors', label: 'For Contractors', match: (p: string) => p.startsWith('/contractors') },
+  { href: '/contractors', label: 'For Pros', match: (p: string) => p.startsWith('/contractors') },
 ]
 
 const PRO_LINKS = [
   { href: '/jobs',       label: 'Find Work',       match: (p: string) => p.startsWith('/jobs') },
   { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
-  { href: '/contractors', label: 'For Contractors', match: (p: string) => p.startsWith('/contractors') },
+  { href: '/contractors', label: 'For Pros', match: (p: string) => p.startsWith('/contractors') },
   { href: '/dashboard',  label: 'Dashboard',       match: (p: string) => p === '/dashboard' },
 ]
 
