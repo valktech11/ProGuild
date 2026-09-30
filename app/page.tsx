@@ -185,9 +185,21 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let alive = true
-    fetch('/api/pros?limit=4&status=Active&sort=verified')
+    fetch('/api/pros?limit=60&status=Active&sort=verified')
       .then(r => (r.ok ? r.json() : { pros: [] }))
-      .then(d => { if (alive) setPros(Array.isArray(d.pros) ? d.pros.slice(0, 4) : []) })
+      .then(d => {
+        if (!alive) return
+        const all: HomePro[] = Array.isArray(d.pros) ? d.pros : []
+        // Show variety — one pro per distinct trade first, then top up to 4
+        const seen = new Set<string>()
+        const picked: HomePro[] = []
+        for (const p of all) {
+          const key = p.trade_category?.slug || 'x'
+          if (!seen.has(key)) { seen.add(key); picked.push(p); if (picked.length === 4) break }
+        }
+        if (picked.length < 4) for (const p of all) { if (!picked.includes(p)) { picked.push(p); if (picked.length === 4) break } }
+        setPros(picked)
+      })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
@@ -443,7 +455,7 @@ export default function HomePage() {
                 {TRADE_ICONS[t.slug]}
               </span>
               <span className="text-[15px] font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR licensed</span>
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Licensed &amp; verified</span>
               <span className="text-xs font-semibold mt-3 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()}` : 'Find pros'} →
