@@ -12,10 +12,13 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   openGraph: {
-    title: 'ProGuild.ai — Your Craft. Your Guild.',
-    description: 'Find verified Florida tradespeople. DBPR-integrated. Zero lead fees.',
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://proguild.ai/',
+    title: 'ProGuild.ai — Find a licensed Florida contractor you can actually reach.',
+    description: 'Search DBPR-licensed Florida contractors by trade and city and contact them directly. Zero lead fees. Every license verified against Florida DBPR.',
     siteName: 'ProGuild.ai',
-    images: [{ url: 'https://proguild.ai/icon.png', width: 512, height: 512 }],
+    images: [{ url: 'https://proguild.ai/og-image.png', width: 1200, height: 630, alt: 'ProGuild.ai — find a licensed Florida contractor you can actually reach.' }],
   },
 }
 
@@ -26,7 +29,9 @@ const organizationSchema = {
   url: 'https://proguild.ai',
   logo: 'https://proguild.ai/icon.png',
   description: 'Florida\'s verified trades network. Every pro verified against Florida DBPR records. Zero per-lead fees.',
+  slogan: 'Your Craft. Your Guild.',
   areaServed: { '@type': 'State', name: 'Florida', containedInPlace: { '@type': 'Country', name: 'United States' } },
+  knowsAbout: ['HVAC', 'Electrician', 'Plumber', 'Roofer', 'General Contractor', 'Pool & Spa', 'Painter', 'Solar Installer', 'Impact Windows', 'Flooring'],
   contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'hello@proguild.ai' },
   sameAs: ['https://proguild.ai'],
 }
@@ -48,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="canonical" href="https://proguild.ai/" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet" />

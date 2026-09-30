@@ -37,7 +37,7 @@ const SECONDARY_TRADES = [
 
 const HOW_STEPS_HOMEOWNER = [
   { n: '01', title: 'Search', desc: 'Enter your trade and city. Every pro\'s license is verified against the Florida DBPR database.' },
-  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and reviews side by side.' },
+  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and trade details side by side.' },
   { n: '03', title: 'Hire Direct', desc: 'Contact the pro directly. No middleman. No lead fees charged to them.' },
 ]
 
@@ -160,9 +160,9 @@ export default function HomePage() {
           <span style={{ color: '#0F766E' }}>you can actually reach.</span>
         </h1>
 
-        <p className="text-lg mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          Every pro on ProGuild has claimed their profile and is ready to take your job.
-          Search by trade and city — contact them directly, no middleman.
+        <p className="text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
+          Search {scopeLabel}&rsquo;s DBPR-licensed contractors by trade and city, and reach
+          them directly — no middleman, no lead fees.
         </p>
 
         {/* Search bar */}
@@ -217,7 +217,7 @@ export default function HomePage() {
               style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <span className="text-2xl mb-2">{t.icon}</span>
               <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR licensed</span>
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>{t.count} licensed &middot; DBPR</span>
               <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()} →` : 'Find pros →'}
@@ -249,7 +249,7 @@ export default function HomePage() {
           {[
             { icon: '🛡', title: 'DBPR License Verified', sub: 'Every pro\'s license is checked against Florida\'s state database before they appear on ProGuild.' },
             { icon: '💰', title: 'Zero Lead Fees. Ever.', sub: 'Pros pay one flat monthly fee. No per-lead charges means they focus on your job, not chasing credits.' },
-            { icon: '🎯', title: 'You Pick. They Answer.', sub: 'You choose one pro and contact them directly. No bidding wars, no spam calls, no middleman.' },
+            { icon: '🎯', title: 'You Pick. You Reach Them.', sub: 'Choose one pro and contact them directly — no bidding wars, no spam calls, no middleman.' },
           ].map(item => (
             <div key={item.title}>
               <div className="text-3xl mb-3">{item.icon}</div>
