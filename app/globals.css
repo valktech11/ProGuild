@@ -246,3 +246,8 @@ input:focus, textarea:focus, select:focus {
 @keyframes pgDraw { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
 .pg-underline path { stroke-dasharray: 260; stroke-dashoffset: 260; animation: pgDraw 1s ease-out .5s forwards; }
 @media (prefers-reduced-motion: reduce) { .pg-underline path { stroke-dashoffset: 0; animation: none; } }
+
+/* Floating hero verified-pro card */
+@keyframes pgFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.pg-float { animation: pgFloat 5.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pg-float { animation: none; } }

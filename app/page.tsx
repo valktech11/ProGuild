@@ -108,6 +108,49 @@ function getScopeLabel(): string {
   return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
 }
 
+// ── Hero verified-pro card (illustrative sample — demonstrates the Guild
+//    Verified feature; not a real business record, license is masked) ──────────
+function VerifiedProCard() {
+  return (
+    <div className="relative w-full max-w-sm mx-auto lg:ml-auto">
+      {/* depth card behind */}
+      <div className="absolute -right-3 -top-3 w-full h-full rounded-2xl border" aria-hidden
+        style={{ borderColor: '#E8E2D9', background: '#FFFFFF', opacity: 0.5 }} />
+      {/* main card */}
+      <div className="pg-float relative rounded-2xl bg-white border p-5"
+        style={{ borderColor: '#E8E2D9', boxShadow: '0 34px 64px -26px rgba(10,22,40,0.38)' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shrink-0"
+            style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>CR</div>
+          <div className="min-w-0">
+            <div className="font-semibold text-[15px] leading-tight" style={{ color: '#0A1628' }}>Coastline Roofing</div>
+            <div className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>Roofing · Cape Coral, FL</div>
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium mb-4"
+          style={{ background: 'rgba(15,118,110,0.08)', color: '#0C5F57' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/></svg>
+          CCC# ••• 4021
+        </div>
+        <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: '#F0EBE3' }}>
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          </span>
+          <span className="text-[13px] font-bold" style={{ color: '#0A1628' }}>Guild Verified</span>
+          <span className="text-[11px]" style={{ color: '#9CA3AF' }}>· license active in DBPR</span>
+        </div>
+        <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
+          style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>
+      </div>
+      {/* floating DBPR pill */}
+      <div className="pg-float absolute -left-4 top-[38%] rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+        style={{ borderColor: '#E8E2D9', color: '#0C5F57', boxShadow: '0 12px 26px -12px rgba(10,22,40,0.28)', animationDelay: '1.2s' }}>
+        <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" /> DBPR verified
+      </div>
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
@@ -196,7 +239,10 @@ export default function HomePage() {
         <div className="pointer-events-none absolute left-1/2 top-[-60px] -z-0 pg-hero-glow" aria-hidden
           style={{ width: 720, height: 420, background: 'radial-gradient(ellipse at center, rgba(15,118,110,0.20), rgba(15,118,110,0) 70%)', filter: 'blur(6px)' }} />
 
-        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+        <div className="relative max-w-6xl mx-auto px-6 pt-16 lg:pt-20 pb-16">
+         <div className="grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+          {/* LEFT — copy + search */}
+          <div className="text-center lg:text-left">
 
           {/* Badge */}
           <div className="pg-rise inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
@@ -220,13 +266,13 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="pg-rise text-lg mb-9 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
+          <p className="pg-rise text-lg mb-9 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
             Search {scopeLabel}&rsquo;s DBPR-licensed contractors by trade and city, and reach
             them directly — no middleman, no lead fees.
           </p>
 
           {/* Search bar — elevated */}
-          <div className="pg-rise pg-search-wrap max-w-3xl mx-auto mb-4 rounded-2xl bg-white p-2 border"
+          <div className="pg-rise pg-search-wrap w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4 rounded-2xl bg-white p-2 border"
             style={{ borderColor: '#E8E2D9', boxShadow: '0 12px 40px -16px rgba(10,22,40,0.22)', animationDelay: '.18s' }}>
             <SearchAutocomplete
               tradeValue={trade}
@@ -239,7 +285,7 @@ export default function HomePage() {
           </div>
 
           {/* AI hint */}
-          <div className="pg-rise flex items-center justify-center gap-2 mb-10" style={{ animationDelay: '.24s' }}>
+          <div className="pg-rise flex items-center justify-center lg:justify-start gap-2 mb-10" style={{ animationDelay: '.24s' }}>
             <span style={{ color: '#0F766E' }}>✦</span>
             <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
               Describe your problem — AI finds the right trade automatically
@@ -248,7 +294,7 @@ export default function HomePage() {
 
           {/* Trust stat band — honest (no supply counts: only ~5.7K of the DBPR
               set are contactable, so a total would misrepresent "reachable") */}
-          <div className="pg-rise mx-auto max-w-xl grid grid-cols-3 gap-px rounded-2xl overflow-hidden border"
+          <div className="pg-rise mx-auto lg:mx-0 max-w-md grid grid-cols-3 gap-px rounded-2xl overflow-hidden border"
             style={{ borderColor: '#E8E2D9', background: '#E8E2D9', animationDelay: '.3s' }}>
             {[
               { num: '$0', label: 'Lead fees, ever' },
@@ -261,6 +307,13 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+          </div>{/* /LEFT */}
+
+          {/* RIGHT — floating Guild Verified card (desktop only) */}
+          <div className="hidden lg:block pg-rise" style={{ animationDelay: '.36s' }}>
+            <VerifiedProCard />
+          </div>
+         </div>{/* /grid */}
         </div>
       </section>
 
