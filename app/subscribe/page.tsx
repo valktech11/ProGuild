@@ -60,7 +60,7 @@ export default function SubscribePage() {
           Your company's free trial has ended. Only the account owner can renew the subscription.
           Please contact your team owner to restore access.
         </p>
-        <a href="mailto:hello@proguild.ai" style={{ fontSize: 13, color: '#0F766E', textDecoration: 'none', fontWeight: 600 }}>
+        <a href="mailto:contact@proguild.ai" style={{ fontSize: 13, color: '#0F766E', textDecoration: 'none', fontWeight: 600 }}>
           Contact ProGuild support →
         </a>
       </div>

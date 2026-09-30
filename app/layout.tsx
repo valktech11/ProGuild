@@ -27,7 +27,7 @@ const organizationSchema = {
   logo: 'https://proguild.ai/icon.png',
   description: 'Florida\'s verified trades network. Every pro verified against Florida DBPR records. Zero per-lead fees.',
   areaServed: { '@type': 'State', name: 'Florida', containedInPlace: { '@type': 'Country', name: 'United States' } },
-  contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'hello@proguild.ai' },
+  contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'contact@proguild.ai' },
   sameAs: ['https://proguild.ai'],
 }
 

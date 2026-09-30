@@ -1167,7 +1167,7 @@ export default function ProProfilePage() {
                         </span>
                       </div>
                       <div className="text-center">
-                        <a href={`mailto:hello@proguild.ai?subject=Error report — pro ${pro.id}&body=Please describe the issue with this profile:`}
+                        <a href={`mailto:contact@proguild.ai?subject=Error report — pro ${pro.id}&body=Please describe the issue with this profile:`}
                           className="text-xs" style={{ color: '#C4BAB0' }}>
                           Not your profile or incorrect info? Report an error
                         </a>
