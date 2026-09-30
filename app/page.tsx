@@ -413,8 +413,75 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── MORE THAN A DIRECTORY (product band) ─────────────────────────── */}
+      <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto px-6 py-16">
+          <div className="text-center mb-10">
+            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>The platform</div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+              More than a directory.
+            </h2>
+            <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
+              ProGuild is the verified network <em>and</em> the tools pros run their business on —
+              so the contractor you reach is set up to actually deliver.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Panel 1 — Verified profile */}
+            <div className="rounded-2xl border p-5" style={{ background: '#FFFFFF', borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="rounded-xl border p-3 mb-4" style={{ borderColor: '#F0EBE3', background: '#FDFCFA' }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>PR</div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold" style={{ color: '#0A1628' }}>Verified Roofing Co.</div>
+                    <div className="text-[10px]" style={{ color: '#9CA3AF' }}>Roofing · Tampa, FL</div>
+                  </div>
+                </div>
+                <div className="mt-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold" style={{ background: 'rgba(15,118,110,0.09)', color: '#0C5F57' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  Guild Verified
+                </div>
+              </div>
+              <div className="font-bold text-[15px] mb-1" style={{ color: '#0A1628' }}>Guild Verified profiles</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every license checked against Florida&rsquo;s DBPR records — a badge, never a paywall.</div>
+            </div>
+
+            {/* Panel 2 — Pipeline / CRM */}
+            <div className="rounded-2xl border p-5" style={{ background: '#FFFFFF', borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="rounded-xl border p-3 mb-4 grid grid-cols-3 gap-1.5" style={{ borderColor: '#F0EBE3', background: '#FDFCFA' }}>
+                {[['Lead', 2, '#0F766E'], ['Quoted', 1, '#B45309'], ['Won', 1, '#15803D']].map(([label, n, c]) => (
+                  <div key={label as string}>
+                    <div className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: c as string }}>{label}</div>
+                    {Array.from({ length: n as number }).map((_, i) => (
+                      <div key={i} className="h-5 rounded mb-1" style={{ background: '#EFECE5' }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="font-bold text-[15px] mb-1" style={{ color: '#0A1628' }}>Lead &amp; job pipeline</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every enquiry tracked from first contact to paid — estimates and invoices built in.</div>
+            </div>
+
+            {/* Panel 3 — ProMeasure */}
+            <div className="rounded-2xl border p-5" style={{ background: '#FFFFFF', borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="rounded-xl border p-3 mb-4 relative overflow-hidden" style={{ borderColor: '#F0EBE3', background: '#FDFCFA', minHeight: 78 }}>
+                <svg viewBox="0 0 120 60" className="w-full h-[70px]" fill="none" stroke="#0F766E" strokeWidth="1.6" strokeLinejoin="round">
+                  <path d="M20 44 L60 20 L100 44" opacity="0.9" />
+                  <path d="M28 44 L60 25 L92 44" opacity="0.4" strokeDasharray="3 3" />
+                  <line x1="20" y1="50" x2="100" y2="50" stroke="#9CA3AF" strokeWidth="1" strokeDasharray="2 2" />
+                </svg>
+                <div className="absolute right-2 top-2 px-2 py-0.5 rounded-md text-[10px] font-bold text-white" style={{ background: '#0F766E' }}>24.3 sq</div>
+              </div>
+              <div className="font-bold text-[15px] mb-1" style={{ color: '#0A1628' }}>Instant roof measurements</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Satellite measurements built in — accurate area and squares without a ladder.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── PRO CTA BANNER ───────────────────────────────────────────────── */}
-      <section className="mx-6 mb-16">
+      <section className="mx-6 mb-16 mt-16">
         <div className="relative overflow-hidden max-w-5xl mx-auto rounded-3xl p-10 sm:p-12 text-center"
           style={{ background: 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
           <div className="pointer-events-none absolute inset-0 pg-cta-grid" aria-hidden />
