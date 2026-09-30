@@ -15,8 +15,8 @@ const white  = '#FFFFFF'
 // ── Feature data ─────────────────────────────────────────────────────────────
 
 const roofingFeatures = [
-  { icon: '🛡️', title: 'Insurance Supplement Recovery', desc: 'AI scans every claim and surfaces missed line items. Roofers recover an average of $4,200 per supplemented claim — most CRMs don\'t touch supplements at all.' },
-  { icon: '🛰️', title: 'Free Satellite Measurements', desc: 'Pull rooftop dimensions from satellite imagery in seconds. EagleView charges $35 per report. We include unlimited measurements with every plan.' },
+  { icon: '🛡️', title: 'Insurance Supplement Recovery', desc: 'AI scans every claim and surfaces missed line items. Roofers often recover several thousand dollars per supplemented claim — most CRMs don\'t touch supplements at all.' },
+  { icon: '🛰️', title: 'Free Satellite Measurements', desc: 'Pull rooftop dimensions from satellite imagery in seconds. EagleView charges $40–91 per report. We include unlimited measurements with every plan.' },
   { icon: '🎨', title: 'Roof Visualizer', desc: 'Upload a photo and show homeowners their roof in 15 real shingle colors from GAF, Owens Corning, CertainTeed, IKO and Atlas. Close deals on the spot.' },
   { icon: '📋', title: 'Insurance Pipeline', desc: 'Built-in stages for every step of the insurance claim cycle — from inspection to adjuster meeting to supplement to check received.' },
   { icon: '🏷️', title: 'Free Roofing Estimate Tool', desc: 'Homeowners get a free instant roof estimate powered by satellite data. They come to you pre-educated — no cold leads, no tire kickers.' },
@@ -32,7 +32,7 @@ const hvacFeatures = [
 
 const allTradeFeatures = [
   { icon: '📊', title: 'Visual Job Pipeline', desc: 'Kanban board showing every job by stage. See your whole book of business at a glance.' },
-  { icon: '📱', title: 'iOS + Android App', desc: 'Full CRM in your pocket. Capture photos, measure roofs, create leads from the job site.' },
+  { icon: '📱', title: 'Mobile App — Android', desc: 'Full CRM in your pocket — capture photos, measure roofs, create leads on-site. Live on Android; iOS coming soon.' },
   { icon: '✅', title: 'License Verified', desc: 'Your license is verified against state databases. Homeowners see the checkmark — instant credibility.' },
   { icon: '🗂️', title: 'Client & Property Records', desc: 'Every client, every property, every job — searchable, organized, one place.' },
   { icon: '📆', title: 'Job Calendar', desc: 'Schedule inspections, installs, and follow-ups. See your week without juggling spreadsheets.' },
@@ -44,7 +44,7 @@ const competitors = [
   { name: 'AccuLynx', price: '$200+/mo', supplement: false, satellite: false, visualizer: false, directory: false, mobile: true, perLead: false, highlight: false },
   { name: 'JobNimbus', price: '$150+/mo', supplement: false, satellite: false, visualizer: false, directory: false, mobile: true, perLead: false, highlight: false },
   { name: 'Angi / Thumbtack', price: '$50–300/lead', supplement: false, satellite: false, visualizer: false, directory: true, mobile: false, perLead: true, highlight: false },
-  { name: 'EagleView alone', price: '$35/report', supplement: false, satellite: true, visualizer: false, directory: false, mobile: false, perLead: false, highlight: false },
+  { name: 'EagleView alone', price: '$40–91/report', supplement: false, satellite: true, visualizer: false, directory: false, mobile: false, perLead: false, highlight: false },
 ]
 
 // ── Components ────────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ export default function ContractorsPage() {
                 {roofingFeatures.map(f => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} dark />)}
               </div>
               <div style={{ textAlign: 'center', marginTop: 8, padding: '16px', background: `${teal}18`, borderRadius: 12, border: `1px solid ${teal}33` }}>
-                <span style={{ fontSize: 14, color: tealLt, fontWeight: 600 }}>🛰️ Roofers save $35 per job vs EagleView · 📋 Supplement recovery averages $4,200 per claim</span>
+                <span style={{ fontSize: 14, color: tealLt, fontWeight: 600 }}>🛰️ Roofers save $40+ per report vs EagleView · 📋 Supplement recovery often runs several thousand per claim</span>
               </div>
             </div>
           )}
@@ -222,6 +222,9 @@ export default function ContractorsPage() {
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Honest Comparison</div>
             <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Why contractors switch to ProGuild</h2>
+            <p style={{ color: '#64748B', fontSize: 14, maxWidth: 560, margin: '0 auto' }}>
+              A check means it&rsquo;s included in the base subscription at no extra cost. Competitors may offer some of these as paid add-ons or third-party integrations.
+            </p>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -259,7 +262,7 @@ export default function ContractorsPage() {
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: 12, color: '#475569', textAlign: 'center', marginTop: 16 }}>* Competitor pricing approximate. EagleView charges per report. Angi/Thumbtack charges per lead.</p>
+          <p style={{ fontSize: 12, color: '#475569', textAlign: 'center', marginTop: 16 }}>* Reflects features included in each tool&rsquo;s base plan and publicly listed pricing (2026); some competitors offer additional capabilities via paid add-ons or integrations. Verify current details with each vendor. EagleView charges per report; Angi/Thumbtack charge per lead.</p>
         </div>
       </section>
 
@@ -272,8 +275,8 @@ export default function ContractorsPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
             {[
-              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (iOS + Android)', 'Verified contractor directory listing'] },
-              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (iOS + Android)', 'Verified contractor directory listing', 'Voice-to-notes'] },
+              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
+              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing', 'Voice-to-notes'] },
             ].map(plan => (
               <div key={plan.trade} style={{ background: navyMd, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: plan.color, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{plan.trade}</div>
