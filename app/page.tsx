@@ -1,17 +1,52 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
 
+// ── Colour tokens ─────────────────────────────────────────────────────────────
+// BG:      #FAF9F6  warm cream
+// CARD:    #FFFFFF  white
+// DARK:    #0A1628  navy
+// TEAL:    #0F766E  primary accent
+// BORDER:  #E8E2D9  warm gray
+
+// ── Trade icons (crisp inline SVG — consistent across every device) ────────────
+const ico = {
+  width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none',
+  stroke: 'currentColor', strokeWidth: 1.75,
+  strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+}
+const TRADE_ICONS: Record<string, React.ReactNode> = {
+  'hvac-technician': (
+    <svg {...ico}><path d="M12 2v20M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5M3.4 7l17.2 10M3.4 7l.7 3.4M3.4 7l3.4-.7M20.6 17l-.7-3.4M20.6 17l-3.4.7M20.6 7L3.4 17M20.6 7l-3.4-.7M20.6 7l-.7 3.4M3.4 17l3.4.7M3.4 17l.7-3.4"/></svg>
+  ),
+  'electrician': (
+    <svg {...ico}><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+  ),
+  'plumber': (
+    <svg {...ico}><path d="M12 3c3.5 4.6 5.5 7.6 5.5 10.5a5.5 5.5 0 0 1-11 0C6.5 10.6 8.5 7.6 12 3z"/></svg>
+  ),
+  'roofing': (
+    <svg {...ico}><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.2V20h12v-9.8"/><path d="M10.5 20v-5h3v5"/></svg>
+  ),
+  'general-contractor': (
+    <svg {...ico}><path d="M3 19h18"/><path d="M5 19v-3a7 7 0 0 1 14 0v3"/><path d="M10 9V6h4v3"/><path d="M12 3v3"/></svg>
+  ),
+  'pool-spa': (
+    <svg {...ico}><path d="M2 8c1.8-2 4.2-2 6 0s4.2 2 6 0 4.2-2 6 0"/><path d="M2 13c1.8-2 4.2-2 6 0s4.2 2 6 0 4.2-2 6 0"/><path d="M2 18c1.8-2 4.2-2 6 0s4.2 2 6 0 4.2-2 6 0"/></svg>
+  ),
+}
+
+// ── Primary trade tiles ───────────────────────────────────────────────────────
 const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               icon: '❄️' },
-  { slug: 'electrician',        label: 'Electrician',        icon: '⚡' },
-  { slug: 'plumber',            label: 'Plumber',            icon: '🪠' },
-  { slug: 'roofing',            label: 'Roofer',             icon: '🏠' },
-  { slug: 'general-contractor', label: 'General Contractor', icon: '🏗️' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         icon: '🏊' },
+  { slug: 'hvac-technician',    label: 'HVAC',               count: '15,252' },
+  { slug: 'electrician',        label: 'Electrician',        count: '14,057' },
+  { slug: 'plumber',            label: 'Plumber',            count: '9,550' },
+  { slug: 'roofing',            label: 'Roofer',             count: '11,501' },
+  { slug: 'general-contractor', label: 'General Contractor', count: '68,341' },
+  { slug: 'pool-spa',           label: 'Pool & Spa',         count: '5,569' },
 ]
 
 const SECONDARY_TRADES = [
@@ -27,9 +62,12 @@ const SECONDARY_TRADES = [
   { slug: 'irrigation',             label: 'Irrigation' },
 ]
 
+// Data-driven aggregate — floor across the primary trades (honest, no invented total)
+const TOTAL_LICENSED = PRIMARY_TRADES.reduce((s, t) => s + parseInt(t.count.replace(/,/g, ''), 10), 0)
+
 const HOW_STEPS_HOMEOWNER = [
   { n: '01', title: 'Search', desc: 'Enter your trade and city. Every pro\'s license is verified against the Florida DBPR database.' },
-  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and reviews side by side.' },
+  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and trade details side by side.' },
   { n: '03', title: 'Hire Direct', desc: 'Contact the pro directly. No middleman. No lead fees charged to them.' },
 ]
 
@@ -39,6 +77,26 @@ const HOW_STEPS_PRO = [
   { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Unlimited leads, estimates, invoices, and measurements.' },
 ]
 
+// ── Trust-strip icons ──────────────────────────────────────────────────────────
+const TRUST = [
+  {
+    title: 'DBPR License Verified',
+    sub: 'Every pro’s license is checked against Florida’s state database before they appear on ProGuild.',
+    icon: (<svg {...ico} width={26} height={26}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>),
+  },
+  {
+    title: 'Zero Lead Fees. Ever.',
+    sub: 'Pros pay one flat monthly fee. No per-lead charges means they focus on your job, not chasing credits.',
+    icon: (<svg {...ico} width={26} height={26}><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>),
+  },
+  {
+    title: 'You Pick. You Reach Them.',
+    sub: 'Choose one pro and contact them directly — no bidding wars, no spam calls, no middleman.',
+    icon: (<svg {...ico} width={26} height={26}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>),
+  },
+]
+
+// ── Scope helpers ─────────────────────────────────────────────────────────────
 function getScopeState(): string {
   return (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').split(',')[0].trim().toUpperCase()
 }
@@ -53,11 +111,44 @@ function getScopeLabel(): string {
   return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
 }
 
+// ── Count-up (respects reduced-motion) ─────────────────────────────────────────
+function CountUp({ end, duration = 1400, suffix = '', prefix = '' }: { end: number; duration?: number; suffix?: string; prefix?: string }) {
+  const [n, setN] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  const ran = useRef(false)
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) { setN(end); return }
+    const el = ref.current
+    if (!el) { setN(end); return }
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !ran.current) {
+        ran.current = true
+        const t0 = performance.now()
+        let raf = 0
+        const tick = (t: number) => {
+          const p = Math.min(1, (t - t0) / duration)
+          setN(Math.round((1 - Math.pow(1 - p, 3)) * end))
+          if (p < 1) raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+        io.disconnect()
+        return () => cancelAnimationFrame(raf)
+      }
+    }, { threshold: 0.4 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [end, duration])
+  return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
   const [trade, setTrade]               = useState('')
   const [city, setCity]                 = useState('')
   const [zipResolving, setZipResolving] = useState(false)
+  const [searching, setSearching]       = useState(false)
   const [activeTab, setActiveTab]       = useState<'homeowner' | 'pro'>('homeowner')
 
   const scopeLabel = getScopeLabel()
@@ -98,24 +189,29 @@ export default function HomePage() {
     const c = (overrideCity  ?? city).trim()
     if (!t && !c) return
 
-    if (t) {
-      const res  = await fetch('/api/match-trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: t }),
-      })
-      const data = await res.json()
-      const threshold = data.method === 'keyword' ? 0.80 : 0.85
-      if (data.slug && data.confidence >= threshold) {
-        await navigate(data.slug, c)
-        return
+    setSearching(true)
+    try {
+      if (t) {
+        const res  = await fetch('/api/match-trade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: t }),
+        })
+        const data = await res.json()
+        const threshold = data.method === 'keyword' ? 0.80 : 0.85
+        if (data.slug && data.confidence >= threshold) {
+          await navigate(data.slug, c)
+          return
+        }
       }
-    }
 
-    const params = new URLSearchParams()
-    if (t) params.set('q', t)
-    if (c) params.set('city', c)
-    router.push(`/search?${params}`)
+      const params = new URLSearchParams()
+      if (t) params.set('q', t)
+      if (c) params.set('city', c)
+      router.push(`/search?${params}`)
+    } finally {
+      setSearching(false)
+    }
   }
 
   async function handleTileTap(slug: string) {
@@ -128,66 +224,83 @@ export default function HomePage() {
       <Navbar />
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+      <section className="relative overflow-hidden">
+        {/* Atmosphere: dot-grid + teal glow */}
+        <div className="pointer-events-none absolute inset-0 pg-dotgrid" aria-hidden />
+        <div className="pointer-events-none absolute left-1/2 top-[-60px] -z-0 pg-hero-glow" aria-hidden
+          style={{ width: 720, height: 420, background: 'radial-gradient(ellipse at center, rgba(15,118,110,0.20), rgba(15,118,110,0) 70%)', filter: 'blur(6px)' }} />
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
-          style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-          Every license verified against Florida DBPR
-        </div>
+        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
 
-        {/* Headline */}
-        <h1 className="font-bold leading-tight tracking-tight mb-6"
-          style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628' }}>
-          Find a licensed contractor<br />
-          <span style={{ color: '#0F766E' }}>you can actually reach.</span>
-        </h1>
+          {/* Badge */}
+          <div className="pg-rise inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
+            style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" />
+            Every license verified against Florida DBPR
+          </div>
 
-        {/* Subheadline — honest, no false claims */}
-        <p className="text-lg mb-10 max-w-lg mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-          Browse DBPR-verified licensed contractors in {scopeLabel}.
-          Every pro you see is reachable — contact them directly, no middleman, no lead fees.
-        </p>
+          {/* Headline */}
+          <h1 className="pg-rise font-bold leading-[1.05] tracking-tight mb-6"
+            style={{ fontSize: 'clamp(2.4rem, 6vw, 4.4rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628', animationDelay: '.05s' }}>
+            Find a licensed contractor<br />
+            <span className="relative inline-block">
+              <span style={{ background: 'linear-gradient(100deg, #0F766E, #14B8A6)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+                you can actually reach.
+              </span>
+              {/* hand-drawn underline */}
+              <svg className="pg-underline absolute left-0 -bottom-2 w-full" height="14" viewBox="0 0 300 14" fill="none" preserveAspectRatio="none" aria-hidden>
+                <path d="M3 8c60-6 235-8 294-3" stroke="#14B8A6" strokeWidth="3.5" strokeLinecap="round" opacity="0.65" />
+              </svg>
+            </span>
+          </h1>
 
-        {/* Search bar */}
-        <div className="max-w-3xl mx-auto mb-5">
-          <SearchAutocomplete
-            tradeValue={trade}
-            cityValue={city}
-            onTradeChange={setTrade}
-            onCityChange={setCity}
-            onSearch={(t, c) => handleSearch(undefined, t, c)}
-            loading={zipResolving}
-          />
-        </div>
+          <p className="pg-rise text-lg mb-9 max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
+            Search {scopeLabel}&rsquo;s DBPR-licensed contractors by trade and city, and reach
+            them directly — no middleman, no lead fees.
+          </p>
 
-        {/* AI hint */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <span style={{ color: '#0F766E' }}>✦</span>
-          <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
-            Describe your problem — AI finds the right trade automatically
-          </span>
-        </div>
+          {/* Search bar — elevated */}
+          <div className="pg-rise pg-search-wrap max-w-3xl mx-auto mb-4 rounded-2xl bg-white p-2 border"
+            style={{ borderColor: '#E8E2D9', boxShadow: '0 12px 40px -16px rgba(10,22,40,0.22)', animationDelay: '.18s' }}>
+            <SearchAutocomplete
+              tradeValue={trade}
+              cityValue={city}
+              onTradeChange={setTrade}
+              onCityChange={setCity}
+              onSearch={(t, c) => handleSearch(undefined, t, c)}
+              loading={zipResolving || searching}
+            />
+          </div>
 
-        {/* Trust stats — honest, no fake counts */}
-        <div className="flex items-center justify-center gap-10 flex-wrap">
-          {[
-            { num: 'DBPR',  label: 'Every license verified' },
-            { num: '$0',    label: 'Per-lead fees, ever' },
-            { num: 'Direct', label: 'Contact them yourself' },
-          ].map(s => (
-            <div key={s.num} className="text-center">
-              <div className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
-              <div className="text-xs font-medium mt-0.5" style={{ color: '#9CA3AF' }}>{s.label}</div>
-            </div>
-          ))}
+          {/* AI hint */}
+          <div className="pg-rise flex items-center justify-center gap-2 mb-10" style={{ animationDelay: '.24s' }}>
+            <span style={{ color: '#0F766E' }}>✦</span>
+            <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
+              Describe your problem — AI finds the right trade automatically
+            </span>
+          </div>
+
+          {/* Trust stat band — honest, data-driven */}
+          <div className="pg-rise mx-auto max-w-3xl grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border"
+            style={{ borderColor: '#E8E2D9', background: '#E8E2D9', animationDelay: '.3s' }}>
+            {[
+              { num: <CountUp end={Math.floor(TOTAL_LICENSED / 1000)} suffix="K+" />, label: 'Licensed pros' },
+              { num: '$0', label: 'Lead fees, ever' },
+              { num: 'DBPR', label: 'Every license verified' },
+              { num: '1', label: 'Pro per enquiry' },
+            ].map((s, i) => (
+              <div key={i} className="bg-white py-5 px-3 text-center">
+                <div className="text-2xl sm:text-[1.65rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
+                <div className="text-[11px] font-medium mt-1 tracking-wide" style={{ color: '#9CA3AF' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pb-12">
-        <div className="text-center mb-6">
+      <section className="max-w-5xl mx-auto px-6 pb-14 pt-2">
+        <div className="text-center mb-7">
           <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
           <p className="text-sm" style={{ color: '#6B7280' }}>
             {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
@@ -195,17 +308,20 @@ export default function HomePage() {
         </div>
 
         {/* 3×2 primary trade grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
           {PRIMARY_TRADES.map(t => (
             <button key={t.slug} onClick={() => handleTileTap(t.slug)}
-              className="group bg-white rounded-2xl border p-4 flex flex-col text-left hover:-translate-y-0.5 transition-all duration-200 cursor-pointer w-full"
+              className="pg-tile group bg-white rounded-2xl border p-5 flex flex-col text-left cursor-pointer w-full"
               style={{ borderColor: '#E8E2D9', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-              <span className="text-2xl mb-2">{t.icon}</span>
-              <span className="text-sm font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR licensed</span>
-              <span className="text-xs font-semibold mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              <span className="pg-tile-ico inline-flex items-center justify-center w-11 h-11 rounded-xl mb-3"
+                style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E' }}>
+                {TRADE_ICONS[t.slug]}
+              </span>
+              <span className="text-[15px] font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>{t.count} licensed &middot; DBPR</span>
+              <span className="text-xs font-semibold mt-3 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
-                {city.trim() ? `Near ${city.trim()} →` : 'Find pros →'}
+                {city.trim() ? `Near ${city.trim()}` : 'Find pros'} →
               </span>
             </button>
           ))}
@@ -215,13 +331,13 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-2 justify-center">
           {SECONDARY_TRADES.map(t => (
             <button key={t.slug} onClick={() => handleTileTap(t.slug)}
-              className="text-sm font-medium px-3 py-1.5 rounded-full border transition-all hover:border-teal-400 hover:text-teal-700 cursor-pointer"
-              style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FAF9F6' }}>
+              className="pg-pill text-sm font-medium px-3.5 py-1.5 rounded-full border cursor-pointer"
+              style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FFFFFF' }}>
               {t.label}
             </button>
           ))}
           <a href={`/${scopeState}`}
-            className="text-sm font-semibold px-3 py-1.5 rounded-full border transition-all"
+            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border transition-all"
             style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
             All trades →
           </a>
@@ -229,17 +345,17 @@ export default function HomePage() {
       </section>
 
       {/* ── TRUST STRIP ──────────────────────────────────────────────────── */}
-      <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          {[
-            { icon: '🛡', title: 'DBPR License Verified', sub: 'Every pro\'s license is checked against Florida\'s state database before they appear on ProGuild.' },
-            { icon: '💰', title: 'Zero Lead Fees. Ever.', sub: 'Pros pay one flat monthly fee. No per-lead charges means they focus on your job, not chasing credits.' },
-            { icon: '🎯', title: 'You Pick. They Answer.', sub: 'You choose one pro and contact them directly. No bidding wars, no spam calls, no middleman.' },
-          ].map(item => (
-            <div key={item.title}>
-              <div className="text-3xl mb-3">{item.icon}</div>
-              <div className="font-bold text-sm mb-1" style={{ color: '#0A1628' }}>{item.title}</div>
-              <div className="text-xs leading-relaxed" style={{ color: '#A89F93' }}>{item.sub}</div>
+      <section className="py-14 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+          {TRUST.map(item => (
+            <div key={item.title} className="pg-trust rounded-2xl p-6 text-center md:text-left border"
+              style={{ borderColor: '#F0EBE3', background: '#FDFCFA' }}>
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
+                style={{ background: 'rgba(15,118,110,0.09)', color: '#0F766E' }}>
+                {item.icon}
+              </div>
+              <div className="font-bold text-[15px] mb-1.5" style={{ color: '#0A1628' }}>{item.title}</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>{item.sub}</div>
             </div>
           ))}
         </div>
@@ -267,11 +383,11 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
-            <div key={step.n}>
-              <div className="text-3xl font-bold mb-4" style={{ color: '#A89F93', fontFamily: "'DM Serif Display', serif" }}>
+            <div key={step.n} className="relative pl-2">
+              <div className="text-3xl font-bold mb-3" style={{ color: 'rgba(15,118,110,0.28)', fontFamily: "'DM Serif Display', serif" }}>
                 {step.n}
               </div>
-              <div className="font-bold mb-2" style={{ color: '#0A1628' }}>{step.title}</div>
+              <div className="font-bold mb-2 text-[17px]" style={{ color: '#0A1628' }}>{step.title}</div>
               <div className="text-base leading-relaxed" style={{ color: '#6B7280' }}>{step.desc}</div>
             </div>
           ))}
@@ -280,30 +396,35 @@ export default function HomePage() {
 
       {/* ── PRO CTA BANNER ───────────────────────────────────────────────── */}
       <section className="mx-6 mb-16">
-        <div className="max-w-5xl mx-auto rounded-2xl p-10 text-center"
+        <div className="relative overflow-hidden max-w-5xl mx-auto rounded-3xl p-10 sm:p-12 text-center"
           style={{ background: 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
-          <div className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#5EEAD4' }}>
-            For trade professionals
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-3"
-            style={{ fontFamily: "'DM Serif Display', serif" }}>
-            Your license is already on ProGuild.
-          </h2>
-          <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-            We imported every Florida contractor license from the DBPR database.
-            Search your name — your profile is waiting. Claim it free in 30 seconds.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/claim/find"
-              className="px-8 py-3.5 rounded-xl font-bold text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
-              Claim Your Profile — Free
-            </Link>
-            <Link href="/contractors"
-              className="px-8 py-3.5 rounded-xl font-semibold border transition-all hover:bg-white/5"
-              style={{ color: '#2DD4BF', borderColor: 'rgba(45,212,191,0.3)' }}>
-              See All Features →
-            </Link>
+          <div className="pointer-events-none absolute inset-0 pg-cta-grid" aria-hidden />
+          <div className="pointer-events-none absolute -right-16 -top-16 w-64 h-64 rounded-full" aria-hidden
+            style={{ background: 'radial-gradient(circle, rgba(45,212,191,0.18), transparent 70%)' }} />
+          <div className="relative">
+            <div className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: '#5EEAD4' }}>
+              For trade professionals
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3"
+              style={{ fontFamily: "'DM Serif Display', serif" }}>
+              Your license is already on ProGuild.
+            </h2>
+            <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
+              We imported every {scopeLabel} contractor license from the DBPR database.
+              Search your name — your profile is waiting. Claim it free in 30 seconds.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/login?tab=signup"
+                className="pg-cta px-8 py-3.5 rounded-xl font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
+                Claim Your Profile — Free
+              </Link>
+              <Link href="/contractors"
+                className="px-8 py-3.5 rounded-xl font-semibold border transition-all hover:bg-white/5"
+                style={{ color: '#2DD4BF', borderColor: 'rgba(45,212,191,0.3)' }}>
+                See All Features →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
