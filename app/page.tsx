@@ -185,23 +185,31 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let alive = true
-    fetch('/api/pros?limit=60&status=Active&sort=verified')
-      .then(r => (r.ok ? r.json() : { pros: [] }))
-      .then(d => {
+    // Query a few specific trades directly (the unfiltered feed is ~all General
+    // Contractors, the densest trade) so the band shows real marketplace variety.
+    const targets = ['roofing', 'hvac-technician', 'electrician', 'plumber', 'pool-spa', 'general-contractor']
+    ;(async () => {
+      try {
+        const catRes = await fetch('/api/categories').then(r => (r.ok ? r.json() : { categories: [] }))
+        const idBySlug = new Map<string, string>()
+        for (const c of (catRes.categories || [])) idBySlug.set(c.slug, c.id)
+        const ids = targets.map(s => idBySlug.get(s)).filter(Boolean) as string[]
+        const results = await Promise.all(
+          ids.map(id =>
+            fetch(`/api/pros?trade=${id}&limit=1&status=Active&sort=verified`)
+              .then(r => (r.ok ? r.json() : { pros: [] }))
+              .then(d => (Array.isArray(d.pros) && d.pros[0] ? (d.pros[0] as HomePro) : null))
+              .catch(() => null)
+          )
+        )
         if (!alive) return
-        const all: HomePro[] = Array.isArray(d.pros) ? d.pros : []
-        // Show variety — one pro per distinct trade first, then top up to 4
-        const seen = new Set<string>()
-        const picked: HomePro[] = []
-        for (const p of all) {
-          const key = p.trade_category?.slug || 'x'
-          if (!seen.has(key)) { seen.add(key); picked.push(p); if (picked.length === 4) break }
-        }
-        if (picked.length < 4) for (const p of all) { if (!picked.includes(p)) { picked.push(p); if (picked.length === 4) break } }
-        setPros(picked)
-      })
-      .catch(() => {})
-      .finally(() => { if (alive) setLoading(false) })
+        setPros(results.filter(Boolean).slice(0, 4) as HomePro[])
+      } catch {
+        // leave empty — section hides itself
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
     return () => { alive = false }
   }, [])
 
