@@ -142,8 +142,8 @@ function VerifiedProCard() {
         <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>
       </div>
-      {/* floating DBPR pill */}
-      <div className="pg-float absolute -left-4 top-[38%] rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+      {/* floating DBPR pill — sits below the card, clear of content */}
+      <div className="pg-float absolute -bottom-4 left-6 rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
         style={{ borderColor: '#E8E2D9', color: '#0C5F57', boxShadow: '0 12px 26px -12px rgba(10,22,40,0.28)', animationDelay: '1.2s' }}>
         <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" /> DBPR verified
       </div>
@@ -253,7 +253,7 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1 className="pg-rise font-bold leading-[1.05] tracking-tight mb-6"
-            style={{ fontSize: 'clamp(2.4rem, 6vw, 4.4rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628', animationDelay: '.05s' }}>
+            style={{ fontSize: 'clamp(2.3rem, 5vw, 3.7rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628', animationDelay: '.05s' }}>
             Find a licensed contractor<br />
             <span className="relative inline-block">
               <span style={{ background: 'linear-gradient(100deg, #0F766E, #14B8A6)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
