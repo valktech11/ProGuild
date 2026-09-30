@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -41,12 +41,12 @@ const TRADE_ICONS: Record<string, React.ReactNode> = {
 
 // ── Primary trade tiles ───────────────────────────────────────────────────────
 const PRIMARY_TRADES = [
-  { slug: 'hvac-technician',    label: 'HVAC',               count: '15,252' },
-  { slug: 'electrician',        label: 'Electrician',        count: '14,057' },
-  { slug: 'plumber',            label: 'Plumber',            count: '9,550' },
-  { slug: 'roofing',            label: 'Roofer',             count: '11,501' },
-  { slug: 'general-contractor', label: 'General Contractor', count: '68,341' },
-  { slug: 'pool-spa',           label: 'Pool & Spa',         count: '5,569' },
+  { slug: 'hvac-technician',    label: 'HVAC' },
+  { slug: 'electrician',        label: 'Electrician' },
+  { slug: 'plumber',            label: 'Plumber' },
+  { slug: 'roofing',            label: 'Roofer' },
+  { slug: 'general-contractor', label: 'General Contractor' },
+  { slug: 'pool-spa',           label: 'Pool & Spa' },
 ]
 
 const SECONDARY_TRADES = [
@@ -61,9 +61,6 @@ const SECONDARY_TRADES = [
   { slug: 'carpenter',              label: 'Carpenter' },
   { slug: 'irrigation',             label: 'Irrigation' },
 ]
-
-// Data-driven aggregate — floor across the primary trades (honest, no invented total)
-const TOTAL_LICENSED = PRIMARY_TRADES.reduce((s, t) => s + parseInt(t.count.replace(/,/g, ''), 10), 0)
 
 const HOW_STEPS_HOMEOWNER = [
   { n: '01', title: 'Search', desc: 'Enter your trade and city. Every pro\'s license is verified against the Florida DBPR database.' },
@@ -109,37 +106,6 @@ function getScopeLabel(): string {
   if (states.length === 1) return states[0]
   if (states.length === 2) return `${states[0]} & ${states[1]}`
   return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
-}
-
-// ── Count-up (respects reduced-motion) ─────────────────────────────────────────
-function CountUp({ end, duration = 1400, suffix = '', prefix = '' }: { end: number; duration?: number; suffix?: string; prefix?: string }) {
-  const [n, setN] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
-  const ran = useRef(false)
-  useEffect(() => {
-    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduce) { setN(end); return }
-    const el = ref.current
-    if (!el) { setN(end); return }
-    const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !ran.current) {
-        ran.current = true
-        const t0 = performance.now()
-        let raf = 0
-        const tick = (t: number) => {
-          const p = Math.min(1, (t - t0) / duration)
-          setN(Math.round((1 - Math.pow(1 - p, 3)) * end))
-          if (p < 1) raf = requestAnimationFrame(tick)
-        }
-        raf = requestAnimationFrame(tick)
-        io.disconnect()
-        return () => cancelAnimationFrame(raf)
-      }
-    }, { threshold: 0.4 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [end, duration])
-  return <span ref={ref}>{prefix}{n.toLocaleString()}{suffix}</span>
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -280,13 +246,13 @@ export default function HomePage() {
             </span>
           </div>
 
-          {/* Trust stat band — honest, data-driven */}
-          <div className="pg-rise mx-auto max-w-3xl grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border"
+          {/* Trust stat band — honest (no supply counts: only ~5.7K of the DBPR
+              set are contactable, so a total would misrepresent "reachable") */}
+          <div className="pg-rise mx-auto max-w-xl grid grid-cols-3 gap-px rounded-2xl overflow-hidden border"
             style={{ borderColor: '#E8E2D9', background: '#E8E2D9', animationDelay: '.3s' }}>
             {[
-              { num: <CountUp end={Math.floor(TOTAL_LICENSED / 1000)} suffix="K+" />, label: 'Licensed pros' },
               { num: '$0', label: 'Lead fees, ever' },
-              { num: 'DBPR', label: 'Every license verified' },
+              { num: 'DBPR', label: 'License verified' },
               { num: '1', label: 'Pro per enquiry' },
             ].map((s, i) => (
               <div key={i} className="bg-white py-5 px-3 text-center">
@@ -318,7 +284,7 @@ export default function HomePage() {
                 {TRADE_ICONS[t.slug]}
               </span>
               <span className="text-[15px] font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>{t.count} licensed &middot; DBPR</span>
+              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>DBPR licensed</span>
               <span className="text-xs font-semibold mt-3 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()}` : 'Find pros'} →
