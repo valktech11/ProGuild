@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+// NOTE: signup lives at /login?tab=signup (there is no /signup route).
 import { useState } from 'react'
 
 const teal   = '#0F766E'
@@ -89,7 +90,7 @@ export default function ContractorsPage() {
             <Link href="/roof-size-calculator" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Free Measurement</Link>
             <Link href="/roof-visualizer" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Roof Visualizer</Link>
             <Link href="/login" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Sign in</Link>
-            <Link href="/signup" style={{ fontSize: 14, fontWeight: 700, color: white, background: teal, padding: '8px 18px', borderRadius: 8, textDecoration: 'none' }}>Start Free →</Link>
+            <Link href="/login?tab=signup" style={{ fontSize: 14, fontWeight: 700, color: white, background: teal, padding: '8px 18px', borderRadius: 8, textDecoration: 'none' }}>Start Free →</Link>
           </div>
         </div>
       </nav>
@@ -114,7 +115,7 @@ export default function ContractorsPage() {
           </p>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/signup" style={{ fontSize: 16, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
+            <Link href="/login?tab=signup" style={{ fontSize: 16, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
               Start 3-Month Free Trial →
             </Link>
             <Link href="/roof-size-calculator" style={{ fontSize: 16, fontWeight: 700, color: white, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '14px 32px', borderRadius: 12, textDecoration: 'none' }}>
@@ -289,7 +290,7 @@ export default function ContractorsPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/signup" style={{ display: 'block', textAlign: 'center', padding: '13px 0', borderRadius: 10, background: `linear-gradient(135deg,${plan.color},${plan.color}cc)`, color: white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                <Link href="/login?tab=signup" style={{ display: 'block', textAlign: 'center', padding: '13px 0', borderRadius: 10, background: `linear-gradient(135deg,${plan.color},${plan.color}cc)`, color: white, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                   Start Free Trial →
                 </Link>
               </div>
@@ -308,7 +309,7 @@ export default function ContractorsPage() {
           <p style={{ color: '#64748B', fontSize: 16, lineHeight: 1.6, marginBottom: 36 }}>
             Join the verified contractor network. Start free for 3 months — no credit card, no commitment. Your profile goes live the day you sign up.
           </p>
-          <Link href="/signup" style={{ display: 'inline-block', fontSize: 17, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '16px 40px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
+          <Link href="/login?tab=signup" style={{ display: 'inline-block', fontSize: 17, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '16px 40px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
             Claim Your Free Profile →
           </Link>
           <div style={{ marginTop: 20, display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
