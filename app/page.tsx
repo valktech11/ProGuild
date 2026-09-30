@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -63,9 +63,9 @@ const SECONDARY_TRADES = [
 ]
 
 const HOW_STEPS_HOMEOWNER = [
-  { n: '01', title: 'Search', desc: 'Enter your trade and city. Every pro\'s license is verified against the Florida DBPR database.' },
-  { n: '02', title: 'Compare', desc: 'Browse verified credentials, license numbers, and trade details side by side.' },
-  { n: '03', title: 'Hire Direct', desc: 'Contact the pro directly. No middleman. No lead fees charged to them.' },
+  { n: '01', title: 'Tell us what you need', desc: 'Search by trade and city — or just describe the problem and we\'ll find the right trade.' },
+  { n: '02', title: 'Compare verified pros', desc: 'View profiles, license numbers and trade details side by side. Every license state-checked.' },
+  { n: '03', title: 'Contact directly', desc: 'Message, call or send an enquiry — no bidding wars, no shared leads, no middleman.' },
 ]
 
 const HOW_STEPS_PRO = [
@@ -77,8 +77,8 @@ const HOW_STEPS_PRO = [
 // ── Trust-strip icons ──────────────────────────────────────────────────────────
 const TRUST = [
   {
-    title: 'DBPR License Verified',
-    sub: 'Every pro’s license is checked against Florida’s state database before they appear on ProGuild.',
+    title: 'Florida License Verified',
+    sub: 'Every contractor is checked against Florida’s state licensing records before they appear — verification via the Florida DBPR.',
     icon: (<svg {...ico} width={26} height={26}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>),
   },
   {
@@ -87,8 +87,8 @@ const TRUST = [
     icon: (<svg {...ico} width={26} height={26}><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>),
   },
   {
-    title: 'You Pick. You Reach Them.',
-    sub: 'Choose one pro and contact them directly — no bidding wars, no spam calls, no middleman.',
+    title: 'No Shared Leads.',
+    sub: 'Your enquiry goes only to the one pro you choose — never resold to five contractors. No bidding wars, no spam calls.',
     icon: (<svg {...ico} width={26} height={26}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>),
   },
 ]
@@ -148,6 +148,100 @@ function VerifiedProCard() {
         <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" /> DBPR verified
       </div>
     </div>
+  )
+}
+
+// ── Verified pros band (REAL data, honest fields only — no ratings/jobs/reviews
+//    because those aren't populated; section hides itself if none return) ──────
+type HomePro = {
+  id: string
+  full_name: string
+  city: string | null
+  state: string | null
+  license_number: string | null
+  is_verified: boolean | null
+  trade_category: { category_name: string; slug: string } | null
+}
+
+function formatName(raw: string): string {
+  const s = (raw || '').trim()
+  if (!s) return ''
+  const tc = (w: string) => w.split(/\s+/).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join(' ')
+  if (s.includes(',')) {
+    const [last, first] = s.split(',').map(p => p.trim())
+    return `${tc(first)} ${tc(last)}`.trim()
+  }
+  return s
+}
+
+function initials(name: string): string {
+  const p = name.trim().split(/\s+/).filter(Boolean)
+  if (!p.length) return '?'
+  return (p[0][0] + (p[1]?.[0] || '')).toUpperCase()
+}
+
+function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scopeState: string }) {
+  const [pros, setPros] = useState<HomePro[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/pros?limit=4&status=Active&sort=verified')
+      .then(r => (r.ok ? r.json() : { pros: [] }))
+      .then(d => { if (alive) setPros(Array.isArray(d.pros) ? d.pros.slice(0, 4) : []) })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [])
+
+  if (!loading && pros.length === 0) return null
+
+  return (
+    <section className="max-w-5xl mx-auto px-6 pt-4 pb-12">
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified {scopeLabel} pros</h2>
+          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Real contractors — every license checked against state records.</p>
+        </div>
+        <a href={`/${scopeState}`} className="hidden sm:inline text-sm font-semibold shrink-0 ml-4" style={{ color: '#0F766E' }}>Browse all pros →</a>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border p-4" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
+                <div className="skeleton w-10 h-10 rounded-full mb-3" />
+                <div className="skeleton h-3 w-3/4 mb-2" />
+                <div className="skeleton h-2.5 w-1/2" />
+              </div>
+            ))
+          : pros.map(p => {
+              const name = formatName(p.full_name)
+              const trade = p.trade_category?.category_name || 'Contractor'
+              const loc = [p.city, p.state].filter(Boolean).join(', ')
+              return (
+                <a key={p.id} href={`/pro/${p.id}`} className="pg-tile rounded-2xl border p-4 flex flex-col"
+                  style={{ borderColor: '#E8E2D9', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  {p.is_verified && (
+                    <div className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-md text-[10px] font-bold mb-3" style={{ background: 'rgba(15,118,110,0.09)', color: '#0C5F57' }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      Verified
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>{initials(name)}</div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate" style={{ color: '#0A1628' }}>{name}</div>
+                      <div className="text-[11px] truncate" style={{ color: '#9CA3AF' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
+                    </div>
+                  </div>
+                  {p.license_number && (
+                    <div className="text-[11px] font-medium mt-auto pt-2" style={{ color: '#9CA3AF' }}>Lic #{p.license_number}</div>
+                  )}
+                  <div className="text-xs font-semibold mt-2" style={{ color: '#0F766E' }}>View profile →</div>
+                </a>
+              )
+            })}
+      </div>
+    </section>
   )
 }
 
@@ -248,7 +342,7 @@ export default function HomePage() {
           <div className="pg-rise inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
             style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" />
-            Every license verified against Florida DBPR
+            Every contractor verified with Florida&rsquo;s licensing database
           </div>
 
           {/* Headline */}
@@ -267,7 +361,7 @@ export default function HomePage() {
           </h1>
 
           <p className="pg-rise text-lg mb-9 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
-            Search {scopeLabel}&rsquo;s DBPR-licensed contractors by trade and city, and reach
+            Search {scopeLabel}&rsquo;s licensed contractors by trade and city, and reach
             them directly — no middleman, no lead fees.
           </p>
 
@@ -284,12 +378,14 @@ export default function HomePage() {
             />
           </div>
 
-          {/* AI hint */}
-          <div className="pg-rise flex items-center justify-center lg:justify-start gap-2 mb-10" style={{ animationDelay: '.24s' }}>
-            <span style={{ color: '#0F766E' }}>✦</span>
-            <span className="text-sm font-medium" style={{ color: '#4B5563' }}>
-              Describe your problem — AI finds the right trade automatically
-            </span>
+          {/* AI matching — promoted */}
+          <div className="pg-rise flex justify-center lg:justify-start mb-10" style={{ animationDelay: '.24s' }}>
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm border"
+              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.16)' }}>
+              <span style={{ color: '#0F766E' }}>✦</span>
+              <span className="font-semibold" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
+              <span style={{ color: '#4B5563' }}>Describe the problem — we&rsquo;ll match the trade.</span>
+            </div>
           </div>
 
           {/* Trust stat band — honest (no supply counts: only ~5.7K of the DBPR
@@ -298,14 +394,21 @@ export default function HomePage() {
             style={{ borderColor: '#E8E2D9', background: '#E8E2D9', animationDelay: '.3s' }}>
             {[
               { num: '$0', label: 'Lead fees, ever' },
-              { num: 'DBPR', label: 'License verified' },
-              { num: '1', label: 'Pro per enquiry' },
+              { num: '100%', label: 'Licenses verified' },
+              { num: 'No', label: 'Shared leads' },
             ].map((s, i) => (
               <div key={i} className="bg-white py-5 px-3 text-center">
                 <div className="text-2xl sm:text-[1.65rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
                 <div className="text-[11px] font-medium mt-1 tracking-wide" style={{ color: '#9CA3AF' }}>{s.label}</div>
               </div>
             ))}
+          </div>
+
+          {/* Secondary path — for pros */}
+          <div className="pg-rise mt-5 text-sm" style={{ animationDelay: '.36s', color: '#6B7280' }}>
+            Are you a contractor?{' '}
+            <Link href="/login?tab=signup" className="font-semibold underline decoration-transparent hover:decoration-inherit transition"
+              style={{ color: '#0F766E' }}>Claim your free profile →</Link>
           </div>
           </div>{/* /LEFT */}
 
@@ -316,6 +419,9 @@ export default function HomePage() {
          </div>{/* /grid */}
         </div>
       </section>
+
+      {/* ── VERIFIED PROS (real inventory) ───────────────────────────────── */}
+      <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pb-14 pt-2">
@@ -417,13 +523,13 @@ export default function HomePage() {
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
         <div className="max-w-5xl mx-auto px-6 py-16">
           <div className="text-center mb-10">
-            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>The platform</div>
+            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>For the pros behind the work</div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-              More than a directory.
+              Built to run the whole job.
             </h2>
             <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
-              ProGuild is the verified network <em>and</em> the tools pros run their business on —
-              so the contractor you reach is set up to actually deliver.
+              The contractor you reach runs their business on ProGuild — verified profile, leads,
+              estimates and measurements — so they&rsquo;re set up to actually deliver.
             </p>
           </div>
 
