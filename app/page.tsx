@@ -405,8 +405,8 @@ export default function HomePage() {
           </h1>
 
           <p className="pg-rise text-lg mb-7 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#4B5563', animationDelay: '.12s' }}>
-            Tell us the job or search by trade, and we&rsquo;ll match you with the
-            right {scopeLabel} pro to contact.
+            Tell us what you need, or search by trade and city — then reach the
+            right {scopeLabel} pro directly.
           </p>
 
           {/* Search + AI helper share ONE column wrapper, each w-full — this
@@ -425,7 +425,7 @@ export default function HomePage() {
             </div>
             {/* Trust bar — the three differentiators, above the fold, flush under search */}
             <div className="w-full flex flex-wrap items-center gap-x-5 gap-y-2.5">
-              {['License-verified', 'No shared leads', 'Free for homeowners'].map(label => (
+              {['License-verified', 'No shared leads', 'Always free for homeowners'].map(label => (
                 <span key={label} className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: '#0A1628' }}>
                   <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -445,46 +445,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS (compact, right after hero so new users grasp the model) ─ */}
-      <section className="border-y px-6 py-12" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7">
-            <div>
-              <div className="text-xs font-bold tracking-widest uppercase mb-1.5" style={{ color: '#6E6456' }}>How it works</div>
-              <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-                Simple. Direct. Transparent.
-              </h2>
-            </div>
-            <div className="inline-flex self-start sm:self-auto rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
-              {(['homeowner', 'pro'] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
-                  style={activeTab === tab
-                    ? { background: '#0F766E', color: '#FFFFFF' }
-                    : { color: '#4B5563' }}>
-                  {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
-            {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
-              <div key={step.n} className="flex gap-3.5">
-                <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
-                  style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E', fontFamily: "'DM Serif Display', serif" }}>
-                  {step.n}
-                </div>
-                <div>
-                  <div className="font-bold text-[15px] mb-0.5" style={{ color: '#0A1628' }}>{step.title}</div>
-                  <div className="text-sm leading-snug" style={{ color: '#4B5563' }}>{step.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
         <div className="text-center mb-7">
@@ -493,7 +453,7 @@ export default function HomePage() {
             Browse by trade
           </h2>
           <p className="text-sm" style={{ color: '#4B5563' }}>
-            {city.trim() ? `Will search near "${city.trim()}"` : 'Pick a trade to see verified pros, or enter a city above for local results.'}
+            {city.trim() ? `Will search near "${city.trim()}"` : 'Choose a trade to browse verified pros, or search by city for local results.'}
           </p>
         </div>
 
@@ -534,8 +494,48 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── VERIFIED PROS (real inventory — proof, after orientation) ────── */}
+      {/* ── VERIFIED PROS (real inventory — proof, before process) ──────── */}
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
+
+      {/* ── HOW IT WORKS (compact — process/reassurance, after the proof) ── */}
+      <section className="border-y px-6 py-12" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7">
+            <div>
+              <div className="text-xs font-bold tracking-widest uppercase mb-1.5" style={{ color: '#6E6456' }}>How it works</div>
+              <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+                Simple. Direct. Transparent.
+              </h2>
+            </div>
+            <div className="inline-flex self-start sm:self-auto rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
+              {(['homeowner', 'pro'] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+                  style={activeTab === tab
+                    ? { background: '#0F766E', color: '#FFFFFF' }
+                    : { color: '#4B5563' }}>
+                  {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
+            {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
+              <div key={step.n} className="flex gap-3.5">
+                <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
+                  style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E', fontFamily: "'DM Serif Display', serif" }}>
+                  {step.n}
+                </div>
+                <div>
+                  <div className="font-bold text-[15px] mb-0.5" style={{ color: '#0A1628' }}>{step.title}</div>
+                  <div className="text-sm leading-snug" style={{ color: '#4B5563' }}>{step.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── MORE THAN A DIRECTORY (product band) ─────────────────────────── */}
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
@@ -546,8 +546,8 @@ export default function HomePage() {
               Built to run the whole job.
             </h2>
             <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: '#4B5563' }}>
-              The contractor you reach runs their business on ProGuild — verified profile, leads,
-              estimates and measurements — so they&rsquo;re set up to actually deliver.
+              The pros on ProGuild don&rsquo;t just get listed — they run the whole job here:
+              leads, estimates, measurements and invoices, all in one place.
             </p>
           </div>
 
