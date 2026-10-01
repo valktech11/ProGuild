@@ -387,7 +387,7 @@ export default function HomePage() {
 
           {/* Search bar — elevated */}
           <div className="pg-rise pg-search-wrap w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4 rounded-2xl bg-white p-2 border"
-            style={{ borderColor: '#E8E2D9', boxShadow: '0 12px 40px -16px rgba(10,22,40,0.22)', animationDelay: '.18s' }}>
+            style={{ borderColor: '#E8E2D9', boxShadow: '0 12px 40px -16px rgba(10,22,40,0.22)', animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
             <SearchAutocomplete
               tradeValue={trade}
               cityValue={city}
