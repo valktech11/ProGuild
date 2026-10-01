@@ -166,7 +166,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
                 { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa, FL',  type: 'text', isAddress: true },
               ].map(f => (
                 <div key={f.lbl}>
-                  <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#A89F93' }}>{f.lbl}</label>
+                  <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>{f.lbl}</label>
                   {f.isAddress ? (
                     <AddressAutocomplete
                       value={f.val}
@@ -183,7 +183,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
                 </div>
               ))}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#A89F93' }}>Job description</label>
+                <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>Job description</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
                   placeholder="Briefly describe what you need..."
                   className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 resize-none transition-colors"
@@ -194,7 +194,7 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
                 style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)' }}>
                 {submitting ? 'Sending...' : `Send message to ${firstName} →`}
               </button>
-              <p className="text-xs text-center" style={{ color: '#A89F93' }}>Free · Direct · No middleman</p>
+              <p className="text-xs text-center" style={{ color: '#6E6456' }}>Free · Direct · No middleman</p>
             </div>
           </>
         )}
@@ -247,7 +247,7 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
 
   return (
     <div className="bg-white rounded-2xl border p-5 mb-6" style={{ borderColor: '#E8E2D9' }}>
-      <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#A89F93' }}>Add project photo</div>
+      <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#6E6456' }}>Add project photo</div>
       {error && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">{error}</div>}
       {isBA && (
         <div className="mb-4 p-3 rounded-xl flex items-start gap-3"
@@ -271,10 +271,10 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
             style={{ borderColor: '#E8E2D9' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = '#0F766E'}
             onMouseLeave={e => e.currentTarget.style.borderColor = '#E8E2D9'}>
-            {uploading ? <span className="text-sm" style={{ color: '#A89F93' }}>Uploading...</span> : (
+            {uploading ? <span className="text-sm" style={{ color: '#6E6456' }}>Uploading...</span> : (
               <><div className="text-2xl mb-2">📷</div>
               <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>Click to upload photo</div>
-              <div className="text-xs mt-1" style={{ color: '#A89F93' }}>JPG, PNG or WebP · Max 5MB</div></>
+              <div className="text-xs mt-1" style={{ color: '#6E6456' }}>JPG, PNG or WebP · Max 5MB</div></>
             )}
           </button>
         )}
@@ -284,7 +284,7 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
       {isBA && (
         <div className="mb-4 p-4 rounded-xl border" style={{ background: 'rgba(245,240,232,0.5)', borderColor: '#E8E2D9' }}>
           <div className="text-xs font-bold mb-1" style={{ color: '#F59E0B' }}>STEP 2 — BEFORE photo</div>
-          <div className="text-xs mb-3" style={{ color: '#A89F93' }}>Upload the state before the work was done</div>
+          <div className="text-xs mb-3" style={{ color: '#6E6456' }}>Upload the state before the work was done</div>
           {beforePhoto ? (
             <div className="relative rounded-xl overflow-hidden h-32">
               <img src={beforePhoto} className="w-full h-full object-cover" alt="Before" />
@@ -302,13 +302,13 @@ function AddWorkItem({ proId, onAdded }: { proId: string; onAdded: (item: any) =
         </div>
       )}
       <div className="mb-3">
-        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#A89F93' }}>Project title *</label>
+        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#6E6456' }}>Project title *</label>
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Full exterior repaint — Miami Beach residence"
           className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:border-teal-400 transition-colors"
           style={{ borderColor: '#E8E2D9', background: '#FAF9F6', color: '#0A1628' }} />
       </div>
       <div className="mb-4">
-        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#A89F93' }}>Description (optional)</label>
+        <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: '#6E6456' }}>Description (optional)</label>
         <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={2}
           placeholder="Scope of work, materials used, challenges solved..."
           className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none focus:border-teal-400 resize-none transition-colors"
@@ -350,7 +350,7 @@ function CredCard({ lic }: { lic: any }) {
     ? { border: '#F59E0B', bg: 'rgba(245,158,11,0.05)', dot: '#F59E0B', text: '#B45309', label: daysLeft !== null ? `Expiring in ${daysLeft}d` : 'Expiring', pillBg: 'rgba(245,158,11,0.12)', pillBorder: 'rgba(245,158,11,0.3)' }
     : status === 'expired'
     ? { border: '#EF4444', bg: 'rgba(239,68,68,0.05)', dot: '#EF4444', text: '#B91C1C', label: 'Expired', pillBg: 'rgba(239,68,68,0.12)', pillBorder: 'rgba(239,68,68,0.3)' }
-    : { border: '#E8E2D9', bg: '#FAF9F6', dot: '#A89F93', text: '#6B7280', label: 'Unknown', pillBg: '#F0EDE8', pillBorder: '#E8E2D9' }
+    : { border: '#E8E2D9', bg: '#FAF9F6', dot: '#6E6456', text: '#6B7280', label: 'Unknown', pillBg: '#F0EDE8', pillBorder: '#E8E2D9' }
 
   return (
     <div className="rounded-xl border overflow-hidden mb-3" style={{ borderColor: color.border, borderLeftWidth: '4px', background: color.bg }}>
@@ -367,7 +367,7 @@ function CredCard({ lic }: { lic: any }) {
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: color.pillBg, color: color.text, border: `1px solid ${color.pillBorder}` }}>
             ● {color.label}
           </span>
-          {expiryStr && <span className="text-xs hidden sm:inline" style={{ color: '#A89F93' }}>Expires {expiryStr}</span>}
+          {expiryStr && <span className="text-xs hidden sm:inline" style={{ color: '#6E6456' }}>Expires {expiryStr}</span>}
         </div>
       </div>
       <button onClick={() => setOpen(o => !o)} className="w-full text-left px-4 pb-2.5 text-xs font-medium" style={{ color: '#0F766E' }}>
@@ -380,7 +380,7 @@ function CredCard({ lic }: { lic: any }) {
               {lic.license_number ? (
                 <>
                   {lic.license_number.slice(0,4)}
-                  <span style={{ color: '#A89F93' }}>{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
+                  <span style={{ color: '#6E6456' }}>{revealed ? lic.license_number.slice(4,-3) : '•••'}</span>
                   {lic.license_number.slice(-3)}
                   <button onClick={() => setRevealed(r => !r)} className="ml-2 underline text-xs" style={{ color: '#0F766E' }}>{revealed ? 'hide' : 'reveal'}</button>
                 </>
@@ -579,7 +579,7 @@ export default function ProProfilePage() {
               <div className="flex items-center gap-2 text-sm" style={{ color: '#0C5F57' }}>
                 <span>👁</span>
                 <span className="font-medium">You're viewing your public profile</span>
-                <span className="text-xs hidden sm:inline" style={{ color: '#A89F93' }}>— This is what homeowners see</span>
+                <span className="text-xs hidden sm:inline" style={{ color: '#6E6456' }}>— This is what homeowners see</span>
               </div>
               <div className="flex items-center gap-2">
                 <Link href="/edit-profile"
@@ -763,7 +763,7 @@ export default function ProProfilePage() {
                         )}
                         {/* Expired plan — phone gated upgrade prompt */}
                         {contactState === 'claimed-expired' && !showPhone && pro.phone && (
-                          <div className="mt-2 px-3 py-2 rounded-xl text-xs text-center" style={{ background: '#FAF9F6', color: '#A89F93', border: '1px solid #E8E2D9' }}>
+                          <div className="mt-2 px-3 py-2 rounded-xl text-xs text-center" style={{ background: '#FAF9F6', color: '#6E6456', border: '1px solid #E8E2D9' }}>
                             🔒 Phone visible to Pro subscribers
                           </div>
                         )}
@@ -784,7 +784,7 @@ export default function ProProfilePage() {
                     </span>
                   ))}
                   {(pro as any).services.length > 6 && (
-                    <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ color: '#A89F93', border: '1px solid #E8E2D9' }}>
+                    <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ color: '#6E6456', border: '1px solid #E8E2D9' }}>
                       +{(pro as any).services.length - 6} more
                     </span>
                   )}
@@ -832,7 +832,7 @@ export default function ProProfilePage() {
                     <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
                       style={activeTab === tab.id
                         ? { background: 'rgba(20,184,166,0.15)', color: '#0F766E' }
-                        : { background: '#FAF9F6', color: '#A89F93' }}>
+                        : { background: '#FAF9F6', color: '#6E6456' }}>
                       {tab.count}
                     </span>
                   )}
@@ -855,7 +855,7 @@ export default function ProProfilePage() {
 
                   {/* About + trust pillars — spec items #6, #8, #9 */}
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                    <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>About this pro</div>
+                    <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#6E6456' }}>About this pro</div>
                     <p className="text-sm leading-relaxed mb-5" style={{ color: '#4B5563' }}>
                       {pro.bio || `Licensed ${trade.toLowerCase()} serving ${pro.city || 'Florida'} and surrounding areas. Connect directly to discuss your project.`}
                     </p>
@@ -909,7 +909,7 @@ export default function ProProfilePage() {
                   {/* Services */}
                   {(pro as any).services?.length > 0 && (
                     <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                      <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Services</div>
+                      <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#6E6456' }}>Services</div>
                       <div className="flex flex-wrap gap-2">
                         {(pro as any).services.map((s: string) => (
                           <span key={s} className="text-sm font-medium px-3 py-1.5 rounded-full"
@@ -924,7 +924,7 @@ export default function ProProfilePage() {
                   {/* Counties served */}
                   {(pro as any).counties_served?.length > 0 && (
                     <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
-                      <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Counties Served</div>
+                      <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#6E6456' }}>Counties Served</div>
                       <div className="flex flex-wrap gap-1.5">
                         {(pro as any).counties_served.map((county: string) => (
                           <span key={county} className="text-xs font-medium px-2.5 py-1 rounded-full"
@@ -940,7 +940,7 @@ export default function ProProfilePage() {
                   {portfolio.length > 0 && (
                     <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                       <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Project work</div>
+                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6E6456' }}>Project work</div>
                         <button onClick={() => setActiveTab('work')} className="text-sm font-semibold" style={{ color: '#0F766E' }}>
                           See all {portfolio.length} →
                         </button>
@@ -965,7 +965,7 @@ export default function ProProfilePage() {
                   {reviews.length > 0 && (
                     <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: '#E8E2D9' }}>
                       <div className="px-5 pt-4 pb-3 flex items-center justify-between">
-                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Recent reviews</div>
+                        <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6E6456' }}>Recent reviews</div>
                         <button onClick={() => setActiveTab('reviews')} className="text-sm font-semibold" style={{ color: '#0F766E' }}>
                           See all {reviewCnt} →
                         </button>
@@ -994,7 +994,7 @@ export default function ProProfilePage() {
                     <div className="bg-white rounded-2xl border py-12 text-center" style={{ borderColor: '#E8E2D9' }}>
                       <div className="text-3xl mb-3 opacity-20">🖼</div>
                       <div className="font-semibold mb-1" style={{ color: '#0A1628' }}>No project photos yet</div>
-                      <div className="text-sm mb-4" style={{ color: '#A89F93' }}>
+                      <div className="text-sm mb-4" style={{ color: '#6E6456' }}>
                         {isOwner ? 'Add your first project photo above.' : `Portfolio photos will appear here when ${firstName} adds them.`}
                       </div>
                       {!isOwner && pro.trade_category?.slug && (
@@ -1031,7 +1031,7 @@ export default function ProProfilePage() {
                           <div className="p-3">
                             <div className="font-semibold text-sm mb-0.5" style={{ color: '#0A1628' }}>{item.title || 'Untitled'}</div>
                             {item.description && <div className="text-xs line-clamp-2" style={{ color: '#6B7280' }}>{item.description}</div>}
-                            {item.location_label && <div className="text-xs mt-1" style={{ color: '#A89F93' }}>📍 {item.location_label}</div>}
+                            {item.location_label && <div className="text-xs mt-1" style={{ color: '#6E6456' }}>📍 {item.location_label}</div>}
                           </div>
                         </div>
                       ))}
@@ -1049,7 +1049,7 @@ export default function ProProfilePage() {
                         <div className="text-center">
                           <div className="text-5xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{rating.toFixed(1)}</div>
                           <div className="text-amber-400 text-lg mt-1">{starsHtml(rating)}</div>
-                          <div className="text-xs mt-1" style={{ color: '#A89F93' }}>{reviewCnt} reviews</div>
+                          <div className="text-xs mt-1" style={{ color: '#6E6456' }}>{reviewCnt} reviews</div>
                         </div>
                         <div className="flex-1 space-y-1.5">
                           {[5,4,3,2,1].map(star => {
@@ -1057,11 +1057,11 @@ export default function ProProfilePage() {
                             const pct = reviewCnt > 0 ? (cnt / reviewCnt) * 100 : 0
                             return (
                               <div key={star} className="flex items-center gap-2 text-xs">
-                                <span className="w-3 text-right" style={{ color: '#A89F93' }}>{star}</span>
+                                <span className="w-3 text-right" style={{ color: '#6E6456' }}>{star}</span>
                                 <div className="flex-1 rounded-full h-1.5" style={{ background: '#FAF9F6' }}>
                                   <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, background: '#F59E0B' }} />
                                 </div>
-                                <span className="w-4" style={{ color: '#A89F93' }}>{cnt}</span>
+                                <span className="w-4" style={{ color: '#6E6456' }}>{cnt}</span>
                               </div>
                             )
                           })}
@@ -1076,7 +1076,8 @@ export default function ProProfilePage() {
                       style={{ borderColor: '#E8E2D9', color: '#0A1628', background: '#fff' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E2D9'; e.currentTarget.style.color = '#0A1628' }}>
-                      ⭐ Write a review
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round"><polygon points="12 2 15.1 8.6 22 9.3 17 14.1 18.3 21 12 17.6 5.7 21 7 14.1 2 9.3 8.9 8.6"/></svg>
+                      Write a review
                     </a>
                   )}
 
@@ -1085,7 +1086,7 @@ export default function ProProfilePage() {
                     <div className="bg-white rounded-2xl border py-10 text-center" style={{ borderColor: '#E8E2D9' }}>
                       <div className="text-2xl mb-2 opacity-20">⭐</div>
                       <div className="font-semibold text-sm mb-1" style={{ color: '#0A1628' }}>No reviews yet</div>
-                      <div className="text-xs" style={{ color: '#A89F93' }}>
+                      <div className="text-xs" style={{ color: '#6E6456' }}>
                         {isOwner ? 'Customer reviews will appear here.' : `Be the first homeowner to share your experience with ${firstName}.`}
                       </div>
                     </div>
@@ -1096,7 +1097,7 @@ export default function ProProfilePage() {
                           <div className="font-bold text-sm" style={{ color: '#0A1628' }}>{rev.reviewer_name || 'Anonymous'}</div>
                           <div className="text-amber-400 text-sm mt-0.5">{starsHtml(rev.rating)}</div>
                         </div>
-                        <div className="text-xs" style={{ color: '#A89F93' }}>{formatReviewDate(rev.reviewed_at || rev.created_at)}</div>
+                        <div className="text-xs" style={{ color: '#6E6456' }}>{formatReviewDate(rev.reviewed_at || rev.created_at)}</div>
                       </div>
                       <p className="text-base leading-relaxed" style={{ color: '#4B5563' }}>{rev.review_text}</p>
                     </div>
@@ -1109,7 +1110,7 @@ export default function ProProfilePage() {
                 <div className="space-y-4">
                   <div className="bg-white rounded-2xl border p-5" style={{ borderColor: '#E8E2D9' }}>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>License verification</div>
+                      <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6E6456' }}>License verification</div>
                       <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-full"
                         style={{ background: 'rgba(20,184,166,0.08)', color: '#0C5F57', border: '1px solid rgba(20,184,166,0.2)' }}>
                         <ShieldBadge size={11} /> Florida DBPR
@@ -1120,7 +1121,7 @@ export default function ProProfilePage() {
                       ? proLicenses.map(lic => <div key={lic.id}><CredCard lic={lic} /></div>)
                       : pro.license_number
                         ? <CredCard lic={{ id: 'legacy', trade_name: trade, license_number: pro.license_number, license_expiry_date: pro.license_expiry_date, license_status: pro.license_status || 'active', is_primary: true }} />
-                        : <div className="text-sm py-4 text-center" style={{ color: '#A89F93' }}>No license on file</div>
+                        : <div className="text-sm py-4 text-center" style={{ color: '#6E6456' }}>No license on file</div>
                     }
 
                     {hasOsha && (
@@ -1152,7 +1153,7 @@ export default function ProProfilePage() {
                     )}
 
                     {!hasCredentials && (
-                      <div className="text-sm py-8 text-center" style={{ color: '#A89F93' }}>
+                      <div className="text-sm py-8 text-center" style={{ color: '#6E6456' }}>
                         <div className="text-3xl mb-2 opacity-20">🏛</div>
                         No credentials on file yet
                       </div>
@@ -1231,7 +1232,7 @@ export default function ProProfilePage() {
 
                 {/* Quick info card */}
                 <div className="bg-white rounded-2xl border p-4" style={{ borderColor: '#E8E2D9' }}>
-                  <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#A89F93' }}>Quick info</div>
+                  <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#6E6456' }}>Quick info</div>
                   <div className="space-y-2">
                     {[
                       { label: 'Trade', value: trade },
@@ -1241,7 +1242,7 @@ export default function ProProfilePage() {
                       ...(pro.license_expiry_date ? [{ label: 'Expires', value: new Date(pro.license_expiry_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }] : []),
                     ].map(row => (
                       <div key={row.label} className="flex items-start justify-between gap-2 text-xs">
-                        <span style={{ color: '#A89F93' }}>{row.label}</span>
+                        <span style={{ color: '#6E6456' }}>{row.label}</span>
                         <span className="text-right font-medium" style={{ color: row.value.startsWith('●') ? '#15803D' : '#0A1628' }}>{row.value}</span>
                       </div>
                     ))}
@@ -1307,9 +1308,9 @@ export default function ProProfilePage() {
         <footer className="border-t py-8 px-6 mt-4" style={{ borderColor: '#E8E2D9', background: '#fff', paddingBottom: !isOwner ? 'calc(80px + env(safe-area-inset-bottom))' : undefined }}>
           <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-4">
             <span className="font-bold text-sm" style={{ color: '#0A1628' }}>ProGuild<span style={{ color: '#0F766E', fontWeight: 500 }}>.ai</span></span>
-            <div className="flex gap-4 text-xs" style={{ color: '#A89F93' }}>
+            <div className="flex gap-4 text-xs" style={{ color: '#6E6456' }}>
               {[['/', 'Home'],['/search', 'Find a Pro'],['/privacy', 'Privacy'],['/terms', 'Terms']].map(([href, label]) => (
-                <Link key={href} href={href} style={{ color: '#A89F93' }}>{label}</Link>
+                <Link key={href} href={href} style={{ color: '#6E6456' }}>{label}</Link>
               ))}
             </div>
           </div>
