@@ -69,7 +69,7 @@ const HOW_STEPS_HOMEOWNER = [
 ]
 
 const HOW_STEPS_PRO = [
-  { n: '01', title: 'Claim Free', desc: 'Your DBPR license is already in our database. Claim your profile in 30 seconds.' },
+  { n: '01', title: 'Claim Free', desc: 'Your state license is already in our database. Claim your profile in 30 seconds.' },
   { n: '02', title: 'Get Discovered', desc: 'Homeowners find you by trade and city. Zero per-lead fees — ever.' },
   { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Unlimited leads, estimates, invoices, and measurements.' },
 ]
@@ -77,8 +77,8 @@ const HOW_STEPS_PRO = [
 // ── Trust-strip icons ──────────────────────────────────────────────────────────
 const TRUST = [
   {
-    title: 'Florida License Verified',
-    sub: 'Every contractor is checked against Florida’s state licensing records before they appear — verification via the Florida DBPR.',
+    title: 'State License Verified',
+    sub: 'Every contractor is checked against official state licensing records before they appear — no unverified listings, ever.',
     icon: (<svg {...ico} width={26} height={26}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>),
   },
   {
@@ -137,15 +137,15 @@ function VerifiedProCard() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
           </span>
           <span className="text-[13px] font-bold" style={{ color: '#0A1628' }}>Guild Verified</span>
-          <span className="text-[11px]" style={{ color: '#9CA3AF' }}>· license active in DBPR</span>
+          <span className="text-[11px]" style={{ color: '#9CA3AF' }}>· license active &amp; verified</span>
         </div>
         <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>
       </div>
-      {/* floating DBPR pill — sits below the card, clear of content */}
+      {/* floating verification pill — sits below the card, clear of content */}
       <div className="pg-float absolute -bottom-4 left-6 rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
         style={{ borderColor: '#E8E2D9', color: '#0C5F57', boxShadow: '0 12px 26px -12px rgba(10,22,40,0.28)', animationDelay: '1.2s' }}>
-        <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" /> DBPR verified
+        <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" /> License verified
       </div>
     </div>
   )
@@ -363,7 +363,7 @@ export default function HomePage() {
           <div className="pg-rise inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
             style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" />
-            Every contractor verified with Florida&rsquo;s licensing database
+            Every contractor verified against state licensing records
           </div>
 
           {/* Headline */}
@@ -400,37 +400,12 @@ export default function HomePage() {
             />
           </div>
 
-          {/* AI matching — promoted */}
-          <div className="pg-rise flex justify-center lg:justify-start mb-9" style={{ animationDelay: '.24s' }}>
-            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm border"
-              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.16)' }}>
-              <span style={{ color: '#0F766E' }}>✦</span>
-              <span className="font-semibold" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
-              <span style={{ color: '#4B5563' }}>Describe the problem — we&rsquo;ll match the trade.</span>
-            </div>
-          </div>
-
-          {/* Trust stat band — honest (no supply counts: only ~5.7K of the DBPR
-              set are contactable, so a total would misrepresent "reachable") */}
-          <div className="pg-rise mx-auto lg:mx-0 max-w-md grid grid-cols-3 gap-px rounded-2xl overflow-hidden border"
-            style={{ borderColor: '#E8E2D9', background: '#E8E2D9', animationDelay: '.3s' }}>
-            {[
-              { num: '$0', label: 'Lead fees, ever' },
-              { num: '100%', label: 'Licenses verified' },
-              { num: 'No', label: 'Shared leads' },
-            ].map((s, i) => (
-              <div key={i} className="bg-white py-5 px-3 text-center">
-                <div className="text-2xl sm:text-[1.65rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>{s.num}</div>
-                <div className="text-[11px] font-medium mt-1 tracking-wide" style={{ color: '#9CA3AF' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Secondary path — for pros */}
-          <div className="pg-rise mt-5 text-sm" style={{ animationDelay: '.36s', color: '#4B5563' }}>
-            Are you a contractor?{' '}
-            <Link href="/login?tab=signup" className="font-semibold underline decoration-transparent hover:decoration-inherit transition"
-              style={{ color: '#0F766E' }}>Claim your free profile →</Link>
+          {/* AI matching — full-width helper tied to the search */}
+          <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
+            style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.18)', animationDelay: '.24s' }}>
+            <span className="text-base" style={{ color: '#0F766E' }}>✦</span>
+            <span className="font-bold" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
+            <span style={{ color: '#4B5563' }}>Describe the problem and we&rsquo;ll match the trade.</span>
           </div>
           </div>{/* /LEFT */}
 
@@ -448,9 +423,12 @@ export default function HomePage() {
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-0">
         <div className="text-center mb-7">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>Browse by trade</div>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>Explore trades</div>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+            Browse by trade
+          </h2>
           <p className="text-sm" style={{ color: '#4B5563' }}>
-            {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
+            {city.trim() ? `Will search near "${city.trim()}"` : 'Pick a trade to see verified pros, or enter a city above for local results.'}
           </p>
         </div>
 
@@ -572,7 +550,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="font-bold text-[15px] mb-1" style={{ color: '#0A1628' }}>Guild Verified profiles</div>
-              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every license checked against Florida&rsquo;s DBPR records — a badge, never a paywall.</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every license checked against official state licensing records — a badge, never a paywall.</div>
             </div>
 
             {/* Panel 2 — Pipeline / CRM */}
@@ -624,7 +602,7 @@ export default function HomePage() {
               Your license is already on ProGuild.
             </h2>
             <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-              We imported every {scopeLabel} contractor license from the DBPR database.
+              We imported every {scopeLabel} contractor license from public state licensing records.
               Search your name — your profile is waiting. Claim it free in 30 seconds.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -706,7 +684,7 @@ export default function HomePage() {
           <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
             style={{ borderColor: '#E8E2D9' }}>
             <div className="text-xs" style={{ color: '#9CA3AF' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#9CA3AF' }}>License verified against state licensing boards · DBPR</div>
+            <div className="text-xs" style={{ color: '#9CA3AF' }}>License verified against official state licensing boards</div>
           </div>
         </div>
       </footer>
