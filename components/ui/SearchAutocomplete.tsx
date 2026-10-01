@@ -135,8 +135,8 @@ export default function SearchAutocomplete({
 
   return (
     <div ref={wrapRef} className="w-full max-w-3xl mx-auto">
-      <div className="flex flex-col sm:flex-row bg-white rounded-2xl shadow-md border overflow-visible"
-        style={{ borderColor: '#E8E2D9' }}>
+      <div className="flex flex-col sm:flex-row bg-white rounded-2xl border overflow-visible"
+        style={{ borderColor: '#DDD6CA', boxShadow: '0 20px 52px -18px rgba(10,22,40,0.32)' }}>
 
         {/* Trade field */}
         <div className="relative flex-1">

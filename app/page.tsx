@@ -386,9 +386,10 @@ export default function HomePage() {
             them directly — no middleman, no lead fees.
           </p>
 
-          {/* Search bar — elevated */}
-          <div className="pg-rise pg-search-wrap w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4 rounded-2xl bg-white p-2 border"
-            style={{ borderColor: '#DDD6CA', boxShadow: '0 20px 52px -18px rgba(10,22,40,0.32)', animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
+          {/* Search bar — elevated (the component renders its own rounded box;
+              this wrapper only handles layout + stacking) */}
+          <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4"
+            style={{ animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
             <SearchAutocomplete
               tradeValue={trade}
               cityValue={city}
