@@ -251,14 +251,14 @@ export async function generateMetadata(
   if (grp) {
     return {
       title: `${grp.label} Contractors in ${name} — ProGuild.ai`,
-      description: `Find verified ${grp.label.toLowerCase()} contractors in ${name}. ${grp.description} DBPR-licensed. Zero lead fees.`,
+      description: `Find verified ${grp.label.toLowerCase()} contractors in ${name}. ${grp.description} Every license state-checked. Zero lead fees.`,
       alternates: { canonical: `https://proguild.ai/${state.toLowerCase()}/${slug.toLowerCase()}` },
     }
   }
   const tradeTitle = slugToTitle(slug)
   return {
     title: `${tradeTitle}s in ${name} — ProGuild.ai`,
-    description: `Find verified, DBPR-licensed ${tradeTitle.toLowerCase()}s in ${name}. Zero lead fees on ProGuild.ai.`,
+    description: `Find verified, state-licensed ${tradeTitle.toLowerCase()}s in ${name}. Zero lead fees on ProGuild.ai.`,
     alternates: { canonical: `https://proguild.ai/${state.toLowerCase()}/${slug.toLowerCase()}` },
   }
 }
@@ -276,11 +276,6 @@ export default async function SlugPage(
   // Check if slug is a group ID
   const grp = TRADE_GROUPS[slugLower]
   if (grp) {
-    const tradeSlugs = grp.trades.map(t => t.slug)
-    const [totalCount, tradeCounts] = await Promise.all([
-      getGroupProCount(tradeSlugs, info.abbr),
-      getTradeCounts(tradeSlugs, info.abbr),
-    ])
     return (
       <GroupLandingPage
         stateSlug={stateSlug}
@@ -288,8 +283,6 @@ export default async function SlugPage(
         stateAbbr={info.abbr}
         groupSlug={slugLower}
         group={grp}
-        totalCount={totalCount}
-        tradeCounts={tradeCounts}
       />
     )
   }
@@ -313,7 +306,7 @@ export default async function SlugPage(
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: `${tradeLabel}s in ${info.name}`,
-    description: `DBPR-verified ${tradeLabel.toLowerCase()}s in ${info.name}. Zero per-lead fees.`,
+    description: `State-licensed ${tradeLabel.toLowerCase()}s in ${info.name}, verified against state records. Zero per-lead fees.`,
     url: pageUrl,
     numberOfItems: count,
     itemListElement: pros.slice(0, 10).map((pro: any, i: number) => ({

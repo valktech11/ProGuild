@@ -1,6 +1,6 @@
 'use client'
 import Navbar from '@/components/layout/Navbar'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProCard from '@/components/ui/ProCard'
@@ -12,16 +12,25 @@ const PAGE_SIZE = 12
 const TOP_CITIES = FL_SEO_CITIES.slice(0, 10)
 
 // Same groups as homepage/search — for related trades sidebar
+const TEAL = '#0F766E'
+const gico = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const GROUP_ICONS: Record<string, ReactNode> = {
+  mechanical: (<svg {...gico}><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>),
+  structural: (<svg {...gico}><path d="M3 21h18"/><path d="M6 21V8l6-4 6 4v13"/><path d="M10 21v-5h4v5"/></svg>),
+  finishing:  (<svg {...gico}><path d="M3 21c0-2.4 1.7-4 3.5-4L9 19.3C9 21.1 7.2 22.5 5 22.5"/><path d="M8.5 16.5 18 7a2 2 0 0 0-3-3L5.5 13.5z"/></svg>),
+  property:   (<svg {...gico}><path d="M4 20c0-8 6-13 16-13 0 10-6 14-16 13z"/><path d="M4 20c4-5 8-8 12-9.5"/></svg>),
+  specialty:  (<svg {...gico}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M12 9.5v5M9.5 12h5"/></svg>),
+}
 const TRADE_GROUPS = [
-  { id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0F766E',
+  { id: 'mechanical', label: 'Mechanical', accent: TEAL,
     trades: ['hvac-technician','electrician','plumber','solar-energy','gas-fitter','fire-sprinkler'] },
-  { id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
+  { id: 'structural', label: 'Structural', accent: TEAL,
     trades: ['roofing','general-contractor','impact-window-shutter','carpenter','mason','concrete-contractor','foundation-specialist'] },
-  { id: 'finishing', label: 'Finishing', icon: '🎨', accent: '#F59E0B',
+  { id: 'finishing', label: 'Finishing', accent: TEAL,
     trades: ['painter','flooring','drywall','tile-setter','insulation-contractor','windows-doors'] },
-  { id: 'property', label: 'Property', icon: '🌿', accent: '#10B981',
+  { id: 'property', label: 'Property', accent: TEAL,
     trades: ['pool-spa','landscaper','pest-control','irrigation','handyman','home-inspector'] },
-  { id: 'specialty', label: 'Specialty', icon: '🔐', accent: '#8B5CF6',
+  { id: 'specialty', label: 'Specialty', accent: TEAL,
     trades: ['marine-contractor','alarm-security','low-voltage','septic-drain','welder','elevator-technician'] },
 ]
 
@@ -180,15 +189,15 @@ export default function TradeLandingClient({
         <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
           <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl border flex-shrink-0"
-              style={{ borderColor: activeGroup.accent, borderTopWidth: '2px', background: activeGroup.accent + '08' }}>
-              <span className="text-lg">{activeGroup.icon}</span>
+              style={{ borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.06)' }}>
+              <span style={{ color: activeGroup.accent }}>{GROUP_ICONS[activeGroup.id]}</span>
               <span className="text-xs font-bold" style={{ color: activeGroup.accent }}>{activeGroup.label}</span>
             </div>
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs overflow-x-auto scrollbar-hide" style={{ color: '#A89F93' }}>
-              <Link href="/" style={{ color: '#A89F93' }}>Home</Link>
+            <div className="flex items-center gap-2 text-xs overflow-x-auto scrollbar-hide" style={{ color: '#6E6456' }}>
+              <Link href="/" style={{ color: '#6E6456' }}>Home</Link>
               <span>›</span>
-              <Link href={`/${stateSlug}`} style={{ color: '#A89F93' }}>{stateName}</Link>
+              <Link href={`/${stateSlug}`} style={{ color: '#6E6456' }}>{stateName}</Link>
               <span>›</span>
               <span className="font-semibold flex-shrink-0" style={{ color: activeGroup.accent }}>{tradeTitle}s</span>
             </div>
@@ -206,7 +215,7 @@ export default function TradeLandingClient({
             {activeGroup && (
               <div>
                 <div className="flex items-center gap-2 mb-3 px-2">
-                  <span className="text-base">{activeGroup.icon}</span>
+                  <span style={{ color: activeGroup.accent }}>{GROUP_ICONS[activeGroup.id]}</span>
                   <span className="text-sm font-bold uppercase tracking-widest" style={{ color: activeGroup.accent }}>
                     {activeGroup.label}
                   </span>
@@ -236,7 +245,7 @@ export default function TradeLandingClient({
 
             {/* Other groups — single line links to search page, no expansion */}
             <div>
-              <div className="text-sm font-bold uppercase tracking-widest mb-3 px-2" style={{ color: '#A89F93' }}>
+              <div className="text-sm font-bold uppercase tracking-widest mb-3 px-2" style={{ color: '#6E6456' }}>
                 Other trades
               </div>
               <div className="space-y-0.5">
@@ -247,7 +256,7 @@ export default function TradeLandingClient({
                     style={{ color: '#6B7280' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#FAF9F6'; e.currentTarget.style.color = group.accent }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6B7280' }}>
-                    <span className="text-base flex-shrink-0">{group.icon}</span>
+                    <span className="flex-shrink-0" style={{ color: group.accent }}>{GROUP_ICONS[group.id]}</span>
                     <span>{group.label}</span>
                   </Link>
                 ))}
@@ -263,19 +272,30 @@ export default function TradeLandingClient({
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-3"
               style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-              {tradeTitle}s in {stateName}
+              {tradeTitle}s in{' '}
+              <span style={{ background: 'linear-gradient(100deg, #0F766E, #14B8A6)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{stateName}</span>
             </h1>
-            <p className="text-base leading-relaxed mb-5" style={{ color: '#4B5563' }}>
-              Find verified, DBPR-licensed {tradeTitle.toLowerCase()}s in {stateName}.
+            <p className="text-base leading-relaxed mb-4" style={{ color: '#4B5563' }}>
+              Find verified, state-licensed {tradeTitle.toLowerCase()}s in {stateName}.
               Every pro on ProGuild is license-checked against the state database.
               Zero lead fees — contact them directly.
             </p>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 mb-6">
+              {['License-verified', 'No shared leads', 'Always free for homeowners'].map(label => (
+                <span key={label} className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: '#0A1628' }}>
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </span>
+                  {label}
+                </span>
+              ))}
+            </div>
 
             {/* City/ZIP search — the key missing piece */}
             <div className="flex gap-2 max-w-xl mb-5">
               <div className="flex flex-1 items-center gap-3 bg-white border rounded-xl px-4 py-3 shadow-sm"
                 style={{ borderColor: '#E8E2D9' }}>
-                <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#6E6456' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                 </svg>
                 <input
@@ -325,7 +345,7 @@ export default function TradeLandingClient({
                   <span className="text-sm">verified {tradeTitle.toLowerCase()}s in {stateName}</span>
                 </span>
                 <span className="text-gray-300 hidden sm:inline">·</span>
-                <span className="text-sm font-medium hidden sm:inline" style={{ color: '#0F766E' }}>🛡 DBPR verified</span>
+                <span className="text-sm font-medium hidden sm:inline" style={{ color: '#0F766E' }}>License-verified</span>
                 <span className="text-gray-300 hidden sm:inline">·</span>
                 <span className="text-sm hidden sm:inline">Zero lead fees</span>
               </div>
@@ -340,7 +360,7 @@ export default function TradeLandingClient({
                   <option value="name_asc">Name A–Z</option>
                   <option value="name_desc">Name Z–A</option>
                 </select>
-                <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: '#6E6456' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
                 </svg>
               </div>
