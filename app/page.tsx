@@ -219,10 +219,11 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
     <section className="max-w-5xl mx-auto px-6 pt-2 pb-8">
       <div className="flex items-end justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified {scopeLabel} pros</h2>
-          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Real contractors — every license checked against state records.</p>
+          <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified {scopeLabel} pros</h2>
+          <p className="text-sm mt-1" style={{ color: '#4B5563' }}>Real contractors — every license checked against state records.</p>
         </div>
-        <a href={`/${scopeState}`} className="hidden sm:inline text-sm font-semibold shrink-0 ml-4" style={{ color: '#0F766E' }}>Browse all pros →</a>
+        <a href={`/${scopeState}`} className="hidden sm:inline-flex items-center gap-1 text-sm font-bold shrink-0 ml-4 px-3.5 py-2 rounded-lg border transition-colors"
+          style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>Browse all pros →</a>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading
@@ -380,14 +381,14 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="pg-rise text-lg mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
+          <p className="pg-rise text-lg mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#4B5563', animationDelay: '.12s' }}>
             Search {scopeLabel}&rsquo;s licensed contractors by trade and city, and reach
             them directly — no middleman, no lead fees.
           </p>
 
           {/* Search bar — elevated */}
           <div className="pg-rise pg-search-wrap w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4 rounded-2xl bg-white p-2 border"
-            style={{ borderColor: '#E8E2D9', boxShadow: '0 12px 40px -16px rgba(10,22,40,0.22)', animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
+            style={{ borderColor: '#DDD6CA', boxShadow: '0 20px 52px -18px rgba(10,22,40,0.32)', animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
             <SearchAutocomplete
               tradeValue={trade}
               cityValue={city}
@@ -425,7 +426,7 @@ export default function HomePage() {
           </div>
 
           {/* Secondary path — for pros */}
-          <div className="pg-rise mt-5 text-sm" style={{ animationDelay: '.36s', color: '#6B7280' }}>
+          <div className="pg-rise mt-5 text-sm" style={{ animationDelay: '.36s', color: '#4B5563' }}>
             Are you a contractor?{' '}
             <Link href="/login?tab=signup" className="font-semibold underline decoration-transparent hover:decoration-inherit transition"
               style={{ color: '#0F766E' }}>Claim your free profile →</Link>
@@ -446,8 +447,8 @@ export default function HomePage() {
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-0">
         <div className="text-center mb-7">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
-          <p className="text-sm" style={{ color: '#6B7280' }}>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>Browse by trade</div>
+          <p className="text-sm" style={{ color: '#4B5563' }}>
             {city.trim() ? `Will search near "${city.trim()}"` : 'Enter a city above to find local pros, or tap a trade to browse'}
           </p>
         </div>
@@ -462,8 +463,8 @@ export default function HomePage() {
                 style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E' }}>
                 {TRADE_ICONS[t.slug]}
               </span>
-              <span className="text-[15px] font-semibold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Licensed &amp; verified</span>
+              <span className="text-base font-bold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
+              <span className="text-xs font-medium" style={{ color: '#8A8578' }}>Licensed &amp; verified</span>
               <span className="text-xs font-semibold mt-3 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()}` : 'Find pros'} →
@@ -477,7 +478,7 @@ export default function HomePage() {
           {SECONDARY_TRADES.map(t => (
             <button key={t.slug} onClick={() => handleTileTap(t.slug)}
               className="pg-pill text-sm font-medium px-3.5 py-1.5 rounded-full border cursor-pointer"
-              style={{ color: '#6B7280', borderColor: '#E8E2D9', background: '#FFFFFF' }}>
+              style={{ color: '#4B5563', borderColor: '#E8E2D9', background: '#FFFFFF' }}>
               {t.label}
             </button>
           ))}
@@ -493,14 +494,14 @@ export default function HomePage() {
       <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           {TRUST.map(item => (
-            <div key={item.title} className="pg-trust rounded-2xl p-6 text-center md:text-left border"
-              style={{ borderColor: '#F0EBE3', background: '#FDFCFA' }}>
+            <div key={item.title} className="pg-trust rounded-2xl p-7 text-center md:text-left border"
+              style={{ borderColor: '#E4DED4', background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,22,40,0.04)' }}>
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
-                style={{ background: 'rgba(15,118,110,0.09)', color: '#0F766E' }}>
+                style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E' }}>
                 {item.icon}
               </div>
-              <div className="font-bold text-[15px] mb-1.5" style={{ color: '#0A1628' }}>{item.title}</div>
-              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>{item.sub}</div>
+              <div className="font-bold text-base mb-2" style={{ color: '#0A1628' }}>{item.title}</div>
+              <div className="text-sm leading-relaxed" style={{ color: '#55504A' }}>{item.sub}</div>
             </div>
           ))}
         </div>
@@ -509,8 +510,8 @@ export default function HomePage() {
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 py-12">
         <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>How it works</div>
-          <h2 className="text-2xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>How it works</div>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
             Simple. Direct. Transparent.
           </h2>
           <div className="inline-flex rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
@@ -519,7 +520,7 @@ export default function HomePage() {
                 className="px-5 py-2 rounded-lg text-sm font-semibold transition-all"
                 style={activeTab === tab
                   ? { background: '#0F766E', color: '#FFFFFF' }
-                  : { color: '#6B7280' }}>
+                  : { color: '#4B5563' }}>
                 {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
               </button>
             ))}
@@ -533,7 +534,7 @@ export default function HomePage() {
                 {step.n}
               </div>
               <div className="font-bold mb-2 text-[17px]" style={{ color: '#0A1628' }}>{step.title}</div>
-              <div className="text-base leading-relaxed" style={{ color: '#6B7280' }}>{step.desc}</div>
+              <div className="text-base leading-relaxed" style={{ color: '#4B5563' }}>{step.desc}</div>
             </div>
           ))}
         </div>
@@ -543,11 +544,11 @@ export default function HomePage() {
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="text-center mb-10">
-            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>For the pros behind the work</div>
+            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>For the pros behind the work</div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
               Built to run the whole job.
             </h2>
-            <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: '#6B7280' }}>
+            <p className="text-base max-w-xl mx-auto leading-relaxed" style={{ color: '#4B5563' }}>
               The contractor you reach runs their business on ProGuild — verified profile, leads,
               estimates and measurements — so they&rsquo;re set up to actually deliver.
             </p>
@@ -650,49 +651,49 @@ export default function HomePage() {
                 <span className="text-xl font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
                 <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
               </div>
-              <p className="text-base leading-relaxed" style={{ color: '#A89F93' }}>
+              <p className="text-base leading-relaxed" style={{ color: '#857C70' }}>
                 Verified licensed contractors in {scopeLabel}. Zero lead fees. Your Craft. Your Guild.
               </p>
             </div>
 
             <div className="flex gap-16 text-sm">
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Platform</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Platform</div>
                 <div className="space-y-3">
                   {[['/search','Find a Pro'],['/post-job','Request a Pro'],['/jobs','Find Work'],['/contractors','For Contractors'],['/community','Community']].map(([href, label]) => (
                     <Link key={href} href={href}
                       className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
+                      style={{ color: '#4B5563' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
+                      onMouseLeave={e => (e.currentTarget.style.color = '#4B5563')}>
                       {label}
                     </Link>
                   ))}
                 </div>
               </div>
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Company</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Company</div>
                 <div className="space-y-3">
                   {[['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
                     <Link key={href} href={href}
                       className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
+                      style={{ color: '#4B5563' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
+                      onMouseLeave={e => (e.currentTarget.style.color = '#4B5563')}>
                       {label}
                     </Link>
                   ))}
                 </div>
               </div>
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#A89F93' }}>Top Trades</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Top Trades</div>
                 <div className="space-y-3">
                   {[['electrician','Electrician'],['plumber','Plumber'],['hvac-technician','HVAC'],['roofer','Roofer']].map(([slug, label]) => (
                     <Link key={slug} href={`/${scopeState}/${slug}`}
                       className="block transition-colors text-sm"
-                      style={{ color: '#6B7280' }}
+                      style={{ color: '#4B5563' }}
                       onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}>
+                      onMouseLeave={e => (e.currentTarget.style.color = '#4B5563')}>
                       {label}
                     </Link>
                   ))}
@@ -703,8 +704,8 @@ export default function HomePage() {
 
           <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
             style={{ borderColor: '#E8E2D9' }}>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#C4BAB0' }}>License verified against state licensing boards · DBPR</div>
+            <div className="text-xs" style={{ color: '#9CA3AF' }}>© 2026 ProGuild.ai</div>
+            <div className="text-xs" style={{ color: '#9CA3AF' }}>License verified against state licensing boards · DBPR</div>
           </div>
         </div>
       </footer>
