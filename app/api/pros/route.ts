@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   const trade  = searchParams.get('trade')
+  const tradeSlug = searchParams.get('trade_slug')?.trim()
   const search = searchParams.get('search')?.trim()
   const city   = searchParams.get('city')?.trim()   // exact city filter
   const state  = searchParams.get('state')?.trim()  // exact state filter
@@ -34,8 +35,19 @@ export async function GET(req: NextRequest) {
     // Claimed pros always shown; unclaimed only if licensed AND has phone OR non-placeholder email
     .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
 
-  // Filters
-  if (trade)     query = query.eq('trade_category_id', trade)
+  // Filters — resolve trade by UUID (trade) or by slug (trade_slug).
+  // Server-side slug resolution avoids relying on the client mapping a slug to a
+  // category id; an unknown slug returns an empty list, never an unfiltered one.
+  let tradeId: string | null = trade || null
+  if (!tradeId && tradeSlug) {
+    const { data: cat } = await getSupabaseAdmin()
+      .from('trade_categories').select('id').eq('slug', tradeSlug).maybeSingle()
+    if (!cat?.id) {
+      return NextResponse.json({ pros: [], total: 0, offset, limit, hasMore: false })
+    }
+    tradeId = cat.id
+  }
+  if (tradeId)   query = query.eq('trade_category_id', tradeId)
   if (email)     query = query.ilike('email', email)
   if (available) query = query.eq('available_for_work', true)
 

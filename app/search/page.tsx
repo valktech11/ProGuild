@@ -157,25 +157,16 @@ function SearchPageInner() {
   }
 
   function buildUrl(off: number) {
-    const tradeId = slugToId(activeTradeSlug)
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), sort })
-    if (tradeId)       params.set('trade', tradeId)       // UUID, not slug
-    if (appliedSearch) params.set('search', appliedSearch)
-    if (availableOnly) params.set('available', 'true')
+    if (activeTradeSlug) params.set('trade_slug', activeTradeSlug)  // server resolves slug -> id
+    if (appliedSearch)   params.set('search', appliedSearch)
+    if (availableOnly)   params.set('available', 'true')
     return `/api/pros?${params}`
   }
 
   const loadPros = useCallback(async () => {
-    // Wait for categories to load before querying if we have a trade filter
-    if (activeTradeSlug && categories.length === 0) return
-    // Safety: if slug doesn't resolve to UUID, show empty state — never show all unfiltered pros
-    if (activeTradeSlug) {
-      const tradeId = slugToId(activeTradeSlug)
-      if (!tradeId) {
-        setPros([]); setTotal(0); setHasMore(false); setLoading(false)
-        return
-      }
-    }
+    // Trade filtering is resolved server-side from the slug (trade_slug), so we no
+    // longer depend on the client categories list to map slug -> id before querying.
     setLoading(true); setError(''); offset.current = 0
     try {
       const r = await fetch(buildUrl(0))
