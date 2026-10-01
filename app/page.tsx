@@ -80,7 +80,7 @@ const SECONDARY_TRADES = [
 const HOW_STEPS_HOMEOWNER = [
   { n: '01', title: 'Tell us what you need', desc: 'Search by trade and city, or describe the job in plain words.' },
   { n: '02', title: 'Compare pros side by side', desc: 'See profiles, license numbers and trade details for each match.' },
-  { n: '03', title: 'Reach out directly', desc: 'Message, call or send an enquiry straight to the pro you pick.' },
+  { n: '03', title: 'Reach out directly', desc: 'Message, call or send an inquiry straight to the pro you pick.' },
 ]
 
 const HOW_STEPS_PRO = [
@@ -146,7 +146,7 @@ function VerifiedProCard() {
             style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>{initials(name)}</div>
           <div className="min-w-0">
             <div className="font-semibold text-[15px] leading-tight truncate" style={{ color: '#0A1628' }}>{name}</div>
-            <div className="text-xs mt-0.5 truncate" style={{ color: '#9CA3AF' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
+            <div className="text-xs mt-0.5 truncate" style={{ color: '#6B7280' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
           </div>
         </div>
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium mb-4"
@@ -162,9 +162,9 @@ function VerifiedProCard() {
         </div>
         {pro
           ? <a href={`/pro/${pro.id}`} className="block rounded-xl py-2.5 text-center text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</a>
+              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an inquiry →</a>
           : <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>}
+              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an inquiry →</div>}
       </div>
       {/* floating verification pill — sits below the card, clear of content */}
       <div className="pg-float absolute -bottom-4 left-6 rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
@@ -296,11 +296,11 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>{initials(name)}</div>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold truncate" style={{ color: '#0A1628' }}>{name}</div>
-                      <div className="text-[11px] truncate" style={{ color: '#9CA3AF' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
+                      <div className="text-[11px] truncate" style={{ color: '#6B7280' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
                     </div>
                   </div>
                   {p.license_number && (
-                    <div className="text-[11px] font-medium mt-auto pt-2" style={{ color: '#9CA3AF' }}>Lic #{p.license_number.toUpperCase()}</div>
+                    <div className="text-[11px] font-medium mt-auto pt-2" style={{ color: '#6B7280' }}>Lic #{p.license_number.toUpperCase()}</div>
                   )}
                   <div className="text-xs font-semibold mt-2" style={{ color: '#0F766E' }}>View profile →</div>
                 </a>
@@ -590,7 +590,7 @@ export default function HomePage() {
                   <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>PR</div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold" style={{ color: '#0A1628' }}>Verified Roofing Co.</div>
-                    <div className="text-[10px]" style={{ color: '#9CA3AF' }}>Roofing · Tampa, FL</div>
+                    <div className="text-[10px]" style={{ color: '#6B7280' }}>Roofing · Tampa, FL</div>
                   </div>
                 </div>
                 <div className="mt-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold" style={{ background: 'rgba(15,118,110,0.09)', color: '#0C5F57' }}>
@@ -615,7 +615,7 @@ export default function HomePage() {
                 ))}
               </div>
               <div className="font-bold text-[15px] mb-1" style={{ color: '#0A1628' }}>Lead &amp; job pipeline</div>
-              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every enquiry tracked from first contact to paid — estimates and invoices built in.</div>
+              <div className="text-[13px] leading-relaxed" style={{ color: '#7C7368' }}>Every inquiry tracked from first contact to payment — with estimates and invoices built in.</div>
             </div>
 
             {/* Panel 3 — ProMeasure */}
@@ -624,7 +624,7 @@ export default function HomePage() {
                 <svg viewBox="0 0 120 60" className="w-full h-[70px]" fill="none" stroke="#0F766E" strokeWidth="1.6" strokeLinejoin="round">
                   <path d="M20 44 L60 20 L100 44" opacity="0.9" />
                   <path d="M28 44 L60 25 L92 44" opacity="0.4" strokeDasharray="3 3" />
-                  <line x1="20" y1="50" x2="100" y2="50" stroke="#9CA3AF" strokeWidth="1" strokeDasharray="2 2" />
+                  <line x1="20" y1="50" x2="100" y2="50" stroke="#6B7280" strokeWidth="1" strokeDasharray="2 2" />
                 </svg>
                 <div className="absolute right-2 top-2 px-2 py-0.5 rounded-md text-[10px] font-bold text-white" style={{ background: '#0F766E' }}>24.3 sq</div>
               </div>
@@ -652,7 +652,7 @@ export default function HomePage() {
             </h2>
             <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
               We imported every {scopeLabel} contractor license from public state records — so your
-              profile already exists, waiting to be claimed. Search your name and claim it free in 30 seconds.
+              profile already exists, waiting to be claimed. Search your name and claim your profile free in about 30 seconds.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/login?tab=signup"
@@ -732,8 +732,8 @@ export default function HomePage() {
 
           <div className="border-t pt-6 flex flex-wrap items-center justify-between gap-3"
             style={{ borderColor: '#E8E2D9' }}>
-            <div className="text-xs" style={{ color: '#9CA3AF' }}>© 2026 ProGuild.ai</div>
-            <div className="text-xs" style={{ color: '#9CA3AF' }}>License verified against official state licensing boards</div>
+            <div className="text-xs" style={{ color: '#6B7280' }}>© 2026 ProGuild.ai</div>
+            <div className="text-xs" style={{ color: '#6B7280' }}>License verified against official state licensing boards</div>
           </div>
         </div>
       </footer>
