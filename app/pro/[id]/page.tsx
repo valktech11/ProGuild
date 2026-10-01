@@ -761,13 +761,6 @@ export default function ProProfilePage() {
                             Call {firstName}
                           </a>
                         )}
-                        {/* Expired plan — phone gated upgrade prompt */}
-                        {contactState === 'claimed-expired' && !showPhone && pro.phone && (
-                          <div className="mt-2 px-3 py-2 rounded-xl text-xs text-center" style={{ background: '#FAF9F6', color: '#6E6456', border: '1px solid #E8E2D9' }}>
-                            🔒 Phone visible to Pro subscribers
-                          </div>
-                        )}
-
                       </>
                     )}
                   </div>
@@ -1238,7 +1231,9 @@ export default function ProProfilePage() {
                       { label: 'Trade', value: trade },
                       { label: 'Location', value: location || 'Florida' },
                       ...(pro.license_number ? [{ label: 'License #', value: pro.license_number }] : []),
-                      { label: 'Status', value: pro.license_status === 'active' ? '● Active' : pro.license_status || 'Verified' },
+                      ...(pro.license_status && pro.license_status !== 'unknown'
+                        ? [{ label: 'Status', value: pro.license_status === 'active' ? '● Active' : pro.license_status.replace(/_/g, ' ') }]
+                        : []),
                       ...(pro.license_expiry_date ? [{ label: 'Expires', value: new Date(pro.license_expiry_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }] : []),
                     ].map(row => (
                       <div key={row.label} className="flex items-start justify-between gap-2 text-xs">
