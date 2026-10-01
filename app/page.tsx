@@ -494,6 +494,17 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── ROOF MEASUREMENT (homeowner acquisition hook) ───────────────── */}
+      <div className="max-w-5xl mx-auto px-6 pb-8">
+        <a href="/roof-size-calculator"
+          className="group flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center rounded-xl border px-5 py-3.5 text-sm transition-colors"
+          style={{ background: 'rgba(15,118,110,0.05)', borderColor: 'rgba(15,118,110,0.22)' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.2V20h12v-9.8"/></svg>
+          <span style={{ color: '#4B5563' }}><span className="font-bold" style={{ color: '#0C5F57' }}>Roof problem?</span> Get a free instant roof measurement before you call a pro</span>
+          <span className="font-bold shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: '#0F766E' }}>→</span>
+        </a>
+      </div>
+
       {/* ── VERIFIED PROS (real inventory — proof, before process) ──────── */}
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
@@ -620,8 +631,8 @@ export default function HomePage() {
               Your license is already on ProGuild.
             </h2>
             <p className="mb-8 text-sm leading-relaxed max-w-md mx-auto" style={{ color: '#94A3B8' }}>
-              We imported every {scopeLabel} contractor license from public state licensing records.
-              Search your name — your profile is waiting. Claim it free in 30 seconds.
+              We imported every {scopeLabel} contractor license from public state records — so your
+              profile already exists, waiting to be claimed. Search your name and claim it free in 30 seconds.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/login?tab=signup"
