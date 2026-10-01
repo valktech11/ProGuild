@@ -264,8 +264,8 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
     <section className="max-w-5xl mx-auto px-6 pt-2 pb-8">
       <div className="flex items-end justify-between mb-6">
         <div>
-          <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified {scopeLabel} pros</h2>
-          <p className="text-sm mt-1" style={{ color: '#4B5563' }}>Real contractors — every license checked against state records.</p>
+          <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified pros on ProGuild</h2>
+          <p className="text-sm mt-1" style={{ color: '#4B5563' }}>Real, licensed contractors — every license checked against state records.</p>
         </div>
         <a href={`/${scopeState}`} className="hidden sm:inline-flex items-center gap-1 text-sm font-bold shrink-0 ml-4 px-3.5 py-2 rounded-lg border transition-colors"
           style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>Browse all pros →</a>
