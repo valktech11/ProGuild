@@ -37,6 +37,7 @@ const allTradeFeatures = [
   { icon: '🗂️', title: 'Client & Property Records', desc: 'Every client, every property, every job — searchable, organized, one place.' },
   { icon: '📆', title: 'Job Calendar', desc: 'Schedule inspections, installs, and follow-ups. See your week without juggling spreadsheets.' },
   { icon: '📍', title: 'Contractor Directory', desc: 'Your verified profile appears when homeowners search for licensed contractors in your area. No per-lead fee.' },
+  { icon: '👥', title: 'Team & Multi-User', desc: 'Add your crew with roles and per-member lead attribution — see who\'s working what, on web and mobile.' },
 ]
 
 const competitors = [
@@ -275,8 +276,8 @@ export default function ContractorsPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
             {[
-              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
-              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing', 'Voice-to-notes'] },
+              { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
+              { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing', 'Voice-to-notes'] },
             ].map(plan => (
               <div key={plan.trade} style={{ background: navyMd, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: plan.color, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{plan.trade}</div>
