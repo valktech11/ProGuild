@@ -225,10 +225,10 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
         <a href={`/${scopeState}`} className="hidden sm:inline-flex items-center gap-1 text-sm font-bold shrink-0 ml-4 px-3.5 py-2 rounded-lg border transition-colors"
           style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>Browse all pros →</a>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mx-6 px-6 sm:mx-0 sm:px-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border p-4" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
+              <div key={i} className="rounded-2xl border p-4 min-w-[68%] snap-start sm:min-w-0" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
                 <div className="skeleton w-10 h-10 rounded-full mb-3" />
                 <div className="skeleton h-3 w-3/4 mb-2" />
                 <div className="skeleton h-2.5 w-1/2" />
@@ -239,7 +239,7 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
               const trade = p.trade_category?.category_name || 'Contractor'
               const loc = [p.city, p.state].filter(Boolean).join(', ')
               return (
-                <a key={p.id} href={`/pro/${p.id}`} className="pg-tile rounded-2xl border p-4 flex flex-col"
+                <a key={p.id} href={`/pro/${p.id}`} className="pg-tile rounded-2xl border p-4 flex flex-col min-w-[68%] snap-start sm:min-w-0"
                   style={{ borderColor: '#E8E2D9', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                   {p.is_verified && (
                     <div className="inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-md text-[10px] font-bold mb-3" style={{ background: 'rgba(15,118,110,0.09)', color: '#0C5F57' }}>
@@ -386,26 +386,27 @@ export default function HomePage() {
             them directly — no middleman, no lead fees.
           </p>
 
-          {/* Search bar — elevated (the component renders its own rounded box;
-              this wrapper only handles layout + stacking) */}
-          <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 mb-4"
-            style={{ animationDelay: '.18s', position: 'relative', zIndex: 50 }}>
-            <SearchAutocomplete
-              tradeValue={trade}
-              cityValue={city}
-              onTradeChange={setTrade}
-              onCityChange={setCity}
-              onSearch={(t, c) => handleSearch(undefined, t, c)}
-              loading={zipResolving || searching}
-            />
-          </div>
-
-          {/* AI matching — full-width helper tied to the search */}
-          <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0 flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm"
-            style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.18)', animationDelay: '.24s' }}>
-            <span className="text-base" style={{ color: '#0F766E' }}>✦</span>
-            <span className="font-bold" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
-            <span style={{ color: '#4B5563' }}>Describe the problem and we&rsquo;ll match the trade.</span>
+          {/* Search + AI helper share ONE column wrapper, each w-full — this
+              guarantees an identical width and left edge (no sibling drift) */}
+          <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0" style={{ animationDelay: '.18s' }}>
+            {/* Search bar (component renders its own rounded box) */}
+            <div className="relative mb-3" style={{ zIndex: 50 }}>
+              <SearchAutocomplete
+                tradeValue={trade}
+                cityValue={city}
+                onTradeChange={setTrade}
+                onCityChange={setCity}
+                onSearch={(t, c) => handleSearch(undefined, t, c)}
+                loading={zipResolving || searching}
+              />
+            </div>
+            {/* AI matching helper — full width of the same column, flush under search */}
+            <div className="w-full flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 rounded-xl border text-sm"
+              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.18)' }}>
+              <span className="text-base shrink-0" style={{ color: '#0F766E' }}>✦</span>
+              <span className="font-bold shrink-0" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
+              <span style={{ color: '#4B5563' }}>Describe the problem and we&rsquo;ll match the trade.</span>
+            </div>
           </div>
           </div>{/* /LEFT */}
 
@@ -417,11 +418,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── VERIFIED PROS (real inventory) ───────────────────────────────── */}
-      <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
-
-      {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pb-10 pt-0">
+      {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
+      <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
         <div className="text-center mb-7">
           <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>Explore trades</div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
@@ -468,6 +466,9 @@ export default function HomePage() {
           </a>
         </div>
       </section>
+
+      {/* ── VERIFIED PROS (real inventory — proof, after orientation) ────── */}
+      <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
       {/* ── TRUST STRIP ──────────────────────────────────────────────────── */}
       <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>

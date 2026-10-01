@@ -134,7 +134,7 @@ export default function SearchAutocomplete({
   const showCityDrop  = focusedField === 'city'  && citySuggestions.length > 0
 
   return (
-    <div ref={wrapRef} className="w-full max-w-3xl mx-auto">
+    <div ref={wrapRef} className="w-full">
       <div className="flex flex-col sm:flex-row bg-white rounded-2xl border overflow-visible"
         style={{ borderColor: '#DDD6CA', boxShadow: '0 20px 52px -18px rgba(10,22,40,0.32)' }}>
 
