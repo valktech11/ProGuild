@@ -377,8 +377,8 @@ export default function HomePage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* Atmosphere: dot-grid + teal glow */}
-        <div className="pointer-events-none absolute inset-0 pg-dotgrid" aria-hidden />
+        {/* Atmosphere: blueprint grid + teal glow */}
+        <div className="pointer-events-none absolute inset-0 pg-grid" aria-hidden />
         <div className="pointer-events-none absolute left-1/2 top-[-60px] -z-0 pg-hero-glow" aria-hidden
           style={{ width: 720, height: 420, background: 'radial-gradient(ellipse at center, rgba(15,118,110,0.20), rgba(15,118,110,0) 70%)', filter: 'blur(6px)' }} />
 
@@ -446,7 +446,7 @@ export default function HomePage() {
       {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
         <div className="text-center mb-7">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>Explore trades</div>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#6E6456' }}>Explore trades</div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
             Browse by trade
           </h2>
@@ -466,7 +466,7 @@ export default function HomePage() {
                 {TRADE_ICONS[t.slug]}
               </span>
               <span className="text-base font-bold mb-0.5" style={{ color: '#0A1628' }}>{t.label}</span>
-              <span className="text-xs font-medium" style={{ color: '#8A8578' }}>Licensed &amp; verified</span>
+              <span className="text-xs font-medium" style={{ color: '#6E6456' }}>Licensed &amp; verified</span>
               <span className="text-xs font-semibold mt-3 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: '#0F766E' }}>
                 {city.trim() ? `Near ${city.trim()}` : 'Find pros'} →
@@ -495,10 +495,11 @@ export default function HomePage() {
       {/* ── VERIFIED PROS (real inventory — proof, after orientation) ────── */}
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-12">
+      {/* ── HOW IT WORKS (white band — breaks the cream run, adds rhythm) ─── */}
+      <section className="border-y px-6 py-14" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>How it works</div>
+          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#6E6456' }}>How it works</div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
             Simple. Direct. Transparent.
           </h2>
@@ -526,13 +527,14 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+        </div>
       </section>
 
       {/* ── MORE THAN A DIRECTORY (product band) ─────────────────────────── */}
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="text-center mb-10">
-            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#857C70' }}>For the pros behind the work</div>
+            <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#6E6456' }}>For the pros behind the work</div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
               Built to run the whole job.
             </h2>
@@ -639,14 +641,14 @@ export default function HomePage() {
                 <span className="text-xl font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
                 <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
               </div>
-              <p className="text-base leading-relaxed" style={{ color: '#857C70' }}>
+              <p className="text-base leading-relaxed" style={{ color: '#6E6456' }}>
                 Verified licensed contractors in {scopeLabel}. Zero lead fees. Your Craft. Your Guild.
               </p>
             </div>
 
             <div className="flex gap-16 text-sm">
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Platform</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#6E6456' }}>Platform</div>
                 <div className="space-y-3">
                   {[['/search','Find a Pro'],['/post-job','Request a Pro'],['/jobs','Find Work'],['/contractors','For Contractors'],['/community','Community']].map(([href, label]) => (
                     <Link key={href} href={href}
@@ -660,7 +662,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Company</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#6E6456' }}>Company</div>
                 <div className="space-y-3">
                   {[['/about','About'],['/contact','Contact'],['/privacy','Privacy'],['/terms','Terms']].map(([href, label]) => (
                     <Link key={href} href={href}
@@ -674,7 +676,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#857C70' }}>Top Trades</div>
+                <div className="font-bold mb-4 text-xs uppercase tracking-widest" style={{ color: '#6E6456' }}>Top Trades</div>
                 <div className="space-y-3">
                   {[['electrician','Electrician'],['plumber','Plumber'],['hvac-technician','HVAC'],['roofer','Roofer']].map(([slug, label]) => (
                     <Link key={slug} href={`/${scopeState}/${slug}`}

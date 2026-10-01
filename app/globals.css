@@ -198,6 +198,17 @@ input:focus, textarea:focus, select:focus {
           mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
 }
 
+/* Blueprint graph-paper grid — architectural plan texture, fades at the edges.
+   Signature "licensed-trade / technical drawing" cue for light backgrounds. */
+.pg-grid {
+  background-image:
+    linear-gradient(rgba(15,118,110,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,118,110,0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 72% at 50% 22%, #000 32%, transparent 100%);
+          mask-image: radial-gradient(ellipse 85% 72% at 50% 22%, #000 32%, transparent 100%);
+}
+
 /* Trade tile — tactile lift + teal glow on hover */
 .pg-tile {
   transition: transform .22s cubic-bezier(.22,1,.36,1), box-shadow .22s ease, border-color .22s ease;
