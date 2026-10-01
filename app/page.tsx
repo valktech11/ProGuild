@@ -443,6 +443,46 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── HOW IT WORKS (compact, right after hero so new users grasp the model) ─ */}
+      <section className="border-y px-6 py-12" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-7">
+            <div>
+              <div className="text-xs font-bold tracking-widest uppercase mb-1.5" style={{ color: '#6E6456' }}>How it works</div>
+              <h2 className="text-2xl sm:text-[1.75rem] font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+                Simple. Direct. Transparent.
+              </h2>
+            </div>
+            <div className="inline-flex self-start sm:self-auto rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
+              {(['homeowner', 'pro'] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
+                  style={activeTab === tab
+                    ? { background: '#0F766E', color: '#FFFFFF' }
+                    : { color: '#4B5563' }}>
+                  {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
+            {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
+              <div key={step.n} className="flex gap-3.5">
+                <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
+                  style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E', fontFamily: "'DM Serif Display', serif" }}>
+                  {step.n}
+                </div>
+                <div>
+                  <div className="font-bold text-[15px] mb-0.5" style={{ color: '#0A1628' }}>{step.title}</div>
+                  <div className="text-sm leading-snug" style={{ color: '#4B5563' }}>{step.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
         <div className="text-center mb-7">
@@ -494,41 +534,6 @@ export default function HomePage() {
 
       {/* ── VERIFIED PROS (real inventory — proof, after orientation) ────── */}
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
-
-      {/* ── HOW IT WORKS (white band — breaks the cream run, adds rhythm) ─── */}
-      <section className="border-y px-6 py-14" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
-        <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#6E6456' }}>How it works</div>
-          <h2 className="text-2xl sm:text-3xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-            Simple. Direct. Transparent.
-          </h2>
-          <div className="inline-flex rounded-xl border p-1" style={{ borderColor: '#E8E2D9', background: '#FFFFFF' }}>
-            {(['homeowner', 'pro'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className="px-5 py-2 rounded-lg text-sm font-semibold transition-all"
-                style={activeTab === tab
-                  ? { background: '#0F766E', color: '#FFFFFF' }
-                  : { color: '#4B5563' }}>
-                {tab === 'homeowner' ? '🏠 For homeowners' : '🔧 For pros'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {(activeTab === 'homeowner' ? HOW_STEPS_HOMEOWNER : HOW_STEPS_PRO).map(step => (
-            <div key={step.n} className="relative pl-2">
-              <div className="text-3xl font-bold mb-3" style={{ color: 'rgba(15,118,110,0.28)', fontFamily: "'DM Serif Display', serif" }}>
-                {step.n}
-              </div>
-              <div className="font-bold mb-2 text-[17px]" style={{ color: '#0A1628' }}>{step.title}</div>
-              <div className="text-base leading-relaxed" style={{ color: '#4B5563' }}>{step.desc}</div>
-            </div>
-          ))}
-        </div>
-        </div>
-      </section>
 
       {/* ── MORE THAN A DIRECTORY (product band) ─────────────────────────── */}
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
