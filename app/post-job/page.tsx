@@ -232,7 +232,7 @@ export default function PostJobPage() {
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
             <div className="text-sm font-semibold text-gray-700 mb-4">Tips for a great post</div>
             <ul className="space-y-3">
-              {['Be specific about what needs doing', 'Include your timeline — urgent jobs get faster responses', 'Mention if materials need sourcing', 'Note any access requirements', 'Add your budget to filter serious enquiries'].map(tip => (
+              {['Be specific about what needs doing', 'Include your timeline — urgent jobs get faster responses', 'Mention if materials need sourcing', 'Note any access requirements', 'Add your budget to filter serious inquiries'].map(tip => (
                 <li key={tip} className="flex gap-3 text-sm text-gray-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 flex-shrink-0" />
                   {tip}

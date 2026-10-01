@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
                 proId:     proRecord.id,
                 companyId: _manualCompanyId ?? null,
                 type:      'new_lead_created',
-                title:     `New enquiry from ${contactFirst}`,
+                title:     `New inquiry from ${contactFirst}`,
                 body:      message ? `"${String(message).slice(0, 80)}${String(message).length > 80 ? '…' : ''}"` : 'A homeowner wants to discuss a project.',
                 leadId:    lead.id,
               })

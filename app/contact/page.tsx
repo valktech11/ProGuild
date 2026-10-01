@@ -47,7 +47,7 @@ export default function ContactPage() {
           {[
             { type: 'homeowner', icon: '🏠', title: 'I\'m a homeowner', desc: 'Finding a pro, question about a job, or feedback about the platform' },
             { type: 'pro',       icon: '🔧', title: 'I\'m a trade pro', desc: 'Claiming my profile, subscription help, or platform support' },
-            { type: 'employer',  icon: '🏗', title: 'I\'m an employer', desc: 'Hiring tradespeople, B2B partnerships, or enterprise enquiries' },
+            { type: 'employer',  icon: '🏗', title: 'I\'m an employer', desc: 'Hiring tradespeople, B2B partnerships, or enterprise inquiries' },
           ].map(opt => (
             <button key={opt.type} onClick={() => setType(opt.type as any)}
               className={`p-6 rounded-2xl border-2 text-left transition-all ${type === opt.type ? 'border-teal-500 bg-teal-50' : 'border-gray-100 bg-white hover:border-teal-200'}`}>

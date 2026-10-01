@@ -61,7 +61,7 @@ export function leadNotificationEmail({
     <tr><td style="padding:28px 32px;">
 
       <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:6px;">New lead received</div>
-      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">You have a new enquiry, ${firstName}</div>
+      <div style="font-size:22px;font-weight:600;color:#1a1a18;margin-bottom:4px;">You have a new inquiry, ${firstName}</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:24px;line-height:1.5;">Someone found your profile and wants to get in touch. Respond quickly to win the job.</div>
 
       <!-- Lead card -->
@@ -409,7 +409,7 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
       <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Professional trades marketplace</div>
     </td></tr>
     <tr><td style="padding:28px 32px;">
-      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:8px;">New homeowner enquiry</div>
+      <div style="font-size:12px;color:#9c9a92;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;margin-bottom:8px;">New homeowner inquiry</div>
       <div style="font-size:22px;font-weight:700;color:#1a1a18;margin-bottom:6px;line-height:1.3;">A homeowner is looking for a ${tradeLabel.toLowerCase()} in your area</div>
       <div style="font-size:14px;color:#73726c;margin-bottom:20px;line-height:1.6;">
         Hi ${firstName},<br><br>

@@ -662,7 +662,7 @@ export default function OverviewPage() {
                 { n: '$49', l: 'per month, all features' },
               ],
               steps: [
-                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner enquiry, referral or door knock. Your pipeline starts here.' },
+                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner inquiry, referral or door knock. Your pipeline starts here.' },
                 { icon: '📄', title: 'Send a proposal', body: 'Create a Good / Better / Best estimate and send it for digital approval in minutes.' },
                 { icon: '💵', title: 'Invoice & get paid', body: 'Auto-generate an invoice on approval. Collect by card, Zelle, or cash — all tracked.' },
               ],
@@ -701,7 +701,7 @@ export default function OverviewPage() {
                 { n: '$49', l: 'per month, all features' },
               ],
               steps: [
-                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner enquiry, referral or door knock. Your pipeline starts here.' },
+                { icon: '📋', title: 'Add your first lead', body: 'Log a homeowner inquiry, referral or door knock. Your pipeline starts here.' },
                 { icon: '📄', title: 'Send a proposal', body: 'Create a Good / Better / Best estimate and send it for digital approval in minutes.' },
                 { icon: '💵', title: 'Invoice & get paid', body: 'Auto-generate an invoice on approval. Collect by card, Zelle, or cash — all tracked.' },
               ],

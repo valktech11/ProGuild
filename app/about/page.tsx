@@ -56,7 +56,7 @@ export default function AboutPage() {
         <div className="bg-teal-600 rounded-2xl p-10 mb-8 text-white">
           <h2 className="font-serif text-2xl mb-4">Our promise to trade professionals</h2>
           <p className="text-teal-100 leading-relaxed mb-6">
-            ProGuild.ai will never sell your leads to competitors, charge you per enquiry, or treat you as inventory. Your professional profile, your reputation, and your connections belong to you.
+            ProGuild.ai will never sell your leads to competitors, charge you per inquiry, or treat you as inventory. Your professional profile, your reputation, and your connections belong to you.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
