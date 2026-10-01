@@ -1,6 +1,6 @@
 'use client'
 import Navbar from '@/components/layout/Navbar'
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ProCard from '@/components/ui/ProCard'
@@ -9,9 +9,18 @@ import { Pro, TradeCategory } from '@/types'
 const PAGE_SIZE = 12
 
 // Must match homepage exactly — same order, same slugs, Florida-first
+const TEAL = '#0F766E'
+const gico = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const GROUP_ICONS: Record<string, ReactNode> = {
+  mechanical: (<svg {...gico}><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>),
+  structural: (<svg {...gico}><path d="M3 21h18"/><path d="M6 21V8l6-4 6 4v13"/><path d="M10 21v-5h4v5"/></svg>),
+  finishing:  (<svg {...gico}><path d="M3 21c0-2.4 1.7-4 3.5-4L9 19.3C9 21.1 7.2 22.5 5 22.5"/><path d="M8.5 16.5 18 7a2 2 0 0 0-3-3L5.5 13.5z"/></svg>),
+  property:   (<svg {...gico}><path d="M4 20c0-8 6-13 16-13 0 10-6 14-16 13z"/><path d="M4 20c4-5 8-8 12-9.5"/></svg>),
+  specialty:  (<svg {...gico}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M12 9.5v5M9.5 12h5"/></svg>),
+}
 const TRADE_GROUPS = [
   {
-    id: 'mechanical', label: 'Mechanical', icon: '⚡', accent: '#0F766E',
+    id: 'mechanical', label: 'Mechanical', accent: TEAL,
     trades: [
       { label: 'HVAC Technician',     slug: 'hvac-technician' },
       { label: 'Electrician',         slug: 'electrician' },
@@ -22,7 +31,7 @@ const TRADE_GROUPS = [
     ],
   },
   {
-    id: 'structural', label: 'Structural', icon: '🏗', accent: '#6366F1',
+    id: 'structural', label: 'Structural', accent: TEAL,
     trades: [
       { label: 'Roofer',                    slug: 'roofing' },
       { label: 'General Contractor',        slug: 'general-contractor' },
@@ -34,7 +43,7 @@ const TRADE_GROUPS = [
     ],
   },
   {
-    id: 'finishing', label: 'Finishing', icon: '🎨', accent: '#F59E0B',
+    id: 'finishing', label: 'Finishing', accent: TEAL,
     trades: [
       { label: 'Painter',             slug: 'painter' },
       { label: 'Flooring',            slug: 'flooring' },
@@ -45,7 +54,7 @@ const TRADE_GROUPS = [
     ],
   },
   {
-    id: 'property', label: 'Property', icon: '🌿', accent: '#10B981',
+    id: 'property', label: 'Property', accent: TEAL,
     trades: [
       { label: 'Pool & Spa',          slug: 'pool-spa' },
       { label: 'Landscaper',          slug: 'landscaper' },
@@ -56,7 +65,7 @@ const TRADE_GROUPS = [
     ],
   },
   {
-    id: 'specialty', label: 'Specialty', icon: '🔐', accent: '#8B5CF6',
+    id: 'specialty', label: 'Specialty', accent: TEAL,
     trades: [
       { label: 'Marine / Dock',       slug: 'marine-contractor' },
       { label: 'Alarm & Security',    slug: 'alarm-security' },
@@ -227,28 +236,28 @@ function SearchPageInner() {
                   borderTopWidth: '3px',
                   background: `${activeGroup.accent}08`,
                 }}>
-                <span className="text-xl">{activeGroup.icon}</span>
+                <span style={{ color: activeGroup.accent }}>{GROUP_ICONS[activeGroup.id]}</span>
                 <div>
                   <div className="text-xs font-bold uppercase tracking-widest" style={{ color: activeGroup.accent }}>
                     {activeGroup.label}
                   </div>
-                  <div className="text-xs" style={{ color: '#A89F93' }}>
+                  <div className="text-xs" style={{ color: '#6E6456' }}>
                     {activeGroup.trades.length} trades
                   </div>
                 </div>
               </div>
 
               {/* Breadcrumb */}
-              <div className="flex items-center gap-2 text-xs" style={{ color: '#A89F93' }}>
-                <Link href="/" style={{ color: '#A89F93' }}
+              <div className="flex items-center gap-2 text-xs" style={{ color: '#6E6456' }}>
+                <Link href="/" style={{ color: '#6E6456' }}
                   onMouseEnter={e => (e.currentTarget.style.color = activeGroup.accent)}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                  onMouseLeave={e => (e.currentTarget.style.color = '#6E6456')}>
                   Home
                 </Link>
                 <span>›</span>
-                <button onClick={clearFilters} style={{ color: '#A89F93' }}
+                <button onClick={clearFilters} style={{ color: '#6E6456' }}
                   onMouseEnter={e => (e.currentTarget.style.color = activeGroup.accent)}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                  onMouseLeave={e => (e.currentTarget.style.color = '#6E6456')}>
                   {activeGroup.label}
                 </button>
                 {activeTradeSlug && (
@@ -271,16 +280,16 @@ function SearchPageInner() {
           <div className="max-w-7xl mx-auto px-6 py-3">
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
               {/* Breadcrumb */}
-              <Link href="/" className="text-xs flex-shrink-0 transition-colors" style={{ color: '#A89F93' }}
+              <Link href="/" className="text-xs flex-shrink-0 transition-colors" style={{ color: '#6E6456' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#0F766E')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                onMouseLeave={e => (e.currentTarget.style.color = '#6E6456')}>
                 Home
               </Link>
               <span className="text-xs flex-shrink-0" style={{ color: '#E8E2D9' }}>›</span>
 
               {/* Group label */}
               <span className="flex items-center gap-1 text-xs font-semibold flex-shrink-0" style={{ color: '#0A1628' }}>
-                <span>{activeGroup.icon}</span>
+                <span style={{ color: TEAL }}>{GROUP_ICONS[activeGroup.id]}</span>
                 <span>{activeGroup.label}</span>
               </span>
               <span className="text-xs flex-shrink-0" style={{ color: '#E8E2D9' }}>›</span>
@@ -319,7 +328,7 @@ function SearchPageInner() {
 
             {/* Sort */}
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#A89F93' }}>Sort by</div>
+              <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#6E6456' }}>Sort by</div>
               <select value={sort} onChange={e => setSort(e.target.value)}
                 className="w-full text-sm border rounded-xl px-3 py-2 bg-white outline-none"
                 style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
@@ -334,7 +343,7 @@ function SearchPageInner() {
             {/* Trade groups */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#A89F93' }}>Trade</div>
+                <div className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6E6456' }}>Trade</div>
                 {activeTradeSlug && (
                   <button onClick={clearFilters} className="text-xs font-medium transition-colors"
                     style={{ color: '#0F766E' }}>Clear</button>
@@ -344,7 +353,7 @@ function SearchPageInner() {
                 {TRADE_GROUPS.map(group => (
                   <div key={group.id}>
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="text-sm">{group.icon}</span>
+                      <span style={{ color: TEAL }}>{GROUP_ICONS[group.id]}</span>
                       <span className="text-sm font-semibold" style={{ color: '#6B7280' }}>{group.label}</span>
                     </div>
                     <div className="space-y-0.5 pl-1">
@@ -381,16 +390,16 @@ function SearchPageInner() {
                     {activeTradeSlug && (
                       <span style={{ color: '#0F766E' }}> · {TRADE_GROUPS.flatMap(g => g.trades).find(t => t.slug === activeTradeSlug)?.label || activeTradeSlug}</span>
                     )}
-                    {appliedSearch && <span style={{ color: '#A89F93' }}> for "{appliedSearch}"</span>}
+                    {appliedSearch && <span style={{ color: '#6E6456' }}> for "{appliedSearch}"</span>}
                   </>
                 )}
               </span>
               {hasFilters && !loading && (
                 <button onClick={clearFilters}
                   className="text-xs border px-2.5 py-1 rounded-full transition-colors"
-                  style={{ color: '#A89F93', borderColor: '#E8E2D9' }}
+                  style={{ color: '#6E6456', borderColor: '#E8E2D9' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#A89F93')}>
+                  onMouseLeave={e => (e.currentTarget.style.color = '#6E6456')}>
                   Clear filters ×
                 </button>
               )}
@@ -412,17 +421,19 @@ function SearchPageInner() {
             {loading
               ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)
               : error
-                ? <div className="col-span-3 text-center py-16" style={{ color: '#A89F93' }}>{error}</div>
+                ? <div className="col-span-3 text-center py-16" style={{ color: '#6E6456' }}>{error}</div>
                 : pros.length === 0
                   ? (
                     <div className="col-span-3 text-center py-20">
-                      <div className="text-5xl mb-4 opacity-20">🔍</div>
+                      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'rgba(15,118,110,0.07)', color: '#0F766E' }}>
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                      </div>
                       <div className="font-bold mb-2" style={{ color: '#0A1628' }}>
                         {activeTradeSlug
                           ? `No ${TRADE_GROUPS.flatMap(g => g.trades).find(t => t.slug === activeTradeSlug)?.label || activeTradeSlug} pros found in this area`
                           : 'No pros found'}
                       </div>
-                      <div className="text-sm mb-5" style={{ color: '#A89F93' }}>
+                      <div className="text-sm mb-5" style={{ color: '#6E6456' }}>
                         {activeTradeSlug
                           ? 'This trade may not have verified pros in this area yet. Try browsing all trades.'
                           : 'Try a different trade or city.'}
