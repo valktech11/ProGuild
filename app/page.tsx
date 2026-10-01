@@ -89,9 +89,35 @@ function getScopeLabel(): string {
   return `${states.slice(0, -1).join(', ')} & ${states[states.length - 1]}`
 }
 
-// ── Hero verified-pro card (illustrative sample — demonstrates the Guild
-//    Verified feature; not a real business record, license is masked) ──────────
+// ── Hero verified-pro card — shows a REAL verified pro (license masked), with an
+//    illustrative fallback so the hero never renders empty or broken ───────────
 function VerifiedProCard() {
+  const [pro, setPro] = useState<HomePro | null>(null)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const cat = await fetch('/api/categories').then(r => (r.ok ? r.json() : { categories: [] }))
+        const roofId = (cat.categories || []).find((c: { slug: string; id: string }) => c.slug === 'roofing')?.id
+        const url = roofId
+          ? `/api/pros?trade=${roofId}&limit=1&status=Active&sort=verified`
+          : `/api/pros?limit=1&status=Active&sort=verified`
+        const d = await fetch(url).then(r => (r.ok ? r.json() : { pros: [] }))
+        const p = Array.isArray(d.pros) && d.pros[0] ? (d.pros[0] as HomePro) : null
+        if (alive && p && p.is_verified) setPro(p)
+      } catch { /* keep illustrative fallback */ }
+    })()
+    return () => { alive = false }
+  }, [])
+
+  // Real pro when it loads; otherwise a clearly-illustrative preview of the feature.
+  const name  = pro ? formatName(pro.full_name) : 'Coastline Roofing'
+  const trade = pro ? (pro.trade_category?.category_name || 'Contractor') : 'Roofing'
+  const loc   = pro
+    ? [titleCase(pro.city || ''), (pro.state || '').toUpperCase()].filter(Boolean).join(', ')
+    : 'Cape Coral, FL'
+  const lic   = pro?.license_number ? maskLicense(pro.license_number) : 'CCC# ••• 4021'
+
   return (
     <div className="relative w-full max-w-sm mx-auto lg:ml-auto">
       {/* depth card behind */}
@@ -102,16 +128,16 @@ function VerifiedProCard() {
         style={{ borderColor: '#E8E2D9', boxShadow: '0 34px 64px -26px rgba(10,22,40,0.38)' }}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white shrink-0"
-            style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>CR</div>
+            style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>{initials(name)}</div>
           <div className="min-w-0">
-            <div className="font-semibold text-[15px] leading-tight" style={{ color: '#0A1628' }}>Coastline Roofing</div>
-            <div className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>Roofing · Cape Coral, FL</div>
+            <div className="font-semibold text-[15px] leading-tight truncate" style={{ color: '#0A1628' }}>{name}</div>
+            <div className="text-xs mt-0.5 truncate" style={{ color: '#9CA3AF' }}>{trade}{loc ? ` · ${loc}` : ''}</div>
           </div>
         </div>
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium mb-4"
           style={{ background: 'rgba(15,118,110,0.08)', color: '#0C5F57' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/></svg>
-          CCC# ••• 4021
+          {lic}
         </div>
         <div className="flex items-center gap-2 mb-4 pb-4 border-b" style={{ borderColor: '#F0EBE3' }}>
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
@@ -119,8 +145,11 @@ function VerifiedProCard() {
           </span>
           <span className="text-[13px] font-bold" style={{ color: '#0A1628' }}>Guild Verified</span>
         </div>
-        <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
-          style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>
+        {pro
+          ? <a href={`/pro/${pro.id}`} className="block rounded-xl py-2.5 text-center text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</a>
+          : <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>}
       </div>
       {/* floating verification pill — sits below the card, clear of content */}
       <div className="pg-float absolute -bottom-4 left-6 rounded-full bg-white border px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
@@ -168,6 +197,15 @@ function initials(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean)
   if (!p.length) return '?'
   return (p[0][0] + (p[1]?.[0] || '')).toUpperCase()
+}
+
+// Mask a license number to its type prefix + last 4 (e.g. "CCC1334021" → "CCC# ••• 4021").
+function maskLicense(ln: string): string {
+  const s = (ln || '').trim()
+  const letters = (s.match(/^[A-Za-z]+/)?.[0] || '').toUpperCase()
+  const last4 = s.replace(/\D/g, '').slice(-4)
+  if (!last4) return 'License on file'
+  return `${letters ? letters + '# ' : '#'}••• ${last4}`
 }
 
 function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scopeState: string }) {
@@ -385,7 +423,7 @@ export default function HomePage() {
             </div>
             {/* Trust bar — the three differentiators, above the fold, flush under search */}
             <div className="w-full flex flex-wrap items-center gap-x-5 gap-y-2.5">
-              {['License-verified', '$0 lead fees', 'No shared leads'].map(label => (
+              {['License-verified', 'No shared leads', 'Free for homeowners'].map(label => (
                 <span key={label} className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: '#0A1628' }}>
                   <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
