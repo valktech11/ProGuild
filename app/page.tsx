@@ -63,9 +63,9 @@ const SECONDARY_TRADES = [
 ]
 
 const HOW_STEPS_HOMEOWNER = [
-  { n: '01', title: 'Tell us what you need', desc: 'Search by trade and city — or just describe the problem and we\'ll find the right trade.' },
-  { n: '02', title: 'Compare verified pros', desc: 'View profiles, license numbers and trade details side by side. Every license state-checked.' },
-  { n: '03', title: 'Contact directly', desc: 'Message, call or send an enquiry — no bidding wars, no shared leads, no middleman.' },
+  { n: '01', title: 'Tell us what you need', desc: 'Search by trade and city, or describe the job in plain words.' },
+  { n: '02', title: 'Compare pros side by side', desc: 'See profiles, license numbers and trade details for each match.' },
+  { n: '03', title: 'Reach out directly', desc: 'Message, call or send an enquiry straight to the pro you pick.' },
 ]
 
 const HOW_STEPS_PRO = [
@@ -118,7 +118,6 @@ function VerifiedProCard() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
           </span>
           <span className="text-[13px] font-bold" style={{ color: '#0A1628' }}>Guild Verified</span>
-          <span className="text-[11px]" style={{ color: '#9CA3AF' }}>· license active &amp; verified</span>
         </div>
         <div className="rounded-xl py-2.5 text-center text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg,#0F766E,#0C5F57)' }}>Send an enquiry →</div>
@@ -144,15 +143,25 @@ type HomePro = {
   trade_category: { category_name: string; slug: string } | null
 }
 
+// Title-case a business / person / city string, preserving common all-caps tokens
+// so real, messy source data ("roofing boys inc", "apolo beach") renders cleanly.
+function titleCase(raw: string): string {
+  const KEEP = new Set(['LLC', 'INC', 'HVAC', 'AC', 'PLLC', 'PA', 'CO', 'USA', 'II', 'III', 'IV'])
+  return (raw || '').split(/\s+/).filter(Boolean).map(x => {
+    const bare = x.replace(/[.,]/g, '').toUpperCase()
+    if (KEEP.has(bare)) return x.toUpperCase()
+    return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()
+  }).join(' ')
+}
+
 function formatName(raw: string): string {
   const s = (raw || '').trim()
   if (!s) return ''
-  const tc = (w: string) => w.split(/\s+/).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join(' ')
   if (s.includes(',')) {
     const [last, first] = s.split(',').map(p => p.trim())
-    return `${tc(first)} ${tc(last)}`.trim()
+    return `${titleCase(first)} ${titleCase(last)}`.trim()
   }
-  return s
+  return titleCase(s)
 }
 
 function initials(name: string): string {
@@ -218,7 +227,7 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
           : pros.map(p => {
               const name = formatName(p.full_name)
               const trade = p.trade_category?.category_name || 'Contractor'
-              const loc = [p.city, p.state].filter(Boolean).join(', ')
+              const loc = [titleCase(p.city || ''), (p.state || '').toUpperCase()].filter(Boolean).join(', ')
               return (
                 <a key={p.id} href={`/pro/${p.id}`} className="pg-tile rounded-2xl border p-4 flex flex-col min-w-[68%] snap-start sm:min-w-0"
                   style={{ borderColor: '#E8E2D9', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -356,8 +365,8 @@ export default function HomePage() {
           </h1>
 
           <p className="pg-rise text-lg mb-7 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#4B5563', animationDelay: '.12s' }}>
-            Search {scopeLabel} by trade and city — or just describe the problem, and
-            we&rsquo;ll match you to the right pro.
+            Tell us the job or search by trade, and we&rsquo;ll match you with the
+            right {scopeLabel} pro to contact.
           </p>
 
           {/* Search + AI helper share ONE column wrapper, each w-full — this
