@@ -59,7 +59,7 @@ export default function CitySearch({ stateSlug, tradeSlug, currentCity }: Props)
     <div className="flex gap-2 max-w-lg">
       <div className="flex flex-1 items-center gap-3 bg-white border rounded-xl px-4 py-3"
         style={{ borderColor: '#E8E2D9' }}>
-        <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#A89F93' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <svg className="w-4 h-4 flex-shrink-0" style={{ color: '#6E6456' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
         </svg>
         <input

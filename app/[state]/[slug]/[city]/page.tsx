@@ -169,12 +169,12 @@ export default async function CityTradePage(
 
         {/* Breadcrumb */}
         <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
-          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2 text-sm overflow-x-auto" style={{ color: '#A89F93' }}>
-            <Link href="/" className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>Home</Link>
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-2 text-sm overflow-x-auto" style={{ color: '#6E6456' }}>
+            <Link href="/" className="hover:text-teal-600 transition-colors" style={{ color: '#6E6456' }}>Home</Link>
             <span>›</span>
-            <Link href={`/${state.toLowerCase()}`} className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>{info.name}</Link>
+            <Link href={`/${state.toLowerCase()}`} className="hover:text-teal-600 transition-colors" style={{ color: '#6E6456' }}>{info.name}</Link>
             <span>›</span>
-            <Link href={`/${state.toLowerCase()}/${slug}`} className="hover:text-teal-600 transition-colors" style={{ color: '#A89F93' }}>{tradeName}s</Link>
+            <Link href={`/${state.toLowerCase()}/${slug}`} className="hover:text-teal-600 transition-colors" style={{ color: '#6E6456' }}>{tradeName}s</Link>
             <span>›</span>
             <span className="font-semibold flex-shrink-0" style={{ color: '#0F766E' }}>{cityDisplay}</span>
           </div>
@@ -184,7 +184,8 @@ export default async function CityTradePage(
         <div className="bg-white border-b" style={{ borderColor: '#E8E2D9' }}>
           <div className="max-w-5xl mx-auto px-6 py-10">
             <h1 className="text-4xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
-              {tradeName}s in {cityDisplay}, {info.abbr}
+              {tradeName}s in{' '}
+              <span style={{ background: 'linear-gradient(100deg, #0F766E, #14B8A6)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{cityDisplay}, {info.abbr}</span>
             </h1>
             <p className="text-base mb-5" style={{ color: '#4B5563' }}>
               {count > 0 ? `${count} DBPR-verified ${tradeName.toLowerCase()}s` : `Verified ${tradeName.toLowerCase()}s`} in {cityDisplay}, {info.name}.
@@ -192,13 +193,17 @@ export default async function CityTradePage(
               {' '}Zero lead fees — contact them directly.
             </p>
 
-            {/* DBPR badge */}
-            {dbpr && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold mb-5"
-                style={{ background: 'rgba(15,118,110,0.08)', color: '#0C5F57', border: '1px solid rgba(15,118,110,0.2)' }}>
-                🛡 License verified: {dbpr.licenseLabel}
-              </div>
-            )}
+            {/* Trust chips — consistent across the site */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 mb-6">
+              {['License-verified', 'No shared leads', 'Always free for homeowners'].map(label => (
+                <span key={label} className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: '#0A1628' }}>
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </span>
+                  {label}
+                </span>
+              ))}
+            </div>
 
             {/* City search — change city without going back */}
             <CitySearch stateSlug={state.toLowerCase()} tradeSlug={slug} currentCity={cityDisplay} />
@@ -209,7 +214,9 @@ export default async function CityTradePage(
         <div className="max-w-5xl mx-auto px-6 py-8">
           {pros.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-2xl border" style={{ borderColor: '#E8E2D9' }}>
-              <div className="text-5xl mb-4">🔍</div>
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              </div>
               <h2 className="text-xl font-bold mb-2" style={{ color: '#0A1628' }}>No verified pros in {cityDisplay} yet</h2>
               <p className="text-base mb-6" style={{ color: '#6B7280' }}>
                 Try a nearby city, or leave your contact — we'll find a licensed {tradeName.toLowerCase()} for you.
@@ -241,7 +248,7 @@ export default async function CityTradePage(
 
           {/* Nearby cities */}
           <div className="mt-10 pt-8 border-t" style={{ borderColor: '#E8E2D9' }}>
-            <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: '#A89F93' }}>
+            <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: '#6E6456' }}>
               {tradeName}s in nearby cities
             </h2>
             <div className="flex flex-wrap gap-2">
