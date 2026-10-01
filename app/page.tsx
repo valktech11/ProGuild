@@ -39,6 +39,21 @@ const TRADE_ICONS: Record<string, React.ReactNode> = {
   ),
 }
 
+// ── Secondary-trade mini icons (14px line icons for the "More trades" rail) ────
+const sico = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const SECONDARY_TRADE_ICONS: Record<string, React.ReactNode> = {
+  'painter':               (<svg {...sico}><path d="M3 21c0-2.4 1.7-4 3.5-4L9 19.3C9 21.1 7.2 22.5 5 22.5"/><path d="M8.5 16.5 18 7a2 2 0 0 0-3-3L5.5 13.5z"/></svg>),
+  'landscaper':            (<svg {...sico}><path d="M4 20c0-8 6-13 16-13 0 10-6 14-16 13z"/><path d="M4 20c4-5 8-8 12-9.5"/></svg>),
+  'solar-energy':          (<svg {...sico}><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/></svg>),
+  'drywall':               (<svg {...sico}><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M3.5 12h17M12 5v14"/></svg>),
+  'impact-window-shutter': (<svg {...sico}><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M12 3v18M5 12h14"/></svg>),
+  'flooring':              (<svg {...sico}><rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3 11h18M3 15.5h18M9 5.5V11M15 11v4.5M9 15.5V18.5"/></svg>),
+  'pest-control':          (<svg {...sico}><ellipse cx="12" cy="13.5" rx="4.5" ry="5.5"/><path d="M12 8V4.5M9.5 6 8 4M14.5 6 16 4M7.5 11 4.5 9.5M16.5 11l3-1.5M7.2 16 4.2 17.5M16.8 16l3 1.5"/></svg>),
+  'marine-contractor':     (<svg {...sico}><circle cx="12" cy="4.5" r="2"/><path d="M12 6.5v13M6.5 12.5H5a7 7 0 0 0 14 0h-1.5M8 11l-2.5 1.5M16 11l2.5 1.5"/></svg>),
+  'carpenter':             (<svg {...sico}><path d="M5 4v15h15"/><path d="M5 9h6M5 14h11"/></svg>),
+  'irrigation':            (<svg {...sico}><path d="M12 3.5c3.5 4.5 5.5 7.4 5.5 10a5.5 5.5 0 0 1-11 0C6.5 10.9 8.5 8 12 3.5z"/></svg>),
+}
+
 // ── Primary trade tiles ───────────────────────────────────────────────────────
 const PRIMARY_TRADES = [
   { slug: 'hvac-technician',    label: 'HVAC' },
@@ -477,18 +492,23 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Secondary trades as pills */}
-        <div className="flex flex-wrap gap-2 justify-center">
+        {/* More trades — refined capsule rail with tiny trade icons */}
+        <div className="text-center mb-3 mt-1">
+          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#6E6456' }}>More trades</span>
+        </div>
+        <div className="flex flex-wrap gap-2.5 justify-center">
           {SECONDARY_TRADES.map(t => (
             <button key={t.slug} onClick={() => handleTileTap(t.slug)}
-              className="pg-pill text-sm font-medium px-3.5 py-1.5 rounded-full border cursor-pointer"
-              style={{ color: '#4B5563', borderColor: '#E8E2D9', background: '#FFFFFF' }}>
+              className="pg-pill group inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-full border cursor-pointer"
+              style={{ color: '#4B5563', borderColor: '#E4DED4', background: 'rgba(15,118,110,0.035)' }}>
+              <span className="shrink-0" style={{ color: '#0F766E', opacity: 0.8 }}>{SECONDARY_TRADE_ICONS[t.slug]}</span>
               {t.label}
             </button>
           ))}
           <a href={`/${scopeState}`}
-            className="text-sm font-semibold px-3.5 py-1.5 rounded-full border transition-all"
-            style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
+            className="pg-pill inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-full border transition-all"
+            style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.5)', background: 'rgba(15,118,110,0.1)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             All trades →
           </a>
         </div>
@@ -498,9 +518,9 @@ export default function HomePage() {
       <div className="max-w-5xl mx-auto px-6 pb-8">
         <a href="/roof-size-calculator"
           className="group flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center rounded-xl border px-5 py-3.5 text-sm transition-colors"
-          style={{ background: 'rgba(15,118,110,0.05)', borderColor: 'rgba(15,118,110,0.22)' }}>
+          style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.3)' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.2V20h12v-9.8"/></svg>
-          <span style={{ color: '#4B5563' }}><span className="font-bold" style={{ color: '#0C5F57' }}>Roof problem?</span> Get a free instant roof measurement before you call a pro</span>
+          <span style={{ color: '#4B5563' }}><span className="font-bold text-[15px]" style={{ color: '#0C5F57' }}>Roof problem?</span> Get a free roof measurement before you call a pro</span>
           <span className="font-bold shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: '#0F766E' }}>→</span>
         </a>
       </div>
