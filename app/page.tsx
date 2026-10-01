@@ -216,7 +216,7 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
   if (!loading && pros.length === 0) return null
 
   return (
-    <section className="max-w-5xl mx-auto px-6 pt-4 pb-12">
+    <section className="max-w-5xl mx-auto px-6 pt-2 pb-8">
       <div className="flex items-end justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>Verified {scopeLabel} pros</h2>
@@ -353,7 +353,7 @@ export default function HomePage() {
         <div className="pointer-events-none absolute left-1/2 top-[-60px] -z-0 pg-hero-glow" aria-hidden
           style={{ width: 720, height: 420, background: 'radial-gradient(ellipse at center, rgba(15,118,110,0.20), rgba(15,118,110,0) 70%)', filter: 'blur(6px)' }} />
 
-        <div className="relative max-w-6xl mx-auto px-6 pt-16 lg:pt-20 pb-16">
+        <div className="relative max-w-6xl mx-auto px-6 pt-16 lg:pt-20 pb-10">
          <div className="grid lg:grid-cols-2 gap-10 lg:gap-10 lg:items-start items-center">
           {/* LEFT — copy + search */}
           <div className="text-center lg:text-left">
@@ -444,7 +444,7 @@ export default function HomePage() {
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
       {/* ── TRADE TILES ──────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 pb-14 pt-2">
+      <section className="max-w-5xl mx-auto px-6 pb-10 pt-0">
         <div className="text-center mb-7">
           <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>Browse by trade</div>
           <p className="text-sm" style={{ color: '#6B7280' }}>
@@ -490,7 +490,7 @@ export default function HomePage() {
       </section>
 
       {/* ── TRUST STRIP ──────────────────────────────────────────────────── */}
-      <section className="py-14 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
+      <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           {TRUST.map(item => (
             <div key={item.title} className="pg-trust rounded-2xl p-6 text-center md:text-left border"
@@ -507,7 +507,7 @@ export default function HomePage() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
+      <section className="max-w-5xl mx-auto px-6 py-12">
         <div className="text-center mb-10">
           <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>How it works</div>
           <h2 className="text-2xl font-bold mb-6" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
@@ -541,7 +541,7 @@ export default function HomePage() {
 
       {/* ── MORE THAN A DIRECTORY (product band) ─────────────────────────── */}
       <section className="border-t" style={{ background: '#F5F2EC', borderColor: '#E8E2D9' }}>
-        <div className="max-w-5xl mx-auto px-6 py-16">
+        <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="text-center mb-10">
             <div className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#A89F93' }}>For the pros behind the work</div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-3" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
@@ -607,7 +607,7 @@ export default function HomePage() {
       </section>
 
       {/* ── PRO CTA BANNER ───────────────────────────────────────────────── */}
-      <section className="mx-6 mb-16 mt-16">
+      <section className="mx-6 mb-14 mt-10">
         <div className="relative overflow-hidden max-w-5xl mx-auto rounded-3xl p-10 sm:p-12 text-center"
           style={{ background: 'linear-gradient(135deg, #0A1628, #0D2D4A)' }}>
           <div className="pointer-events-none absolute inset-0 pg-cta-grid" aria-hidden />
