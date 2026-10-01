@@ -81,6 +81,24 @@ function getScopeState(): string {
   return (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').split(',')[0].trim().toLowerCase()
 }
 
+// match-trade returns a couple of slugs that differ from our category slugs
+const MATCH_ALIAS: Record<string, string> = { roofer: 'roofing', 'solar-installer': 'solar-energy' }
+
+// Map a free-text query to a trade slug so "ac" -> HVAC, "leak" -> plumber, etc.
+// Returns a category slug when confident, else null (caller falls back to text search).
+async function matchTradeSlug(q: string): Promise<string | null> {
+  try {
+    const r = await fetch('/api/match-trade', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    })
+    const d = await r.json()
+    const threshold = d.method === 'keyword' ? 0.8 : 0.85
+    if (d.slug && d.confidence >= threshold) return MATCH_ALIAS[d.slug] || d.slug
+  } catch {}
+  return null
+}
+
 function SkeletonCard() {
   return (
     <div className="bg-white border rounded-xl p-5 animate-pulse" style={{ borderColor: '#E8E2D9' }}>
@@ -123,6 +141,7 @@ function SearchPageInner() {
   const [sort, setSort]               = useState('rating')
   const [availableOnly, setAvailableOnly] = useState(false)
   const offset = useRef(0)
+  const didInitMatch = useRef(false)
   const [cardKey, setCardKey] = useState(0) // increments on filter change to trigger animation
 
   // Load categories once — needed to resolve slug → UUID
@@ -172,6 +191,24 @@ function SearchPageInner() {
 
   useEffect(() => { loadPros() }, [loadPros])
 
+  // On first load with a free-text ?q (e.g. arriving from a state-page search box),
+  // try to resolve it to a trade so "ac" shows HVAC instead of substring-matching "Jacksonville".
+  useEffect(() => {
+    if (didInitMatch.current) return
+    didInitMatch.current = true
+    const q = searchParams.get('q')?.trim()
+    const hasTrade = searchParams.get('trade') || searchParams.get('group')
+    if (q && !hasTrade) {
+      matchTradeSlug(q).then(slug => {
+        if (slug) {
+          setActiveTradeSlug(slug)
+          setSearch(''); setAppliedSearch('')
+          router.replace(`/search?trade=${slug}`, { scroll: false })
+        }
+      })
+    }
+  }, [])
+
   async function loadMore() {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
@@ -186,10 +223,21 @@ function SearchPageInner() {
     setLoadingMore(false)
   }
 
-  function applySearch() {
-    setAppliedSearch(search)
+  async function applySearch() {
+    const q = search.trim()
+    if (!q) return
+    // Map the query to a trade first ("ac" -> HVAC); only text-search if it doesn't map.
+    const slug = await matchTradeSlug(q)
+    if (slug) {
+      setActiveTradeSlug(slug)
+      setCardKey(k => k + 1)
+      setSearch(''); setAppliedSearch('')
+      router.replace(`/search?trade=${slug}`, { scroll: false })
+      return
+    }
+    setAppliedSearch(q)
     const params = new URLSearchParams()
-    if (search) params.set('q', search)
+    params.set('q', q)
     if (activeTradeSlug) params.set('trade', activeTradeSlug)
     router.replace(`/search?${params}`, { scroll: false })
   }
