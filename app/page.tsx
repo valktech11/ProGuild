@@ -74,25 +74,6 @@ const HOW_STEPS_PRO = [
   { n: '03', title: 'Keep Every Dollar', desc: 'One flat monthly fee. Unlimited leads, estimates, invoices, and measurements.' },
 ]
 
-// ── Trust-strip icons ──────────────────────────────────────────────────────────
-const TRUST = [
-  {
-    title: 'State License Verified',
-    sub: 'Every contractor is checked against official state licensing records before they appear — no unverified listings, ever.',
-    icon: (<svg {...ico} width={26} height={26}><path d="M12 3l7 3v5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>),
-  },
-  {
-    title: 'Zero Lead Fees. Ever.',
-    sub: 'Pros pay one flat monthly fee. No per-lead charges means they focus on your job, not chasing credits.',
-    icon: (<svg {...ico} width={26} height={26}><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>),
-  },
-  {
-    title: 'No Shared Leads.',
-    sub: 'Your enquiry goes only to the one pro you choose — never resold to five contractors. No bidding wars, no spam calls.',
-    icon: (<svg {...ico} width={26} height={26}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>),
-  },
-]
-
 // ── Scope helpers ─────────────────────────────────────────────────────────────
 function getScopeState(): string {
   return (process.env.NEXT_PUBLIC_LAUNCH_SCOPE || 'FL').split(',')[0].trim().toUpperCase()
@@ -359,13 +340,6 @@ export default function HomePage() {
           {/* LEFT — copy + search */}
           <div className="text-center lg:text-left">
 
-          {/* Badge */}
-          <div className="pg-rise inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 border"
-            style={{ background: 'rgba(20,184,166,0.08)', borderColor: 'rgba(20,184,166,0.25)', color: '#0C5F57' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 pg-pulse" />
-            Every contractor verified against state licensing records
-          </div>
-
           {/* Headline */}
           <h1 className="pg-rise font-bold leading-[1.05] tracking-tight mb-6"
             style={{ fontSize: 'clamp(2.3rem, 5vw, 3.7rem)', fontFamily: "'DM Serif Display', serif", color: '#0A1628', animationDelay: '.05s' }}>
@@ -381,16 +355,16 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="pg-rise text-lg mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#4B5563', animationDelay: '.12s' }}>
-            Search {scopeLabel}&rsquo;s licensed contractors by trade and city, and reach
-            them directly — no middleman, no lead fees.
+          <p className="pg-rise text-lg mb-7 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#4B5563', animationDelay: '.12s' }}>
+            Search {scopeLabel} by trade and city — or just describe the problem, and
+            we&rsquo;ll match you to the right pro.
           </p>
 
           {/* Search + AI helper share ONE column wrapper, each w-full — this
               guarantees an identical width and left edge (no sibling drift) */}
           <div className="pg-rise w-full max-w-xl lg:max-w-none mx-auto lg:mx-0" style={{ animationDelay: '.18s' }}>
             {/* Search bar (component renders its own rounded box) */}
-            <div className="relative mb-3" style={{ zIndex: 50 }}>
+            <div className="relative mb-4" style={{ zIndex: 50 }}>
               <SearchAutocomplete
                 tradeValue={trade}
                 cityValue={city}
@@ -400,12 +374,16 @@ export default function HomePage() {
                 loading={zipResolving || searching}
               />
             </div>
-            {/* AI matching helper — full width of the same column, flush under search */}
-            <div className="w-full flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 rounded-xl border text-sm"
-              style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.18)' }}>
-              <span className="text-base shrink-0" style={{ color: '#0F766E' }}>✦</span>
-              <span className="font-bold shrink-0" style={{ color: '#0C5F57' }}>Not sure who to call?</span>
-              <span style={{ color: '#4B5563' }}>Describe the problem and we&rsquo;ll match the trade.</span>
+            {/* Trust bar — the three differentiators, above the fold, flush under search */}
+            <div className="w-full flex flex-wrap items-center gap-x-5 gap-y-2.5">
+              {['License-verified', '$0 lead fees', 'No shared leads'].map(label => (
+                <span key={label} className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: '#0A1628' }}>
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-white shrink-0" style={{ background: '#0F766E' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </span>
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
           </div>{/* /LEFT */}
@@ -469,23 +447,6 @@ export default function HomePage() {
 
       {/* ── VERIFIED PROS (real inventory — proof, after orientation) ────── */}
       <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
-
-      {/* ── TRUST STRIP ──────────────────────────────────────────────────── */}
-      <section className="py-12 px-6 border-y" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TRUST.map(item => (
-            <div key={item.title} className="pg-trust rounded-2xl p-7 text-center md:text-left border"
-              style={{ borderColor: '#E4DED4', background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,22,40,0.04)' }}>
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
-                style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E' }}>
-                {item.icon}
-              </div>
-              <div className="font-bold text-base mb-2" style={{ color: '#0A1628' }}>{item.title}</div>
-              <div className="text-sm leading-relaxed" style={{ color: '#55504A' }}>{item.sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-6 py-12">
