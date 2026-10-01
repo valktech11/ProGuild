@@ -354,7 +354,7 @@ export default function HomePage() {
           style={{ width: 720, height: 420, background: 'radial-gradient(ellipse at center, rgba(15,118,110,0.20), rgba(15,118,110,0) 70%)', filter: 'blur(6px)' }} />
 
         <div className="relative max-w-6xl mx-auto px-6 pt-16 lg:pt-20 pb-16">
-         <div className="grid lg:grid-cols-2 gap-12 lg:gap-10 items-center">
+         <div className="grid lg:grid-cols-2 gap-10 lg:gap-10 lg:items-start items-center">
           {/* LEFT — copy + search */}
           <div className="text-center lg:text-left">
 
@@ -380,7 +380,7 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="pg-rise text-lg mb-9 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
+          <p className="pg-rise text-lg mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed" style={{ color: '#6B7280', animationDelay: '.12s' }}>
             Search {scopeLabel}&rsquo;s licensed contractors by trade and city, and reach
             them directly — no middleman, no lead fees.
           </p>
@@ -399,7 +399,7 @@ export default function HomePage() {
           </div>
 
           {/* AI matching — promoted */}
-          <div className="pg-rise flex justify-center lg:justify-start mb-10" style={{ animationDelay: '.24s' }}>
+          <div className="pg-rise flex justify-center lg:justify-start mb-9" style={{ animationDelay: '.24s' }}>
             <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm border"
               style={{ background: 'rgba(15,118,110,0.06)', borderColor: 'rgba(15,118,110,0.16)' }}>
               <span style={{ color: '#0F766E' }}>✦</span>
@@ -433,7 +433,7 @@ export default function HomePage() {
           </div>{/* /LEFT */}
 
           {/* RIGHT — floating Guild Verified card (desktop only) */}
-          <div className="hidden lg:block pg-rise" style={{ animationDelay: '.36s' }}>
+          <div className="hidden lg:block pg-rise lg:mt-12" style={{ animationDelay: '.36s' }}>
             <VerifiedProCard />
           </div>
          </div>{/* /grid */}
