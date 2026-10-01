@@ -215,7 +215,9 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
     let alive = true
     // Query a few specific trades directly (the unfiltered feed is ~all General
     // Contractors, the densest trade) so the band shows real marketplace variety.
-    const targets = ['roofing', 'hvac-technician', 'electrician', 'plumber', 'pool-spa', 'general-contractor']
+    // 'roofing' is intentionally excluded — the hero card already features a
+    // verified roofing pro, so the band shows other trades (no duplicate business).
+    const targets = ['hvac-technician', 'electrician', 'plumber', 'pool-spa', 'general-contractor']
     ;(async () => {
       try {
         const catRes = await fetch('/api/categories').then(r => (r.ok ? r.json() : { categories: [] }))
@@ -283,7 +285,7 @@ function VerifiedProsBand({ scopeLabel, scopeState }: { scopeLabel: string; scop
                     </div>
                   </div>
                   {p.license_number && (
-                    <div className="text-[11px] font-medium mt-auto pt-2" style={{ color: '#9CA3AF' }}>Lic #{p.license_number}</div>
+                    <div className="text-[11px] font-medium mt-auto pt-2" style={{ color: '#9CA3AF' }}>Lic #{p.license_number.toUpperCase()}</div>
                   )}
                   <div className="text-xs font-semibold mt-2" style={{ color: '#0F766E' }}>View profile →</div>
                 </a>
