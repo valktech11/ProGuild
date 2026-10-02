@@ -423,7 +423,12 @@ function SearchPageInner() {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm" style={{ color: '#6B7280' }}>
-                {loading ? 'Searching...' : (
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 rounded-full animate-spin" style={{ border: '2px solid #E8E2D9', borderTopColor: '#0F766E', verticalAlign: '-3px' }} />
+                    Searching…
+                  </span>
+                ) : (
                   <>
                     <span className="font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
                     {' '}verified pros
