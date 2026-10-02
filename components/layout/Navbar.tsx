@@ -240,7 +240,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
             style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 flex-1 min-w-0">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="ProGuild" className="w-7 h-7 flex-shrink-0 rounded-lg" />
             <div className="flex items-baseline gap-0.5">
@@ -250,8 +250,10 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
             <StagingBadge />
           </Link>
 
-          {/* Desktop nav — role-aware segmented control with sliding teal indicator */}
-          <div className="hidden md:flex items-center relative rounded-full p-1 flex-shrink-0"
+          {/* Desktop nav — role-aware segmented control with sliding teal indicator.
+              mx-auto centers it in the gap between logo and actions, with equal space
+              on both sides (regardless of logo/actions width or the STAGING chip). */}
+          <div className="hidden md:flex items-center relative rounded-full p-1 flex-shrink-0 mx-auto"
             style={{ background: '#EFEAE1', boxShadow: 'inset 0 0 0 1px rgba(10,22,40,0.06)' }}
             onMouseLeave={leaveLinks}>
             <span className="absolute rounded-full pointer-events-none" aria-hidden="true"
@@ -276,7 +278,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          <div className="flex items-center gap-2 flex-shrink-0">
 
             {/* Mobile hamburger — only shown on mobile */}
             <div className="md:hidden" ref={mobileMenuRef}>
