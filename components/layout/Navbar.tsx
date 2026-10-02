@@ -9,15 +9,11 @@ const APPLE_PATH = 'M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 2
 
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex items-center gap-2 ${compact ? '' : 'hidden xl:flex'}`}>
-      {/* Google Play — live */}
+    <div className={`flex items-center gap-3.5 ${compact ? '' : 'hidden xl:flex'}`}>
+      {/* Google Play — live: flat icon + label, no capsule */}
       <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors"
-        style={{ background: '#F4F1EC', borderColor: '#E3DCCF' }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#0F766E' }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#F4F1EC'; e.currentTarget.style.borderColor = '#E3DCCF' }}
+        className="flex items-center gap-1.5 transition-opacity hover:opacity-60"
         title="Get it on Google Play">
-        {/* Play Store icon — Google brand colors */}
         <svg width="15" height="15" viewBox="0 0 24 24">
           <path d="M3 20.5v-17a.5.5 0 0 1 .75-.43l16 8.5a.5.5 0 0 1 0 .86l-16 8.5A.5.5 0 0 1 3 20.5z" fill="url(#ps-grad)"/>
           <defs>
@@ -31,12 +27,9 @@ function AppBadges({ compact = false }: { compact?: boolean }) {
         </svg>
         <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>Android</span>
       </a>
-      {/* App Store — coming soon */}
-      <span
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-default select-none"
-        style={{ background: '#F4F1EC', borderColor: '#E3DCCF' }}
+      {/* App Store — coming soon: flat icon + label */}
+      <span className="flex items-center gap-1.5 cursor-default select-none"
         title="iOS app — coming soon (pending App Store approval)">
-        {/* Apple icon — full-resolution, correct aspect ratio */}
         <svg width="13" height="16" viewBox="0 0 814 1000" fill="#0A1628">
           <path d={APPLE_PATH}/>
         </svg>
@@ -243,13 +236,13 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
       {/* ── TOP NAVBAR — floating pill ─────────────────────────────────────── */}
       <nav className="sticky z-50" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-3">
-          <div className="h-14 flex items-center justify-between gap-3 rounded-full bg-white/95 backdrop-blur pl-4 pr-3"
+          <div className="h-12 flex items-center justify-between gap-3 rounded-full bg-white/95 backdrop-blur pl-4 pr-2.5"
             style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 flex-1 min-w-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProGuild" className="w-8 h-8 flex-shrink-0 rounded-lg" />
+            <img src="/logo.png" alt="ProGuild" className="w-7 h-7 flex-shrink-0 rounded-lg" />
             <div className="flex items-baseline gap-0.5">
               <span className="font-serif text-lg font-bold tracking-tight" style={{ color: '#0A1628' }}>ProGuild</span>
               <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
@@ -258,7 +251,8 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
           </Link>
 
           {/* Desktop nav — role-aware segmented control with sliding teal indicator */}
-          <div className="hidden md:flex items-center relative rounded-full p-1" style={{ background: '#F4F1EC' }}
+          <div className="hidden md:flex items-center relative rounded-full p-1 flex-shrink-0"
+            style={{ background: '#EFEAE1', boxShadow: 'inset 0 0 0 1px rgba(10,22,40,0.06)' }}
             onMouseLeave={leaveLinks}>
             <span className="absolute rounded-full pointer-events-none" aria-hidden="true"
               style={{
@@ -282,7 +276,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
 
             {/* Mobile hamburger — only shown on mobile */}
             <div className="md:hidden" ref={mobileMenuRef}>
@@ -420,16 +414,17 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
                 </div>
               </>
             ) : (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2.5">
                 <AppBadges />
+                <span className="hidden xl:block w-px h-5" style={{ background: '#E3DCCF' }} />
                 <Link href="/login"
-                  className="text-sm font-semibold px-4 py-2 rounded-lg border-2 transition-colors hover:bg-gray-50"
-                  style={{ borderColor: '#D6CFC4', color: '#0A1628' }}>
+                  className="text-sm font-semibold px-3.5 py-1.5 rounded-full transition-colors hover:bg-gray-50"
+                  style={{ color: '#0A1628' }}>
                   Log in
                 </Link>
                 {!hideJoinCta && (
                 <Link href="/login?tab=signup"
-                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
+                  className="text-sm font-semibold px-4 py-1.5 rounded-full text-white hover:opacity-90 transition-all"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
                   Join as a pro →
                 </Link>
