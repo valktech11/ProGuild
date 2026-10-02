@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
 // ── App store badge sub-component ────────────────────────────────────────────
-const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.proguild.proguildMobile'
+const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.proguild.mobile'
 
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
