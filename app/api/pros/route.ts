@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   const trade  = searchParams.get('trade')
   const tradeSlug = searchParams.get('trade_slug')?.trim()
+  const groupId = searchParams.get('group')?.trim()
   const search = searchParams.get('search')?.trim()
   const city   = searchParams.get('city')?.trim()   // exact city filter
   const state  = searchParams.get('state')?.trim()  // exact state filter
@@ -35,9 +36,18 @@ export async function GET(req: NextRequest) {
     // Claimed pros always shown; unclaimed only if licensed AND has phone OR non-placeholder email
     .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
 
-  // Filters — resolve trade by UUID (trade) or by slug (trade_slug).
-  // Server-side slug resolution avoids relying on the client mapping a slug to a
-  // category id; an unknown slug returns an empty list, never an unfiltered one.
+  // Trade groups — slugs per group; mirrors TRADE_GROUPS in search/page.tsx
+  const TRADE_GROUP_SLUGS: Record<string, string[]> = {
+    mechanical: ['hvac-technician','electrician','plumber','solar-energy','gas-fitter','fire-sprinkler'],
+    structural: ['roofing','general-contractor','impact-window-shutter','carpenter','mason','concrete-contractor','foundation-specialist'],
+    finishing:  ['painter','flooring','drywall','tile-setter','insulation-contractor','windows-doors'],
+    property:   ['pool-spa','landscaper','pest-control','irrigation','handyman','home-inspector'],
+    specialty:  ['marine-contractor','alarm-security','low-voltage','septic-drain','welder','elevator-technician'],
+  }
+
+  // Filters — resolve trade by UUID (trade), slug (trade_slug), or group (group).
+  // Server-side resolution avoids relying on client slug→id mapping; unknown slug/group
+  // returns empty list, never an unfiltered one.
   let tradeId: string | null = trade || null
   if (!tradeId && tradeSlug) {
     const { data: cat } = await getSupabaseAdmin()
@@ -47,7 +57,21 @@ export async function GET(req: NextRequest) {
     }
     tradeId = cat.id
   }
-  if (tradeId)   query = query.eq('trade_category_id', tradeId)
+  if (!tradeId && groupId) {
+    const groupSlugs = TRADE_GROUP_SLUGS[groupId]
+    if (!groupSlugs?.length) {
+      return NextResponse.json({ pros: [], total: 0, offset, limit, hasMore: false })
+    }
+    const { data: cats } = await getSupabaseAdmin()
+      .from('trade_categories').select('id').in('slug', groupSlugs)
+    const ids = (cats || []).map(c => c.id)
+    if (!ids.length) {
+      return NextResponse.json({ pros: [], total: 0, offset, limit, hasMore: false })
+    }
+    query = query.in('trade_category_id', ids)
+  } else if (tradeId) {
+    query = query.eq('trade_category_id', tradeId)
+  }
   if (email)     query = query.ilike('email', email)
   if (available) query = query.eq('available_for_work', true)
 

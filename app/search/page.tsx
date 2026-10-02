@@ -158,9 +158,10 @@ function SearchPageInner() {
 
   function buildUrl(off: number) {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(off), sort })
-    if (activeTradeSlug) params.set('trade_slug', activeTradeSlug)  // server resolves slug -> id
-    if (appliedSearch)   params.set('search', appliedSearch)
-    if (availableOnly)   params.set('available', 'true')
+    if (activeTradeSlug)          params.set('trade_slug', activeTradeSlug)  // server resolves slug -> id
+    else if (activeGroup)         params.set('group', activeGroup.id)        // group-level filter (no specific trade)
+    if (appliedSearch)            params.set('search', appliedSearch)
+    if (availableOnly)            params.set('available', 'true')
     return `/api/pros?${params}`
   }
 

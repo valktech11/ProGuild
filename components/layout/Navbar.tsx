@@ -1,6 +1,39 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+
+// ── App store badge sub-component ────────────────────────────────────────────
+const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.proguild.proguildMobile'
+
+function AppBadges({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 ${compact ? '' : 'hidden xl:flex'}`}>
+      {/* Google Play — live */}
+      <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors hover:border-teal-400"
+        style={{ borderColor: '#E8E2D9', background: '#fff' }}
+        title="Get it on Google Play">
+        {/* Play Store icon */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <path d="M3 20.5v-17a.5.5 0 0 1 .75-.43l16 8.5a.5.5 0 0 1 0 .86l-16 8.5A.5.5 0 0 1 3 20.5z" fill="#0F766E"/>
+        </svg>
+        <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>Android</span>
+      </a>
+      {/* App Store — coming soon */}
+      <span
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-default select-none"
+        style={{ borderColor: '#E8E2D9', background: '#F9F9F9', opacity: 0.6 }}
+        title="iOS app — coming soon (pending App Store approval)">
+        {/* Apple icon */}
+        <svg width="13" height="14" viewBox="0 0 814 1000" fill="#0A1628">
+          <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-105.5C197 645.2 166 528 166 415.2c0-145.5 94.6-222.7 182.4-222.7 50.8 0 93.1 34.2 124 34.2 29.3 0 74.8-36.2 131.2-36.2 20.7 0 108.2 2 170.5 82.1zm-254.7-123.3c25.9-30.8 44.8-73.7 44.8-116.7 0-5.8-.6-11.7-1.7-16.9-42.1 1.5-92.9 28.2-123.8 63.2-23.4 26.3-45.4 69.2-45.4 112.8 0 6.4.6 12.8 1.7 18.5 3.2.5 8.4 1.2 13.6 1.2 37.8 0 86.2-25.2 110.8-62.1z"/>
+        </svg>
+        <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>iOS</span>
+        <span className="text-[9px] font-medium px-1 rounded" style={{ background: '#FEF3C7', color: '#B45309' }}>Soon</span>
+      </span>
+    </div>
+  )
+}
 import { usePathname, useRouter } from 'next/navigation'
 import { Session } from '@/types'
 import { initials, avatarColor } from '@/lib/utils'
@@ -175,13 +208,8 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-7 h-7 flex-shrink-0">
-              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#nb)"/>
-                <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
-                <defs><linearGradient id="nb" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs>
-              </svg>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="ProGuild" className="w-8 h-8 flex-shrink-0 rounded-lg" />
             <div className="flex items-baseline gap-0.5">
               <span className="font-serif text-lg font-bold tracking-tight" style={{ color: '#0A1628' }}>ProGuild</span>
               <span className="font-sans font-medium text-sm" style={{ color: '#0F766E' }}>.ai</span>
@@ -244,6 +272,11 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
                       </button>
                     </div>
                   )}
+                  {/* App download badges — mobile */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-xs mb-2" style={{ color: '#6E6456' }}>Download the app</p>
+                    <AppBadges compact />
+                  </div>
                 </div>
               )}
             </div>
@@ -334,6 +367,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
               </>
             ) : (
               <div className="hidden md:flex items-center gap-2">
+                <AppBadges />
                 <Link href="/login"
                   className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
                   Log in
