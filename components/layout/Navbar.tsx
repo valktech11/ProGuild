@@ -9,7 +9,7 @@ const APPLE_PATH = 'M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 2
 
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex items-center gap-3.5 ${compact ? '' : 'hidden xl:flex'}`}>
+    <div className={`flex items-center gap-3.5 flex-shrink-0 ${compact ? '' : 'hidden xl:flex'}`}>
       {/* Google Play — live: flat icon + label, no capsule */}
       <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
         className="flex items-center gap-1.5 transition-opacity hover:opacity-60"
@@ -414,17 +414,17 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
                 </div>
               </>
             ) : (
-              <div className="hidden md:flex items-center gap-2.5">
+              <div className="hidden md:flex items-center gap-2.5 flex-shrink-0">
                 <AppBadges />
-                <span className="hidden xl:block w-px h-5" style={{ background: '#E3DCCF' }} />
+                <span className="hidden xl:block w-px h-5 flex-shrink-0" style={{ background: '#E3DCCF' }} />
                 <Link href="/login"
-                  className="text-sm font-semibold px-3.5 py-1.5 rounded-full transition-colors hover:bg-gray-50"
+                  className="text-sm font-semibold px-3.5 py-1.5 rounded-full transition-colors hover:bg-gray-50 whitespace-nowrap flex-shrink-0"
                   style={{ color: '#0A1628' }}>
                   Log in
                 </Link>
                 {!hideJoinCta && (
                 <Link href="/login?tab=signup"
-                  className="text-sm font-semibold px-4 py-1.5 rounded-full text-white hover:opacity-90 transition-all"
+                  className="text-sm font-semibold px-4 py-1.5 rounded-full text-white hover:opacity-90 transition-all whitespace-nowrap flex-shrink-0"
                   style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 8px rgba(15,118,110,0.3)' }}>
                   Join as a pro →
                 </Link>
