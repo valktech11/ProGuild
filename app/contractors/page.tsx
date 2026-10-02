@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 // NOTE: signup lives at /login?tab=signup (there is no /signup route).
+// Claim-your-profile self-serve flow lives at /claim/find (FL license lookup).
 import { useState } from 'react'
 import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
@@ -9,7 +10,6 @@ const tealLt = '#2DD4BF'
 const navy   = '#0A1628'
 const navyMd = '#0F2240'
 const navyLt = '#1E3A5F'
-const cream  = '#F8F6F1'
 const gold   = '#F59E0B'
 const white  = '#FFFFFF'
 
@@ -39,6 +39,23 @@ const allTradeFeatures = [
   { icon: '📆', title: 'Job Calendar', desc: 'Schedule inspections, installs, and follow-ups. See your week without juggling spreadsheets.' },
   { icon: '📍', title: 'Contractor Directory', desc: 'Your verified profile appears when homeowners search for licensed contractors in your area. No per-lead fee.' },
   { icon: '👥', title: 'Team & Multi-User', desc: 'Add your crew with roles and per-member lead attribution — see who\'s working what, on web and mobile.' },
+]
+
+// What you'd otherwise pay — the stack ProGuild replaces (publicly listed ranges).
+const stackReplaces = [
+  { tool: 'CRM (AccuLynx / JobNimbus)', cost: '$150–200/mo' },
+  { tool: 'Measurements (EagleView)',    cost: '$40–91/report' },
+  { tool: 'Leads (Angi / Thumbtack)',    cost: '$50–300/lead' },
+  { tool: 'Supplementing service',       cost: '% of every claim' },
+]
+
+// From lead to paid job — the field workflow.
+const workflow = [
+  { n: '01', title: 'Get the lead',    desc: 'Directory, free estimate tool, or import your book.' },
+  { n: '02', title: 'Measure & build', desc: 'Free satellite measurement → estimate in minutes.' },
+  { n: '03', title: 'Win the work',    desc: 'Visualizer close, e-signed proposal, deposit collected.' },
+  { n: '04', title: 'Run production',  desc: 'Photos, milestones, supplements, documents — tracked.' },
+  { n: '05', title: 'Get paid',        desc: 'Milestone invoices, online payment, claim reconciled.' },
 ]
 
 const competitors = [
@@ -73,6 +90,10 @@ function FeatureCard({ icon, title, desc, dark }: { icon: string; title: string;
   )
 }
 
+function SectionLabel({ text, color = tealLt }: { text: string; color?: string }) {
+  return <div style={{ fontSize: 12, fontWeight: 700, color, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>{text}</div>
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ContractorsPage() {
@@ -85,64 +106,77 @@ export default function ContractorsPage() {
       <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(10,22,40,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: `linear-gradient(135deg,${teal},${tealLt})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, color: white }}>PG</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" width={32} height={32} alt="ProGuild" style={{ borderRadius: 8 }} />
             <span style={{ fontSize: 17, fontWeight: 700, color: white }}>ProGuild.ai</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <Link href="/roof-size-calculator" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Free Measurement</Link>
-            <Link href="/roof-visualizer" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Roof Visualizer</Link>
+            <Link href="/claim/find" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Claim Profile</Link>
             <Link href="/login" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>Sign in</Link>
             <Link href="/login?tab=signup" style={{ fontSize: 14, fontWeight: 700, color: white, background: teal, padding: '8px 18px', borderRadius: 8, textDecoration: 'none' }}>Start Free →</Link>
           </div>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section style={{ padding: '80px 24px 60px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      {/* ── Hero ── money-first */}
+      <section style={{ padding: '80px 24px 56px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         {/* Glow */}
         <div style={{ position: 'absolute', top: -100, left: '50%', transform: 'translateX(-50%)', width: 600, height: 400, background: `radial-gradient(ellipse,${teal}33 0%,transparent 70%)`, pointerEvents: 'none' }} />
 
-        <div style={{ maxWidth: 780, margin: '0 auto', position: 'relative' }}>
+        <div style={{ maxWidth: 820, margin: '0 auto', position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${teal}22`, border: `1px solid ${teal}44`, borderRadius: 20, padding: '6px 14px', marginBottom: 28 }}>
-            <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>State-Licensed · Verified Contractors</span>
+            <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Built for Florida roofing &amp; restoration pros</span>
           </div>
 
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 68px)', fontWeight: 900, lineHeight: 1.05, margin: '0 0 24px', letterSpacing: '-0.02em' }}>
-            The CRM built for<br />
-            <span style={{ background: `linear-gradient(90deg,${tealLt},${gold})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>trade contractors</span>
+          <h1 style={{ fontSize: 'clamp(38px, 6.5vw, 72px)', fontWeight: 900, lineHeight: 1.03, margin: '0 0 24px', letterSpacing: '-0.02em' }}>
+            Win more roofs.<br />
+            <span style={{ background: `linear-gradient(90deg,${tealLt},${gold})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Keep more of the money.</span>
           </h1>
 
-          <p style={{ fontSize: 18, color: '#94A3B8', lineHeight: 1.7, maxWidth: 560, margin: '0 auto 40px' }}>
-            Satellite measurements, insurance supplement recovery, roof visualizer, and a verified contractor directory — all in one flat subscription. No per-lead fees. No per-report charges.
+          <p style={{ fontSize: 18, color: '#CBD5E1', lineHeight: 1.7, maxWidth: 620, margin: '0 auto 14px' }}>
+            Free satellite measurements, insurance supplement recovery, and a homeowner directory that sends you leads — with no per-lead fees.
+          </p>
+          <p style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.6, maxWidth: 560, margin: '0 auto 38px' }}>
+            Everything you&rsquo;re paying AccuLynx, EagleView and Angi for — in one app, for <strong style={{ color: white }}>$49.99/mo</strong>.
           </p>
 
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login?tab=signup" style={{ fontSize: 16, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
+          {/* CTA hierarchy: primary / secondary / tertiary */}
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Link href="/login?tab=signup" style={{ fontSize: 17, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '16px 36px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
               Start 3-Month Free Trial →
             </Link>
-            <Link href="/roof-size-calculator" style={{ fontSize: 16, fontWeight: 700, color: white, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '14px 32px', borderRadius: 12, textDecoration: 'none' }}>
-              🛰️ Free Roof Measurement
+            <Link href="/roof-size-calculator" style={{ fontSize: 15, fontWeight: 700, color: white, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', padding: '15px 26px', borderRadius: 12, textDecoration: 'none' }}>
+              🛰️ Measure a roof free
             </Link>
-            <Link href="/roof-visualizer" style={{ fontSize: 16, fontWeight: 700, color: tealLt, background: 'rgba(45,212,191,0.1)', border: `1px solid ${tealLt}44`, padding: '14px 32px', borderRadius: 12, textDecoration: 'none' }}>
-              🎨 Roof Visualizer
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Link href="/roof-visualizer" style={{ fontSize: 14, color: tealLt, textDecoration: 'none', fontWeight: 600 }}>
+              🎨 Try the Roof Visualizer →
             </Link>
           </div>
 
-          <p style={{ fontSize: 13, color: '#475569', marginTop: 16 }}>No credit card required · Cancel anytime</p>
+          <p style={{ fontSize: 13, color: '#64748B', marginTop: 18 }}>No credit card required · Cancel anytime</p>
+
+          {/* Mobile availability */}
+          <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Run it from the field</span>
+            <AppStoreBadges tone="dark" />
+          </div>
         </div>
       </section>
 
-      {/* ── Social proof strip ── */}
+      {/* ── Honest proof strip ── */}
       <div style={{ background: navyMd, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '18px 24px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            ['Free', 'Satellite Roof Measurement'],
+            ['Free', 'Satellite Roof Measurements'],
             ['Free', 'Homeowner Estimate Tool'],
-            ['124,000+', 'Licensed Contractors in Database'],
-            ['$0', 'Per-Lead Fee'],
+            ['$0', 'Per-Lead Fees — Ever'],
             ['$0', 'Per Measurement Report'],
+            ['101k', 'DBPR-Verified FL Profiles'],
             ['15', 'Real Shingle Colors'],
-            ['3 months', 'Free Trial, No Card'],
+            ['3 mo', 'Free Trial, No Card'],
           ].map(([num, label]) => (
             <div key={label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 900, color: tealLt }}>{num}</div>
@@ -152,18 +186,36 @@ export default function ContractorsPage() {
         </div>
       </div>
 
+      {/* ── Mobile micro-block ── field-first */}
+      <section style={{ padding: '56px 24px', background: navy }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <div style={{ flex: '1 1 420px', maxWidth: 560 }}>
+            <SectionLabel text="Your business, in your pocket" />
+            <h2 style={{ fontSize: 'clamp(24px,3.5vw,34px)', fontWeight: 800, margin: '0 0 14px', lineHeight: 1.15 }}>
+              Measure the roof while you&rsquo;re standing on it.
+            </h2>
+            <p style={{ color: '#94A3B8', fontSize: 15.5, lineHeight: 1.7, margin: '0 auto 22px', maxWidth: 480 }}>
+              Shoot job photos, pull a measurement, build an estimate, and create leads before you leave the driveway. The whole CRM travels with your crew — live on Android, iOS coming soon.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <AppStoreBadges tone="dark" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Trade tabs ── */}
-      <section style={{ padding: '72px 24px 0' }}>
+      <section style={{ padding: '64px 24px 0', background: navyMd }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <h2 style={{ fontSize: 'clamp(28px,4vw,44px)', fontWeight: 800, margin: '0 0 16px' }}>
               Built for your trade.<br />Not a generic field service app.
             </h2>
             <p style={{ color: '#64748B', fontSize: 16, maxWidth: 480, margin: '0 auto 32px' }}>
-              Every trade gets purpose-built tools. Roofers aren't HVAC techs. We built for both.
+              Every trade gets purpose-built tools. Roofers aren&rsquo;t HVAC techs. We built for both.
             </p>
             {/* Tab switcher */}
-            <div style={{ display: 'inline-flex', background: navyMd, borderRadius: 12, padding: 4, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'inline-flex', background: navy, borderRadius: 12, padding: 4, border: '1px solid rgba(255,255,255,0.08)' }}>
               {(['roofing', 'hvac'] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   padding: '10px 28px', borderRadius: 9, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14,
@@ -178,9 +230,9 @@ export default function ContractorsPage() {
           </div>
 
           {activeTab === 'roofing' && (
-            <div>
+            <div style={{ paddingBottom: 64 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16, marginBottom: 16 }}>
-                {roofingFeatures.map(f => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} dark />)}
+                {roofingFeatures.map(f => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
               </div>
               <div style={{ textAlign: 'center', marginTop: 8, padding: '16px', background: `${teal}18`, borderRadius: 12, border: `1px solid ${teal}33` }}>
                 <span style={{ fontSize: 14, color: tealLt, fontWeight: 600 }}>🛰️ Roofers save $40+ per report vs EagleView · 📋 Supplement recovery often runs several thousand per claim</span>
@@ -189,19 +241,19 @@ export default function ContractorsPage() {
           )}
 
           {activeTab === 'hvac' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16 }}>
-              {hvacFeatures.map(f => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} dark />)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16, paddingBottom: 64 }}>
+              {hvacFeatures.map(f => <FeatureCard key={f.title} icon={f.icon} title={f.title} desc={f.desc} />)}
             </div>
           )}
         </div>
       </section>
 
       {/* ── All trades section ── */}
-      <section style={{ padding: '72px 24px' }}>
+      <section style={{ padding: '72px 24px', background: navy }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: tealLt, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Every Trade</div>
-            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Everything in the box</h2>
+            <SectionLabel text="Every Trade" />
+            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Everything you need to run the business</h2>
             <p style={{ color: '#64748B', fontSize: 15 }}>Included with every plan — no add-ons, no surprises.</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
@@ -218,12 +270,54 @@ export default function ContractorsPage() {
         </div>
       </section>
 
-      {/* ── Competitor comparison ── */}
-      <section style={{ padding: '0 24px 80px' }}>
+      {/* ── How it works ── from lead to paid job */}
+      <section style={{ padding: '72px 24px', background: navyMd }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <SectionLabel text="How it works" />
+            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>From lead to paid job.</h2>
+            <p style={{ color: '#64748B', fontSize: 15, maxWidth: 520, margin: '0 auto' }}>One system for the whole job — not five apps duct-taped together.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14 }}>
+            {workflow.map((s, i) => (
+              <div key={s.n} style={{ position: 'relative', padding: '22px 18px', background: navy, borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: i === workflow.length - 1 ? gold : tealLt, letterSpacing: '0.08em', marginBottom: 10 }}>{s.n}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: white, marginBottom: 6 }}>{s.title}</div>
+                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Stack replacement + comparison ── */}
+      <section style={{ padding: '72px 24px 80px', background: navy }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Honest Comparison</div>
-            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Why contractors switch to ProGuild</h2>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <SectionLabel text="The math" color={gold} />
+            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>One app replaces four subscriptions.</h2>
+            <p style={{ color: '#94A3B8', fontSize: 15, maxWidth: 560, margin: '0 auto' }}>
+              Most roofers juggle a CRM, a measurement vendor, a lead service, and a supplementing cut. ProGuild is all four — flat.
+            </p>
+          </div>
+
+          {/* Stack-replacement callout */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12, marginBottom: 20 }}>
+            {stackReplaces.map(s => (
+              <div key={s.tool} style={{ padding: '16px 18px', background: navyMd, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#CBD5E1', marginBottom: 6, textDecoration: 'line-through', textDecorationColor: '#EF444488' }}>{s.tool}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#EF4444' }}>{s.cost}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginBottom: 44, padding: '18px', background: `${teal}18`, borderRadius: 12, border: `1px solid ${teal}44` }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: white }}>ProGuild: all four, for </span>
+            <span style={{ fontSize: 18, fontWeight: 900, color: tealLt }}>$49.99/mo flat.</span>
+            <div style={{ fontSize: 13, color: '#94A3B8', marginTop: 6 }}>One EagleView report costs more than a month of ProGuild. One recovered supplement pays for years.</div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <h3 style={{ fontSize: 'clamp(22px,3vw,30px)', fontWeight: 800, margin: '0 0 10px' }}>How ProGuild compares</h3>
             <p style={{ color: '#64748B', fontSize: 14, maxWidth: 560, margin: '0 auto' }}>
               A check means it&rsquo;s included in the base subscription at no extra cost. Competitors may offer some of these as paid add-ons or third-party integrations.
             </p>
@@ -269,9 +363,9 @@ export default function ContractorsPage() {
       </section>
 
       {/* ── Pricing ── */}
-      <section style={{ padding: '0 24px 80px' }}>
+      <section style={{ padding: '72px 24px 80px', background: navyMd }}>
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: tealLt, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Simple Pricing</div>
+          <SectionLabel text="Simple Pricing" />
           <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>One flat rate. No surprises.</h2>
           <p style={{ color: '#64748B', marginBottom: 48 }}>Start free for 3 months — no credit card needed.</p>
 
@@ -280,7 +374,7 @@ export default function ContractorsPage() {
               { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
               { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Equipment tracking (HVAC, Plumbing)', 'Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing', 'Voice-to-notes'] },
             ].map(plan => (
-              <div key={plan.trade} style={{ background: navyMd, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
+              <div key={plan.trade} style={{ background: navy, border: `1px solid ${plan.color}44`, borderRadius: 20, padding: 32, textAlign: 'left' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: plan.color, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{plan.trade}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 6 }}>
                   <span style={{ fontSize: 48, fontWeight: 900, color: white, lineHeight: 1 }}>{plan.price}</span>
@@ -301,39 +395,49 @@ export default function ContractorsPage() {
               </div>
             ))}
           </div>
+
+          {/* Import reassurance — honest, low-key */}
+          <p style={{ fontSize: 13, color: '#64748B', marginTop: 28, maxWidth: 520, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
+            Switching from AccuLynx, JobNimbus or Roofr? Bring your jobs with you — import by CSV and we auto-map the columns, insurance claim data included.
+          </p>
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
-      <section style={{ padding: '0 24px 100px' }}>
-        <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center', background: `linear-gradient(135deg,${navyMd},${navyLt})`, border: `1px solid ${teal}33`, borderRadius: 24, padding: '56px 40px' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🏆</div>
-          <h2 style={{ fontSize: 'clamp(24px,4vw,36px)', fontWeight: 800, margin: '0 0 16px' }}>
-            Your competitors are already<br />using better tools.
+      {/* ── Claim your profile ── replaces competitor-shaming CTA */}
+      <section style={{ padding: '72px 24px', background: navy }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', background: `linear-gradient(135deg,${navyMd},${navyLt})`, border: `1px solid ${teal}33`, borderRadius: 24, padding: '56px 40px' }}>
+          <SectionLabel text="Already licensed in Florida?" />
+          <h2 style={{ fontSize: 'clamp(24px,4vw,36px)', fontWeight: 800, margin: '0 0 14px', lineHeight: 1.1 }}>
+            Your verified profile may already be live.
           </h2>
-          <p style={{ color: '#64748B', fontSize: 16, lineHeight: 1.6, marginBottom: 36 }}>
-            Join the verified contractor network. Start free for 3 months — no credit card, no commitment. Your profile goes live the day you sign up.
+          <p style={{ color: '#94A3B8', fontSize: 16, lineHeight: 1.6, marginBottom: 32, maxWidth: 520, marginLeft: 'auto', marginRight: 'auto' }}>
+            Over 101,000 Florida contractors are already DBPR-verified in the ProGuild directory. Find yours by license number, claim it free, and start showing homeowners the verified checkmark.
           </p>
-          <Link href="/login?tab=signup" style={{ display: 'inline-block', fontSize: 17, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '16px 40px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
-            Claim Your Free Profile →
-          </Link>
-          <div style={{ marginTop: 20, display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['✓ No credit card', '✓ 3 months free', '✓ Cancel anytime'].map(t => (
-              <span key={t} style={{ fontSize: 13, color: '#475569' }}>{t}</span>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/claim/find" style={{ fontSize: 16, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '15px 34px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
+              Find My Profile →
+            </Link>
+            <Link href="/login?tab=signup" style={{ fontSize: 15, fontWeight: 700, color: white, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', padding: '15px 28px', borderRadius: 12, textDecoration: 'none' }}>
+              Start a Free Trial
+            </Link>
+          </div>
+          <div style={{ marginTop: 24, display: 'flex', gap: 22, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['✓ DBPR-verified', '✓ No lead fees', '✓ Your data is yours', '✓ Cancel anytime'].map(t => (
+              <span key={t} style={{ fontSize: 13, color: '#64748B' }}>{t}</span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Get the app (contractors only) ── */}
-      <section style={{ padding: '0 24px 90px' }}>
+      {/* ── Final app CTA ── bookend */}
+      <section style={{ padding: '0 24px 90px', background: navy }}>
         <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${teal}22`, border: `1px solid ${teal}44`, borderRadius: 20, padding: '6px 14px', marginBottom: 20 }}>
             <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>For Contractors</span>
           </div>
-          <h2 style={{ fontSize: 'clamp(22px,3.5vw,30px)', fontWeight: 800, margin: '0 0 12px' }}>Run your business from your pocket.</h2>
+          <h2 style={{ fontSize: 'clamp(22px,3.5vw,30px)', fontWeight: 800, margin: '0 0 12px' }}>Your business doesn&rsquo;t stop at the office.</h2>
           <p style={{ color: '#64748B', fontSize: 15, lineHeight: 1.6, margin: '0 auto 24px', maxWidth: 440 }}>
-            The ProGuild app is built for pros — manage leads, send estimates and invoices, and track jobs from the field.
+            Run ProGuild from the truck, the roof, or the job site. Manage leads, send estimates and invoices, and track jobs from the field.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <AppStoreBadges tone="dark" />
