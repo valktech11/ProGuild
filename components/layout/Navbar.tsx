@@ -5,7 +5,8 @@ import Link from 'next/link'
 // ── App store badge sub-component ────────────────────────────────────────────
 const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.proguild.mobile'
 
-const APPLE_PATH = 'M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-105.5C197 645.2 166 528 166 415.2c0-145.5 94.6-222.7 182.4-222.7 50.8 0 93.1 34.2 124 34.2 29.3 0 74.8-36.2 131.2-36.2 20.7 0 108.2 2 170.5 82.1zm-254.7-123.3c25.9-30.8 44.8-73.7 44.8-116.7 0-5.8-.6-11.7-1.7-16.9-42.1 1.5-92.9 28.2-123.8 63.2-23.4 26.3-45.4 69.2-45.4 112.8 0 6.4.6 12.8 1.7 18.5 3.2.5 8.4 1.2 13.6 1.2 37.8 0 86.2-25.2 110.8-62.1z'
+// Apple glyph on a 384x512 viewBox with built-in padding — scales uniformly, never clips.
+const APPLE_PATH = 'M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z'
 
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
@@ -14,23 +15,19 @@ function AppBadges({ compact = false }: { compact?: boolean }) {
       <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
         className="flex items-center gap-1.5 transition-opacity hover:opacity-60"
         title="Get it on Google Play">
-        <svg width="15" height="15" viewBox="0 0 24 24">
-          <path d="M3 20.5v-17a.5.5 0 0 1 .75-.43l16 8.5a.5.5 0 0 1 0 .86l-16 8.5A.5.5 0 0 1 3 20.5z" fill="url(#ps-grad)"/>
-          <defs>
-            <linearGradient id="ps-grad" x1="3" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#00C3FF"/>
-              <stop offset="33%" stopColor="#34A853"/>
-              <stop offset="66%" stopColor="#FBBC04"/>
-              <stop offset="100%" stopColor="#EA4335"/>
-            </linearGradient>
-          </defs>
+        {/* Google Play mark — four facets, Google brand colors */}
+        <svg width="15" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#00A0FF" d="M4 3 L11.5 12 L4 21 Z"/>
+          <path fill="#00E676" d="M4 3 L17 10.1 L11.5 12 Z"/>
+          <path fill="#FFCE00" d="M11.5 12 L17 10.1 L20.5 12 L17 13.9 Z"/>
+          <path fill="#FF3A44" d="M4 21 L11.5 12 L17 13.9 Z"/>
         </svg>
         <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>Android</span>
       </a>
       {/* App Store — coming soon: flat icon + label */}
       <span className="flex items-center gap-1.5 cursor-default select-none"
         title="iOS app — coming soon (pending App Store approval)">
-        <svg width="13" height="16" viewBox="0 0 814 1000" fill="#0A1628">
+        <svg width="13" height="16" viewBox="0 0 384 512" fill="#0A1628" aria-hidden="true">
           <path d={APPLE_PATH}/>
         </svg>
         <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>iOS</span>
