@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 
 // ── App store badge sub-component ────────────────────────────────────────────
@@ -10,10 +10,12 @@ const APPLE_PATH = 'M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 2
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`flex items-center gap-2 ${compact ? '' : 'hidden xl:flex'}`}>
-      {/* Google Play — live: solid navy pill */}
+      {/* Google Play — live */}
       <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all hover:brightness-125"
-        style={{ background: '#0A1628', boxShadow: '0 2px 6px rgba(10,22,40,0.25)' }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors"
+        style={{ background: '#F4F1EC', borderColor: '#E3DCCF' }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#0F766E' }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#F4F1EC'; e.currentTarget.style.borderColor = '#E3DCCF' }}
         title="Get it on Google Play">
         {/* Play Store icon — Google brand colors */}
         <svg width="15" height="15" viewBox="0 0 24 24">
@@ -27,15 +29,15 @@ function AppBadges({ compact = false }: { compact?: boolean }) {
             </linearGradient>
           </defs>
         </svg>
-        <span className="text-xs font-semibold text-white">Android</span>
+        <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>Android</span>
       </a>
-      {/* App Store — coming soon: navy outline */}
+      {/* App Store — coming soon */}
       <span
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 cursor-default select-none"
-        style={{ borderColor: '#0A1628', background: '#fff' }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-default select-none"
+        style={{ background: '#F4F1EC', borderColor: '#E3DCCF' }}
         title="iOS app — coming soon (pending App Store approval)">
-        {/* Apple icon */}
-        <svg width="13" height="14" viewBox="0 0 814 1000" fill="#0A1628">
+        {/* Apple icon — full-resolution, correct aspect ratio */}
+        <svg width="13" height="16" viewBox="0 0 814 1000" fill="#0A1628">
           <path d={APPLE_PATH}/>
         </svg>
         <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>iOS</span>
@@ -167,6 +169,11 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
   const dropdownRef  = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
 
+  // Segmented-control sliding indicator (desktop nav)
+  const linkRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const [ind, setInd] = useState<{ left: number; width: number }>({ left: 0, width: 0 })
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
   const { session: realSession } = useProSession()
 
   useEffect(() => {
@@ -210,11 +217,34 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
   const navLinks = session ? PRO_LINKS : HOMEOWNER_LINKS
   const mobileLinks = session ? MOBILE_PRO : MOBILE_HOMEOWNER
 
+  const activeIdx = navLinks.findIndex(l => l.match(path))
+
+  // Rest the indicator under the active link; hide it when no link is active (e.g. /search).
+  const settleIndicator = useCallback(() => {
+    const el = activeIdx >= 0 ? linkRefs.current[activeIdx] : null
+    if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth })
+    else setInd(prev => ({ ...prev, width: 0 }))
+  }, [activeIdx])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(settleIndicator)
+    window.addEventListener('resize', settleIndicator)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', settleIndicator) }
+  }, [settleIndicator, navLinks.length])
+
+  function hoverLink(i: number) {
+    const el = linkRefs.current[i]
+    if (el) { setInd({ left: el.offsetLeft, width: el.offsetWidth }); setHoveredIdx(i) }
+  }
+  function leaveLinks() { setHoveredIdx(null); settleIndicator() }
+
   return (
     <>
-      {/* ── TOP NAVBAR ─────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b" style={{ borderColor: '#E8E2D9' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      {/* ── TOP NAVBAR — floating pill ─────────────────────────────────────── */}
+      <nav className="sticky z-50" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 pt-3">
+          <div className="h-14 flex items-center justify-between gap-3 rounded-full bg-white/95 backdrop-blur pl-4 pr-3"
+            style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
@@ -227,20 +257,25 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
             <StagingBadge />
           </Link>
 
-          {/* Desktop nav — role-aware */}
-          <div className="hidden md:flex items-center gap-5 flex-1 justify-center">
-            {navLinks.map(l => {
-              const active = l.match(path)
+          {/* Desktop nav — role-aware segmented control with sliding teal indicator */}
+          <div className="hidden md:flex items-center relative rounded-full p-1" style={{ background: '#F4F1EC' }}
+            onMouseLeave={leaveLinks}>
+            <span className="absolute rounded-full pointer-events-none" aria-hidden="true"
+              style={{
+                left: ind.left, width: ind.width, top: 4, bottom: 4,
+                background: 'linear-gradient(135deg, #0F766E, #0D9488)',
+                opacity: ind.width ? 1 : 0,
+                transition: 'left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1), opacity .2s',
+              }} />
+            {navLinks.map((l, i) => {
+              const lit = hoveredIdx === i || (hoveredIdx === null && activeIdx === i)
               return (
                 <Link key={l.href} href={l.href}
-                  className="text-sm transition-colors relative"
-                  style={{ color: active ? '#0A1628' : '#4B5563', fontWeight: active ? 600 : 500 }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#0F766E' }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#4B5563' }}>
+                  ref={el => { linkRefs.current[i] = el }}
+                  onMouseEnter={() => hoverLink(i)}
+                  className="relative z-10 text-sm font-semibold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
+                  style={{ color: lit ? '#FFFFFF' : '#5B6472' }}>
                   {l.label}
-                  {active && (
-                    <span className="absolute -bottom-1.5 left-0 right-0 h-0.5 rounded-full" style={{ background: '#0F766E' }} />
-                  )}
                 </Link>
               )
             })}
@@ -401,6 +436,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
                 )}
               </div>
             )}
+          </div>
           </div>
         </div>
       </nav>
