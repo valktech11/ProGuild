@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
+import VerifiedProsBand from '@/components/ui/VerifiedProsBand'
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 // BG:      #FAF9F6  warm cream
@@ -459,6 +460,9 @@ export default function HomePage() {
          </div>{/* /grid */}
         </div>
       </section>
+
+      {/* ── VERIFIED PROS BAND (staging trial — real pros from /api/pros) ── */}
+      <VerifiedProsBand />
 
       {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
