@@ -2,6 +2,7 @@
 import Link from 'next/link'
 // NOTE: signup lives at /login?tab=signup (there is no /signup route).
 import { useState } from 'react'
+import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
 const teal   = '#0F766E'
 const tealLt = '#2DD4BF'
@@ -320,6 +321,22 @@ export default function ContractorsPage() {
             {['✓ No credit card', '✓ 3 months free', '✓ Cancel anytime'].map(t => (
               <span key={t} style={{ fontSize: 13, color: '#475569' }}>{t}</span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Get the app (contractors only) ── */}
+      <section style={{ padding: '0 24px 90px' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${teal}22`, border: `1px solid ${teal}44`, borderRadius: 20, padding: '6px 14px', marginBottom: 20 }}>
+            <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>For Contractors</span>
+          </div>
+          <h2 style={{ fontSize: 'clamp(22px,3.5vw,30px)', fontWeight: 800, margin: '0 0 12px' }}>Run your business from your pocket.</h2>
+          <p style={{ color: '#64748B', fontSize: 15, lineHeight: 1.6, margin: '0 auto 24px', maxWidth: 440 }}>
+            The ProGuild app is built for pros — manage leads, send estimates and invoices, and track jobs from the field.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <AppStoreBadges tone="dark" />
           </div>
         </div>
       </section>

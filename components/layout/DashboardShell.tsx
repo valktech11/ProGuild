@@ -9,6 +9,7 @@ import { initials, avatarColor, planLabel, proDisplayName, proFirstName } from '
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, isHVAC } from '@/lib/trades/_registry'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
 type NavItem  = { label: string; href: string; icon: (a: boolean) => React.ReactNode; badge?: number | null; soon?: boolean; exact?: boolean }
 type NavGroup = { title: string; items: NavItem[] }
@@ -883,6 +884,11 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                     </>
                   )
                 })()}
+                {/* Get the app — the ProGuild pro CRM on mobile */}
+                <div className="mb-3 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="text-[11px] font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.5)' }}>Get the app</div>
+                  <AppStoreBadges tone="dark" className="!gap-3 flex-wrap" />
+                </div>
                 {/* Avatar + name */}
                 <div className="flex items-center gap-2.5">
                   {/* Avatar with teal gradient ring */}
