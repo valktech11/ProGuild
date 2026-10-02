@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import SearchAutocomplete from '@/components/ui/SearchAutocomplete'
-import VerifiedProsBand from '@/components/ui/VerifiedProsBand'
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 // BG:      #FAF9F6  warm cream
@@ -461,8 +460,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── VERIFIED PROS BAND (staging trial — real pros from /api/pros) ── */}
-      <VerifiedProsBand />
+      {/* ── VERIFIED PROS (real inventory — proof right below the hero) ──── */}
+      <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
       {/* ── BROWSE BY TRADE (primary orientation for first-time users) ───── */}
       <section className="max-w-5xl mx-auto px-6 pb-10 pt-6">
@@ -528,9 +527,6 @@ export default function HomePage() {
           <span className="font-bold shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: '#0F766E' }}>→</span>
         </a>
       </div>
-
-      {/* ── VERIFIED PROS (real inventory — proof, before process) ──────── */}
-      <VerifiedProsBand scopeLabel={scopeLabel} scopeState={scopeState} />
 
       {/* ── HOW IT WORKS (compact — process/reassurance, after the proof) ── */}
       <section className="border-y px-6 py-12" style={{ background: '#FFFFFF', borderColor: '#E8E2D9' }}>

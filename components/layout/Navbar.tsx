@@ -63,7 +63,7 @@ function StagingBadge() {
 // Homeowner (logged out): Find a Pro · Request a Pro · Community
 // Pro (logged in):        Find Work · Community · Dashboard
 const HOMEOWNER_LINKS = [
-  { href: '/',           label: 'Find a Pro',      match: (p: string) => p === '/' },
+  { href: '/search',     label: 'Find a Pro',      match: (p: string) => p.startsWith('/search') },
   { href: '/fl',         label: 'Browse Trades',   match: (p: string) => p === '/fl' },
   { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
   { href: '/contractors', label: 'For Pros', match: (p: string) => p.startsWith('/contractors') },
