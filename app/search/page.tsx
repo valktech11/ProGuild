@@ -344,7 +344,15 @@ function SearchPageInner() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-6 flex gap-6">
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {loading ? (
+          /* Full-width centered branded loader while results load */
+          <div className="flex flex-col items-center justify-center gap-4" style={{ minHeight: '60vh' }}>
+            <Loader size={64} label="Searching for verified pros" />
+            <p className="text-sm" style={{ color: '#6E6456' }}>Finding verified pros…</p>
+          </div>
+        ) : (
+        <div className="flex gap-6">
 
         {/* ── SIDEBAR ──────────────────────────────────────────────────── */}
         <aside className="hidden lg:block w-52 flex-shrink-0">
@@ -442,14 +450,7 @@ function SearchPageInner() {
 
           {/* Pro grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-            {loading
-              ? (
-                <div className="col-span-full flex flex-col items-center justify-center gap-4 py-24">
-                  <Loader size={60} label="Searching for verified pros" />
-                  <p className="text-sm" style={{ color: '#6E6456' }}>Finding verified pros…</p>
-                </div>
-              )
-              : error
+            {error
                 ? <div className="col-span-3 text-center py-16" style={{ color: '#6E6456' }}>{error}</div>
                 : pros.length === 0
                   ? (
@@ -511,6 +512,8 @@ function SearchPageInner() {
             </div>
           )}
         </div>
+        </div>
+        )}
       </div>
     </div>
   )
