@@ -3,6 +3,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useProSession } from '@/lib/hooks/useProSession'
+import Loader from '@/components/ui/Loader'
 
 function SuccessInner() {
   const params = useSearchParams()
@@ -26,7 +27,7 @@ function SuccessInner() {
 
   if (status === 'loading') return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+      <Loader size={48} />
     </div>
   )
 
@@ -66,7 +67,7 @@ function SuccessInner() {
 
 export default function UpgradeSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-stone-50 flex items-center justify-center"><div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-stone-50 flex items-center justify-center"><Loader size={48} /></div>}>
       <SuccessInner />
     </Suspense>
   )

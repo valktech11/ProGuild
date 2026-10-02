@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Link from 'next/link'
 import { initials, avatarColor } from '@/lib/utils'
+import Loader from '@/components/ui/Loader'
 
 export default function ProIntakePage() {
   const { slug }     = useParams<{ slug: string }>()
@@ -72,7 +73,7 @@ export default function ProIntakePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+        <Loader size={48} />
       </div>
     )
   }

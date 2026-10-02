@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { initials, avatarColor } from '@/lib/utils'
 import { useProSession } from '@/lib/hooks/useProSession'
 import Navbar from '@/components/layout/Navbar'
+import Loader from '@/components/ui/Loader'
 
 function Star({ filled, half, onClick }: { filled: boolean; half?: boolean; onClick: () => void }) {
   return (
@@ -93,7 +94,7 @@ export default function ReviewPage() {
   if (loading) return (
     <><Navbar />
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <Loader size={48} />
       </div>
     </>
   )

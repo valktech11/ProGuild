@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, proFirstName, proDisplayName, tradeDisplayName } from '@/lib/utils'
+import Loader from '@/components/ui/Loader'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tab = 'overview' | 'work' | 'reviews' | 'credentials'
@@ -476,7 +477,7 @@ export default function ProProfilePage() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF9F6' }}>
-      <div className="w-8 h-8 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0F766E' }} />
+      <Loader size={48} />
     </div>
   )
 

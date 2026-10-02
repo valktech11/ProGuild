@@ -23,7 +23,7 @@ export default function Loader({
       {/* real icon, centered, square (no distortion) */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/logo.png"
+        src="/pg-mark.png"
         alt=""
         aria-hidden="true"
         width={icon}

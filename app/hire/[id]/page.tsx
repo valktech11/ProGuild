@@ -4,6 +4,7 @@ import { useProSession } from '@/lib/hooks/useProSession'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
+import Loader from '@/components/ui/Loader'
 import { timeAgo } from '@/lib/utils'
 
 function JobTypeBadge({ type }: { type: string }) {
@@ -66,7 +67,7 @@ export default function HireJobDetailPage() {
   if (loading) return (
     <><Navbar />
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <Loader size={48} />
       </div>
     </>
   )

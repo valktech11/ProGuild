@@ -523,7 +523,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF9F6' }}>
-        <div className="w-8 h-8 border-2 border-t-teal-500 rounded-full animate-spin" style={{ borderColor: '#E8E2D9', borderTopColor: '#0F766E' }} />
+        <Loader size={48} />
       </div>
     }>
       <SearchPageInner />

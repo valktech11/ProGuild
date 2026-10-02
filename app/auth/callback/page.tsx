@@ -10,6 +10,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import Loader from '@/components/ui/Loader'
 
 function CallbackInner() {
   const router = useRouter()
@@ -112,9 +113,8 @@ function CallbackInner() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
-      <div style={{ width:44, height:44, border:'3px solid #E2DDD6', borderTopColor:'#0F766E', borderRadius:'50%', animation:'pgspin 0.8s linear infinite' }} />
+      <Loader size={56} label={msg} />
       <p style={{ color:'#7C8A96', fontSize:14, fontFamily:'system-ui' }}>{msg}</p>
-      <style>{`@keyframes pgspin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

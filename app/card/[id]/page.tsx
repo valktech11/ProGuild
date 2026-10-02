@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { initials, avatarColor, starsHtml } from '@/lib/utils'
+import Loader from '@/components/ui/Loader'
 
 function statusColor(status: string) {
   if (status === 'active')        return { bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-500'  }
@@ -34,7 +35,7 @@ export default function DigitalCardPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <Loader size={48} />
     </div>
   )
 

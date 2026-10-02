@@ -10,6 +10,7 @@ import ActionAlert from '@/components/ui/ActionAlert'
 import FilterPanel, { FilterState, DEFAULT_FILTERS, isFilterActive, applyFilters } from '@/components/ui/FilterPanel'
 import { theme, T } from '@/lib/tokens'
 import { getTradeConfig, getStageAnchors, isRoofing } from '@/lib/trades/_registry'
+import Loader from '@/components/ui/Loader'
 import { apiFetch } from '@/lib/api-fetch'
 
 export default function PipelinePage() {
@@ -125,7 +126,6 @@ export default function PipelinePage() {
        filters.minValue !== '' || filters.maxValue !== '', filters.dateReceived !== '', filters.followUpDue !== ''].filter(Boolean).length
     : 0
 
-  const TEAL     = '#0F766E'
   const textMain = dk ? '#F1F5F9' : '#0A1628'
   const t        = theme(dk)
 
@@ -172,8 +172,7 @@ export default function PipelinePage() {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ backgroundColor: t.pageBg }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 rounded-full animate-spin"
-            style={{ borderColor: TEAL, borderTopColor: 'transparent' }} />
+          <Loader size={48} />
           <span className="text-sm font-medium" style={{ color: '#9CA3AF' }}>Loading...</span>
         </div>
       </div>

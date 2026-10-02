@@ -1,5 +1,6 @@
 'use client'
 import { use, useEffect, useState } from 'react'
+import Loader from '@/components/ui/Loader'
 
 // ── Milestone Payment Flow ─────────────────────────────────────────────────────
 // Homeowner selects which milestone to pay, enters payment method + confirmation.
@@ -373,7 +374,7 @@ export default function PublicInvoicePage({ params }: { params: Promise<{ id: st
   if (loading) return (
     <div className="min-h-screen bg-[#F5F4F0] flex items-center justify-center">
       <div className="text-center">
-        <div className="w-10 h-10 border-2 border-[#0F766E] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <Loader size={44} className="mx-auto mb-3" />
         <p className="text-sm text-[#6B7280]">Loading invoice...</p>
       </div>
     </div>
