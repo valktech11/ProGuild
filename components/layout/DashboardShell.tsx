@@ -302,16 +302,11 @@ const SB = `
   .pg-main::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:9px}
 `
 
-// ── Logo SVG ──────────────────────────────────────────────────────────────────
+// ── Logo ──────────────────────────────────────────────────────────────────────
 function Logo() {
   return (
-    <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-      <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#lg)"/>
-      <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
-      <defs><linearGradient id="lg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/>
-      </linearGradient></defs>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/logo.png" alt="ProGuild" width={28} height={28} className="rounded-lg flex-shrink-0" />
   )
 }
 
