@@ -262,3 +262,8 @@ input:focus, textarea:focus, select:focus {
 @keyframes pgFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .pg-float { animation: pgFloat 5.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pg-float { animation: none; } }
+
+/* ── Branded loader — teal segment tracing the brand hexagon (pathLength normalized to 100) ── */
+@keyframes pgTrace { to { stroke-dashoffset: -100; } }
+.pg-trace { animation: pgTrace 1.15s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .pg-trace { animation: none; } }

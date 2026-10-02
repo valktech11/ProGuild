@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense, type ReactNode } fr
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ProCard from '@/components/ui/ProCard'
+import Loader from '@/components/ui/Loader'
 import { Pro, TradeCategory } from '@/types'
 
 const PAGE_SIZE = 12
@@ -97,23 +98,6 @@ async function matchTradeSlug(q: string): Promise<string | null> {
     if (d.slug && d.confidence >= threshold) return MATCH_ALIAS[d.slug] || d.slug
   } catch {}
   return null
-}
-
-function SkeletonCard() {
-  return (
-    <div className="bg-white border rounded-xl p-5 animate-pulse" style={{ borderColor: '#E8E2D9' }}>
-      <div className="flex gap-3 mb-4">
-        <div className="w-11 h-11 rounded-full flex-shrink-0" style={{ background: '#FAF9F6' }} />
-        <div className="flex-1 space-y-2 pt-1">
-          <div className="h-3.5 w-3/5 rounded" style={{ background: '#FAF9F6' }} />
-          <div className="h-3 w-2/5 rounded" style={{ background: '#FAF9F6' }} />
-        </div>
-      </div>
-      <div className="h-3 w-4/5 rounded mb-2" style={{ background: '#FAF9F6' }} />
-      <div className="h-3 w-3/5 rounded mb-4" style={{ background: '#FAF9F6' }} />
-      <div className="h-8 w-full rounded-lg" style={{ background: '#FAF9F6' }} />
-    </div>
-  )
 }
 
 function SearchPageInner() {
@@ -423,12 +407,7 @@ function SearchPageInner() {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm" style={{ color: '#6B7280' }}>
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="inline-block w-4 h-4 rounded-full animate-spin" style={{ border: '2px solid #E8E2D9', borderTopColor: '#0F766E', verticalAlign: '-3px' }} />
-                    Searching…
-                  </span>
-                ) : (
+                {loading ? 'Searching…' : (
                   <>
                     <span className="font-bold" style={{ color: '#0A1628' }}>{total.toLocaleString()}</span>
                     {' '}verified pros
@@ -464,7 +443,12 @@ function SearchPageInner() {
           {/* Pro grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
             {loading
-              ? Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)
+              ? (
+                <div className="col-span-full flex flex-col items-center justify-center gap-4 py-24">
+                  <Loader size={60} label="Searching for verified pros" />
+                  <p className="text-sm" style={{ color: '#6E6456' }}>Finding verified pros…</p>
+                </div>
+              )
               : error
                 ? <div className="col-span-3 text-center py-16" style={{ color: '#6E6456' }}>{error}</div>
                 : pros.length === 0
