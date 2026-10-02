@@ -5,16 +5,18 @@ import Link from 'next/link'
 // ── App store badge sub-component ────────────────────────────────────────────
 const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.proguild.mobile'
 
+const APPLE_PATH = 'M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-105.5C197 645.2 166 528 166 415.2c0-145.5 94.6-222.7 182.4-222.7 50.8 0 93.1 34.2 124 34.2 29.3 0 74.8-36.2 131.2-36.2 20.7 0 108.2 2 170.5 82.1zm-254.7-123.3c25.9-30.8 44.8-73.7 44.8-116.7 0-5.8-.6-11.7-1.7-16.9-42.1 1.5-92.9 28.2-123.8 63.2-23.4 26.3-45.4 69.2-45.4 112.8 0 6.4.6 12.8 1.7 18.5 3.2.5 8.4 1.2 13.6 1.2 37.8 0 86.2-25.2 110.8-62.1z'
+
 function AppBadges({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`flex items-center gap-2 ${compact ? '' : 'hidden xl:flex'}`}>
-      {/* Google Play — live */}
+      {/* Google Play — live: solid navy pill */}
       <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors hover:border-teal-400"
-        style={{ borderColor: '#E8E2D9', background: '#fff' }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all hover:brightness-125"
+        style={{ background: '#0A1628', boxShadow: '0 2px 6px rgba(10,22,40,0.25)' }}
         title="Get it on Google Play">
         {/* Play Store icon — Google brand colors */}
-        <svg width="14" height="14" viewBox="0 0 24 24">
+        <svg width="15" height="15" viewBox="0 0 24 24">
           <path d="M3 20.5v-17a.5.5 0 0 1 .75-.43l16 8.5a.5.5 0 0 1 0 .86l-16 8.5A.5.5 0 0 1 3 20.5z" fill="url(#ps-grad)"/>
           <defs>
             <linearGradient id="ps-grad" x1="3" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
@@ -25,19 +27,19 @@ function AppBadges({ compact = false }: { compact?: boolean }) {
             </linearGradient>
           </defs>
         </svg>
-        <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>Android</span>
+        <span className="text-xs font-semibold text-white">Android</span>
       </a>
-      {/* App Store — coming soon */}
+      {/* App Store — coming soon: navy outline */}
       <span
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-default select-none"
-        style={{ borderColor: '#E8E2D9', background: '#F9F9F9', opacity: 0.6 }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 cursor-default select-none"
+        style={{ borderColor: '#0A1628', background: '#fff' }}
         title="iOS app — coming soon (pending App Store approval)">
-        {/* Apple icon — Apple brand silver/black */}
-        <svg width="13" height="14" viewBox="0 0 814 1000" fill="#555555">
-          <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-105.5C197 645.2 166 528 166 415.2c0-145.5 94.6-222.7 182.4-222.7 50.8 0 93.1 34.2 124 34.2 29.3 0 74.8-36.2 131.2-36.2 20.7 0 108.2 2 170.5 82.1zm-254.7-123.3c25.9-30.8 44.8-73.7 44.8-116.7 0-5.8-.6-11.7-1.7-16.9-42.1 1.5-92.9 28.2-123.8 63.2-23.4 26.3-45.4 69.2-45.4 112.8 0 6.4.6 12.8 1.7 18.5 3.2.5 8.4 1.2 13.6 1.2 37.8 0 86.2-25.2 110.8-62.1z"/>
+        {/* Apple icon */}
+        <svg width="13" height="14" viewBox="0 0 814 1000" fill="#0A1628">
+          <path d={APPLE_PATH}/>
         </svg>
         <span className="text-xs font-semibold" style={{ color: '#0A1628' }}>iOS</span>
-        <span className="text-[9px] font-medium px-1 rounded" style={{ background: '#FEF3C7', color: '#B45309' }}>Soon</span>
+        <span className="text-[9px] font-bold px-1 rounded" style={{ background: '#FBBF24', color: '#0A1628' }}>Soon</span>
       </span>
     </div>
   )
@@ -227,12 +229,21 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
 
           {/* Desktop nav — role-aware */}
           <div className="hidden md:flex items-center gap-5 flex-1 justify-center">
-            {navLinks.map(l => (
-              <Link key={l.href} href={l.href}
-                className={`text-sm transition-colors ${l.match(path) ? 'text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-900'}`}>
-                {l.label}
-              </Link>
-            ))}
+            {navLinks.map(l => {
+              const active = l.match(path)
+              return (
+                <Link key={l.href} href={l.href}
+                  className="text-sm transition-colors relative"
+                  style={{ color: active ? '#0A1628' : '#4B5563', fontWeight: active ? 600 : 500 }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#0F766E' }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#4B5563' }}>
+                  {l.label}
+                  {active && (
+                    <span className="absolute -bottom-1.5 left-0 right-0 h-0.5 rounded-full" style={{ background: '#0F766E' }} />
+                  )}
+                </Link>
+              )
+            })}
           </div>
 
           {/* Right side */}
@@ -377,7 +388,8 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
               <div className="hidden md:flex items-center gap-2">
                 <AppBadges />
                 <Link href="/login"
-                  className="text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
+                  className="text-sm font-semibold px-4 py-2 rounded-lg border-2 transition-colors hover:bg-gray-50"
+                  style={{ borderColor: '#D6CFC4', color: '#0A1628' }}>
                   Log in
                 </Link>
                 {!hideJoinCta && (
