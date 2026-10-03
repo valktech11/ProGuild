@@ -256,7 +256,7 @@ export default function ContractorsPage() {
 
             <div className="pg-hero-badge-row" style={{ marginTop: 26, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Available on</span>
-              <AppStoreBadges tone="dark" />
+              <AppStoreBadges variant="store" />
             </div>
           </div>
 
@@ -302,7 +302,7 @@ export default function ContractorsPage() {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <AppStoreBadges tone="dark" />
+            <AppStoreBadges variant="store" />
           </div>
         </div>
       </section>
@@ -586,7 +586,7 @@ export default function ContractorsPage() {
             Run ProGuild from the truck, the roof, or the job site. Manage leads, send estimates and invoices, and track jobs from the field.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <AppStoreBadges tone="dark" />
+            <AppStoreBadges variant="store" />
           </div>
         </div>
       </section>
