@@ -26,7 +26,7 @@ const coreFeatures = [
 ]
 
 // ── Trade-specific tools — dynamic per selected trade ────────────────────────
-type Trade = 'roofing' | 'hvac' | 'plumbing' | 'electrical' | 'gc'
+type Trade = 'roofing' | 'hvac' | 'plumbing' | 'electrical' | 'gc' | 'other'
 
 const TRADES: { id: Trade; label: string; emoji: string }[] = [
   { id: 'roofing',    label: 'Roofing',            emoji: '🏠' },
@@ -34,6 +34,7 @@ const TRADES: { id: Trade; label: string; emoji: string }[] = [
   { id: 'plumbing',   label: 'Plumbing',           emoji: '🔧' },
   { id: 'electrical', label: 'Electrical',         emoji: '⚡' },
   { id: 'gc',         label: 'General Contractor', emoji: '🏗️' },
+  { id: 'other',      label: 'Other Trades',       emoji: '🛠️' },
 ]
 
 const tradeData: Record<Trade, { headline: string; sub: string; phone: string; cards: { icon: string; title: string; desc: string }[] }> = {
@@ -100,6 +101,19 @@ const tradeData: Record<Trade, { headline: string; sub: string; phone: string; c
       { icon: '📁', title: 'Documents & Permits',       desc: 'Store plans, permits and approvals on each project.' },
       { icon: '📆', title: 'Scheduling & Milestones',   desc: 'Schedule crews and track project milestones.' },
       { icon: '💳', title: 'Milestone Invoicing',       desc: 'Bill by project milestone and collect online.' },
+    ],
+  },
+  other: {
+    headline: 'Built for every trade.',
+    sub: 'Painters, landscapers, concrete, fencing, remodelers and more — the full CRM, your way.',
+    phone: '/app/dashboard.jpg',
+    cards: [
+      { icon: '📊', title: 'Service Pipeline',          desc: 'Track every job from first contact to final payment.' },
+      { icon: '📝', title: 'Estimates & Proposals',     desc: 'Build and send professional estimates in minutes.' },
+      { icon: '📸', title: 'Job Photos & Documents',    desc: 'Capture and organize job photos, docs and permits.' },
+      { icon: '🗂️', title: 'Customer & Property Records', desc: 'Every customer and property, searchable in one place.' },
+      { icon: '📆', title: 'Scheduling & Follow-ups',   desc: 'Book jobs and automate follow-up reminders.' },
+      { icon: '💳', title: 'Invoicing & Payments',      desc: 'Send invoices and collect payment online.' },
     ],
   },
 }
@@ -219,6 +233,7 @@ export default function ContractorsPage() {
           .pg-trade { flex-direction: column; }
           .pg-trade-phone { display: none !important; }
           .pg-hvac-extra { display: none !important; }
+          .pg-flow-arrow { display: none !important; }
         }
       `}</style>
 
@@ -256,8 +271,8 @@ export default function ContractorsPage() {
             <p style={{ fontSize: 17.5, color: '#CBD5E1', lineHeight: 1.65, maxWidth: 520, margin: '0 0 12px' }}>
               The CRM built for trade contractors — from roofing and HVAC to plumbing, electrical and more.
             </p>
-            <p style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.6, maxWidth: 500, margin: '0 0 34px' }}>
-              Manage leads, estimates, jobs, documents and payments in one place. No per-lead fees.
+            <p style={{ fontSize: 15, color: '#94A3B8', lineHeight: 1.6, maxWidth: 520, margin: '0 0 34px' }}>
+              Manage leads, estimates, jobs, photos and payments in one place — plus the trade-specific tools a generic CRM doesn&rsquo;t have. No per-lead fees.
             </p>
 
             <div className="pg-hero-ctas" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -356,12 +371,13 @@ export default function ContractorsPage() {
 
           {/* Tab switcher */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
-            <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: 4, background: navyMd, borderRadius: 14, padding: 5, border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6, background: navyMd, borderRadius: 16, padding: 6, border: '1px solid rgba(255,255,255,0.1)' }}>
               {TRADES.map(tr => (
                 <button key={tr.id} onClick={() => setTrade(tr.id)} style={{
-                  padding: '9px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13.5,
-                  background: trade === tr.id ? teal : 'transparent',
-                  color: trade === tr.id ? white : '#94A3B8',
+                  padding: '12px 22px', borderRadius: 11, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15,
+                  background: trade === tr.id ? `linear-gradient(135deg,${teal},#0D9488)` : 'transparent',
+                  color: trade === tr.id ? white : '#CBD5E1',
+                  boxShadow: trade === tr.id ? `0 6px 18px ${teal}55` : 'none',
                   transition: 'all 0.15s', whiteSpace: 'nowrap',
                 }}>
                   {tr.emoji} {tr.label}
@@ -408,14 +424,20 @@ export default function ContractorsPage() {
             <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 800, margin: '0 0 12px' }}>From lead to paid job.</h2>
             <p style={{ color: '#64748B', fontSize: 15, maxWidth: 520, margin: '0 auto' }}>One system for the whole job — no spreadsheets, no disconnected tools.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14 }}>
-            {workflow.map((s, i) => (
-              <div key={s.n} style={{ padding: '22px 18px', background: navyMd, borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 13, fontWeight: 900, color: i === workflow.length - 1 ? gold : tealLt, letterSpacing: '0.08em', marginBottom: 10 }}>{s.n}</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: white, marginBottom: 6 }}>{s.title}</div>
-                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>{s.desc}</div>
-              </div>
-            ))}
+          <div className="pg-flow" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', flexWrap: 'wrap', gap: 0 }}>
+            {workflow.flatMap((s, i) => {
+              const last = i === workflow.length - 1
+              const card = (
+                <div key={s.n} style={{ flex: '1 1 180px', maxWidth: 230, padding: '28px 24px', background: navyMd, borderRadius: 16, border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: '50%', background: last ? `${gold}22` : `${teal}22`, color: last ? gold : tealLt, fontWeight: 900, fontSize: 15, marginBottom: 16 }}>{s.n}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: white, marginBottom: 7 }}>{s.title}</div>
+                  <div style={{ fontSize: 13.5, color: '#94A3B8', lineHeight: 1.55 }}>{s.desc}</div>
+                </div>
+              )
+              return last ? [card] : [card, (
+                <div key={s.n + '-arr'} className="pg-flow-arrow" style={{ display: 'flex', alignItems: 'center', padding: '0 8px', color: tealLt, fontSize: 24, fontWeight: 700, flex: '0 0 auto' }}>→</div>
+              )]
+            })}
           </div>
         </div>
       </section>
@@ -453,8 +475,8 @@ export default function ContractorsPage() {
           <div className="pg-roi" style={{ display: 'flex', gap: 44, alignItems: 'center', marginBottom: 48 }}>
             <div style={{ flex: '1 1 540px' }}>
               <div style={{ marginBottom: 24 }}>
-                <SectionLabel text="More tools. Less cost." color={gold} />
-                <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Everything your business needs, in one place.</h2>
+                <SectionLabel text="More tools. Less software sprawl." color={gold} />
+                <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Stop paying for disconnected tools.</h2>
                 <p style={{ color: '#94A3B8', fontSize: 15, maxWidth: 520, margin: 0 }}>
                   Most contractors juggle a CRM, a measurement vendor, a lead service and a supplementing cut. ProGuild is all of it — flat.
                 </p>
@@ -529,7 +551,7 @@ export default function ContractorsPage() {
           <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 800, margin: '0 0 12px' }}>One flat rate. No surprises.</h2>
           <p style={{ color: '#64748B', marginBottom: 48 }}>Start free for 3 months — no credit card needed.</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20, textAlign: 'left' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, textAlign: 'left', maxWidth: 740, margin: '0 auto' }}>
             {[
               { trade: 'Roofing', price: '$49.99', color: teal, features: ['Free homeowner estimate tool (drives leads to you)', 'Insurance supplement recovery', 'Free satellite measurements', 'Roof Visualizer (15 shingle colors)', 'Full CRM + pipeline', 'Proposals + milestone invoicing', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
               { trade: 'All Other Trades', price: '$29.99', color: '#7C3AED', features: ['Full CRM + pipeline', 'Estimates + invoicing', 'Calendar + scheduling', 'Client & property records', 'Trade-specific job fields', 'Team & multi-user access', 'Mobile app (Android — iOS soon)', 'Verified contractor directory listing'] },
@@ -554,23 +576,15 @@ export default function ContractorsPage() {
                 </Link>
               </div>
             ))}
+          </div>
 
-            {/* Reassurance card */}
-            <div style={{ background: navy, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
-              {[
-                ['💳', 'No credit card required', 'Start your trial in minutes.'],
-                ['🚫', 'Cancel anytime', 'No contracts, no lock-in.'],
-                ['📥', 'Bring your jobs', 'Import by CSV from your old CRM — insurance claim data included.'],
-              ].map(([icon, title, desc]) => (
-                <div key={title as string} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: white }}>{title}</div>
-                    <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5, marginTop: 2 }}>{desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Reassurance strip */}
+          <div style={{ display: 'flex', gap: 28, justifyContent: 'center', flexWrap: 'wrap', marginTop: 28 }}>
+            {['No credit card required', 'Cancel anytime', '3 months free', 'Bring your jobs by CSV'].map(x => (
+              <span key={x} style={{ fontSize: 13.5, color: '#CBD5E1', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ color: tealLt, fontWeight: 700 }}>✓</span>{x}
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -598,7 +612,7 @@ export default function ContractorsPage() {
               Claim your verified profile.
             </h2>
             <p style={{ color: '#94A3B8', fontSize: 15.5, lineHeight: 1.65, marginBottom: 24, maxWidth: 440 }}>
-              We may already have your business profile from Florida state licensing records — over 101,000 contractors are in the directory. Find yours, claim it free, and start managing your jobs.
+              We&rsquo;ve built profiles for 101,000+ Florida contractors from public state licensing records. Find yours, claim it free, and start managing your jobs.
             </p>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 22 }}>
               <Link href="/claim/find" style={{ fontSize: 15, fontWeight: 800, color: white, background: `linear-gradient(135deg,${teal},#0D9488)`, padding: '14px 30px', borderRadius: 12, textDecoration: 'none', boxShadow: `0 8px 32px ${teal}55` }}>
