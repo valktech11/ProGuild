@@ -146,43 +146,44 @@ function Card({ icon, title, desc }: { icon: string; title: string; desc: string
   )
 }
 
-// ── Hero device mock (illustrative app preview — sample data) ────────────────
-function DeviceMock() {
-  const tile = (label: string, n: string, c: string) => (
-    <div style={{ flex: 1, background: navyMd, border: `1px solid ${navyLt}`, borderRadius: 12, padding: '12px 14px' }}>
-      <div style={{ fontSize: 22, fontWeight: 900, color: c, lineHeight: 1 }}>{n}</div>
-      <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 4 }}>{label}</div>
-    </div>
+// ── Phone frame wrapping a real app screenshot ───────────────────────────────
+function Phone({ src, w = 258, style, className }: { src: string; w?: number; style?: React.CSSProperties; className?: string }) {
+  const bezel = Math.max(8, Math.round(w * 0.038))
+  const rad = Math.round(w * 0.145)
+  const btn = (pos: React.CSSProperties) => (
+    <span style={{ position: 'absolute', width: 3, background: '#0A1220', borderRadius: 2, ...pos }} />
   )
   return (
-    <div className="pg-hero-visual" aria-hidden="true">
-      {/* Phone frame */}
-      <div style={{ width: 268, borderRadius: 34, background: '#060E1A', border: '8px solid #1A2A42', boxShadow: '0 30px 80px rgba(0,0,0,0.5)', padding: 14, position: 'relative' }}>
-        <div style={{ fontSize: 11, color: '#64748B', marginBottom: 4 }}>Good morning</div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: white, marginBottom: 14 }}>Today</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          {tile('New Leads', '6', tealLt)}
-          {tile('In Production', '4', white)}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          {tile('Estimates', '3', white)}
-          {tile('To Invoice', '2', gold)}
-        </div>
-        {[['Site inspection', '10:05 AM'], ['Send estimate', '2 proposals'], ['Follow up', '3 leads']].map(([a, b]) => (
-          <div key={a} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: navyMd, border: `1px solid ${navyLt}`, borderRadius: 10, marginBottom: 7 }}>
-            <span style={{ fontSize: 12.5, color: white, fontWeight: 600 }}>{a}</span>
-            <span style={{ fontSize: 10.5, color: '#64748B' }}>{b}</span>
-          </div>
-        ))}
+    <div className={className} style={{
+      width: w, borderRadius: rad, padding: bezel, position: 'relative', flexShrink: 0,
+      background: 'linear-gradient(145deg,#33445f 0%,#121c2e 42%,#0a1220 100%)',
+      boxShadow: '0 44px 90px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.18)',
+      ...style,
+    }}>
+      <div style={{ borderRadius: rad - bezel, overflow: 'hidden', position: 'relative', background: '#000' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="ProGuild mobile app" style={{ width: '100%', display: 'block' }} />
+        {/* punch-hole camera */}
+        <span style={{ position: 'absolute', top: Math.round(w * 0.028), left: '50%', transform: 'translateX(-50%)', width: Math.round(w * 0.032), height: Math.round(w * 0.032), background: '#05080f', borderRadius: '50%', boxShadow: '0 0 0 1px rgba(255,255,255,0.08)' }} />
+        {/* screen reflection */}
+        <span style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(118deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 24%, rgba(255,255,255,0) 40%)' }} />
       </div>
-      {/* Floating measurement card */}
-      <div style={{ position: 'absolute', right: -26, bottom: 40, width: 150, background: navy, border: `1px solid ${teal}66`, borderRadius: 14, padding: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-        <svg viewBox="0 0 120 70" style={{ width: '100%', height: 56, display: 'block' }} aria-hidden="true">
-          <polygon points="12,40 48,14 108,30 72,58" fill={`${teal}33`} stroke={tealLt} strokeWidth="2" />
-        </svg>
-        <div style={{ fontSize: 15, fontWeight: 900, color: tealLt, marginTop: 6 }}>2,842 sq ft</div>
-        <div style={{ fontSize: 9.5, color: '#64748B' }}>Satellite measurement</div>
-      </div>
+      {/* side buttons */}
+      {btn({ right: -2, top: '20%', height: '6%' })}
+      {btn({ right: -2, top: '30%', height: '11%' })}
+      {btn({ left: -2, top: '26%', height: '9%' })}
+    </div>
+  )
+}
+
+// ── Hero visual: two real phones (roof trace + job pricing) ──────────────────
+function DeviceMock() {
+  return (
+    <div className="pg-hero-visual" style={{ position: 'relative', width: 420, height: 560, flexShrink: 0 }}>
+      {/* Back phone — pricing / estimate */}
+      <Phone src="/app/pricing.jpg" w={238} style={{ position: 'absolute', right: 0, top: 36, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
+      {/* Front phone — satellite roof trace (the differentiator) */}
+      <Phone src="/app/trace.jpg" w={264} style={{ position: 'absolute', left: 4, top: 0, transform: 'perspective(1600px) rotateY(-10deg) rotate(-1deg)' }} />
     </div>
   )
 }
@@ -194,15 +195,19 @@ export default function ContractorsPage() {
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: navy, color: white, overflowX: 'hidden' }}>
-      <style jsx>{`
+      <style jsx global>{`
         .pg-hero { display: flex; gap: 48px; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; }
         .pg-hero-copy { flex: 1 1 520px; text-align: left; }
         .pg-hero-ctas, .pg-hero-badges, .pg-hero-badge-row { justify-content: flex-start; }
+        .pg-split { }
         @media (max-width: 900px) {
           .pg-hero { flex-direction: column; text-align: center; }
           .pg-hero-copy { text-align: center; flex-basis: auto; }
           .pg-hero-ctas, .pg-hero-badges, .pg-hero-badge-row { justify-content: center !important; }
           .pg-hero-visual { display: none !important; }
+          .pg-split { flex-direction: column; text-align: center; }
+          .pg-split-copy { flex-basis: auto !important; }
+          .pg-split-copy > div { align-items: center; }
         }
       `}</style>
 
@@ -286,24 +291,25 @@ export default function ContractorsPage() {
 
       {/* ── Mobile section ── one strong field-first block */}
       <section id="get-app" style={{ padding: '64px 24px', background: navy }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-          <SectionLabel text="Your business, in your pocket" />
-          <h2 style={{ fontSize: 'clamp(26px,4vw,38px)', fontWeight: 800, margin: '0 0 14px', lineHeight: 1.12 }}>
-            A complete job site in your pocket.
-          </h2>
-          <p style={{ color: '#94A3B8', fontSize: 15.5, lineHeight: 1.7, margin: '0 auto 24px', maxWidth: 520 }}>
-            Measure roofs, shoot job photos, build estimates and update job status — all from the truck, the roof or the driveway. Live on Android, iOS coming soon.
-          </p>
-          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 26 }}>
-            {['Works offline in the field', 'Built for one-handed use', 'Syncs with the web app', 'Android now · iOS soon'].map(x => (
-              <span key={x} style={{ fontSize: 13, color: '#CBD5E1', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ color: tealLt }}>✓</span>{x}
-              </span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="pg-split" style={{ maxWidth: 1040, margin: '0 auto', display: 'flex', gap: 56, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="pg-split-copy" style={{ flex: '1 1 460px' }}>
+            <SectionLabel text="Your business, in your pocket" />
+            <h2 style={{ fontSize: 'clamp(26px,4vw,38px)', fontWeight: 800, margin: '0 0 14px', lineHeight: 1.12 }}>
+              A complete job site in your pocket.
+            </h2>
+            <p style={{ color: '#94A3B8', fontSize: 15.5, lineHeight: 1.7, margin: '0 0 22px', maxWidth: 480 }}>
+              Measure roofs, shoot job photos, build estimates and update job status — all from the truck, the roof or the driveway. Live on Android, iOS coming soon.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 26 }}>
+              {['Pull a roof measurement from satellite in ~30 seconds', 'Price the job and send an estimate from the field', 'Track every job from lead to paid', 'Live on Android · iOS coming soon'].map(x => (
+                <span key={x} style={{ fontSize: 14.5, color: '#CBD5E1', display: 'inline-flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ color: tealLt, fontWeight: 700 }}>✓</span>{x}
+                </span>
+              ))}
+            </div>
             <AppStoreBadges variant="store" />
           </div>
+          <Phone className="pg-split-phone" src="/app/dashboard.jpg" w={274} style={{ transform: 'perspective(1600px) rotateY(9deg)' }} />
         </div>
       </section>
 
