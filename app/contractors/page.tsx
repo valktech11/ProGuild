@@ -180,8 +180,8 @@ function Phone({ src, w = 258, style, className }: { src: string; w?: number; st
 function DeviceMock() {
   return (
     <div className="pg-hero-visual" style={{ position: 'relative', width: 420, height: 560, flexShrink: 0 }}>
-      {/* Back phone — pricing / estimate */}
-      <Phone src="/app/pricing.jpg" w={238} style={{ position: 'absolute', right: 0, top: 36, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
+      {/* Back phone — Roof Visualizer before/after (the closing tool) */}
+      <Phone src="/app/visualizer.jpg" w={238} style={{ position: 'absolute', right: 0, top: 36, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
       {/* Front phone — satellite roof trace (the differentiator) */}
       <Phone src="/app/trace.jpg" w={264} style={{ position: 'absolute', left: 4, top: 0, transform: 'perspective(1600px) rotateY(-10deg) rotate(-1deg)' }} />
     </div>
@@ -208,6 +208,9 @@ export default function ContractorsPage() {
           .pg-split { flex-direction: column; text-align: center; }
           .pg-split-copy { flex-basis: auto !important; }
           .pg-split-copy > div { align-items: center; }
+          .pg-field-media { width: 100% !important; max-width: 420px; margin: 0 auto 36px; }
+          .pg-roi { flex-direction: column; }
+          .pg-roi-phone { display: none !important; }
         }
       `}</style>
 
@@ -309,7 +312,12 @@ export default function ContractorsPage() {
             </div>
             <AppStoreBadges variant="store" />
           </div>
-          <Phone className="pg-split-phone" src="/app/dashboard.jpg" w={274} style={{ transform: 'perspective(1600px) rotateY(9deg)' }} />
+          <div className="pg-field-media" style={{ position: 'relative', flex: '0 0 auto', width: 500 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/app/roofer.jpg" alt="Roofing contractor managing a job from the field on ProGuild"
+              style={{ width: '100%', display: 'block', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 30px 70px rgba(0,0,0,0.5)' }} />
+            <Phone src="/app/dashboard.jpg" w={166} style={{ position: 'absolute', right: -14, bottom: -38, transform: 'perspective(1500px) rotateY(-10deg)' }} />
+          </div>
         </div>
       </section>
 
@@ -415,27 +423,30 @@ export default function ContractorsPage() {
       {/* ── Comparison + stack math ── */}
       <section style={{ padding: '56px 24px 80px', background: navy }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <SectionLabel text="More tools. Less cost." color={gold} />
-            <h2 style={{ fontSize: 'clamp(26px,4vw,42px)', fontWeight: 800, margin: '0 0 12px' }}>Everything your business needs, in one place.</h2>
-            <p style={{ color: '#94A3B8', fontSize: 15, maxWidth: 560, margin: '0 auto' }}>
-              Most contractors juggle a CRM, a measurement vendor, a lead service and a supplementing cut. ProGuild is all of it — flat.
-            </p>
-          </div>
-
-          {/* Stack-replacement callout */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12, marginBottom: 18 }}>
-            {stackReplaces.map(s => (
-              <div key={s.tool} style={{ padding: '16px 18px', background: navyMd, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#CBD5E1', marginBottom: 6, textDecoration: 'line-through', textDecorationColor: '#EF444488' }}>{s.tool}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#EF4444' }}>{s.cost}</div>
+          <div className="pg-roi" style={{ display: 'flex', gap: 44, alignItems: 'center', marginBottom: 48 }}>
+            <div style={{ flex: '1 1 540px' }}>
+              <div style={{ marginBottom: 24 }}>
+                <SectionLabel text="More tools. Less cost." color={gold} />
+                <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, margin: '0 0 12px' }}>Everything your business needs, in one place.</h2>
+                <p style={{ color: '#94A3B8', fontSize: 15, maxWidth: 520, margin: 0 }}>
+                  Most contractors juggle a CRM, a measurement vendor, a lead service and a supplementing cut. ProGuild is all of it — flat.
+                </p>
               </div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center', marginBottom: 44, padding: '18px', background: `${teal}18`, borderRadius: 12, border: `1px solid ${teal}44` }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: white }}>ProGuild: all of it, for </span>
-            <span style={{ fontSize: 18, fontWeight: 900, color: tealLt }}>$49.99/mo flat.</span>
-            <div style={{ fontSize: 13, color: '#94A3B8', marginTop: 6 }}>One EagleView report costs more than a month of ProGuild. One recovered supplement pays for years.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12, marginBottom: 16 }}>
+                {stackReplaces.map(s => (
+                  <div key={s.tool} style={{ padding: '14px 16px', background: navyMd, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#CBD5E1', marginBottom: 6, textDecoration: 'line-through', textDecorationColor: '#EF444488' }}>{s.tool}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#EF4444' }}>{s.cost}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ textAlign: 'center', padding: '16px', background: `${teal}18`, borderRadius: 12, border: `1px solid ${teal}44` }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: white }}>ProGuild: all of it, for </span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: tealLt }}>$49.99/mo flat.</span>
+                <div style={{ fontSize: 13, color: '#94A3B8', marginTop: 6 }}>One EagleView report costs more than a month of ProGuild. One recovered supplement pays for years.</div>
+              </div>
+            </div>
+            <Phone className="pg-roi-phone" src="/app/pricing.jpg" w={226} style={{ transform: 'perspective(1600px) rotateY(-9deg)' }} />
           </div>
 
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
