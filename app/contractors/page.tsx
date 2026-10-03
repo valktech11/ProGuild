@@ -181,14 +181,14 @@ function Phone({ src, w = 258, style, className }: { src: string; w?: number; st
   )
 }
 
-// ── Hero visual: two real phones (roof visualizer front, trace behind) ───────
+// ── Hero visual: two real phones side by side — roof measurement + visualizer ─
 function DeviceMock() {
   return (
-    <div className="pg-hero-visual" style={{ position: 'relative', width: 448, height: 560, flexShrink: 0 }}>
-      {/* Back phone — satellite roof trace, peeking from the right */}
-      <Phone src="/app/trace.jpg" w={232} style={{ position: 'absolute', right: 0, top: 44, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
-      {/* Front phone — Roof Visualizer before/after, fully visible */}
-      <Phone src="/app/visualizer.jpg" w={268} style={{ position: 'absolute', left: 0, top: 0, transform: 'perspective(1600px) rotateY(-9deg) rotate(-1deg)' }} />
+    <div className="pg-hero-visual" style={{ display: 'flex', gap: 18, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {/* Roof measurement (trace) first */}
+      <Phone src="/app/trace.jpg" w={228} style={{ transform: 'perspective(1700px) rotateY(-8deg)' }} />
+      {/* Roof Visualizer second */}
+      <Phone src="/app/visualizer.jpg" w={228} style={{ transform: 'perspective(1700px) rotateY(-8deg)' }} />
     </div>
   )
 }
@@ -247,7 +247,7 @@ export default function ContractorsPage() {
         <div className="pg-hero">
           <div className="pg-hero-copy">
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${teal}22`, border: `1px solid ${teal}44`, borderRadius: 20, padding: '6px 14px', marginBottom: 24 }}>
-              <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>The CRM for trade contractors</span>
+              <span style={{ fontSize: 12, color: tealLt, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Roofing · HVAC · Plumbing · Electrical &amp; more</span>
             </div>
             <h1 style={{ fontSize: 'clamp(38px, 6vw, 66px)', fontWeight: 900, lineHeight: 1.04, margin: '0 0 22px', letterSpacing: '-0.02em' }}>
               Win more jobs.<br />
@@ -309,7 +309,7 @@ export default function ContractorsPage() {
               A complete job site in your pocket.
             </h2>
             <p style={{ color: '#94A3B8', fontSize: 15.5, lineHeight: 1.7, margin: '0 0 22px', maxWidth: 480 }}>
-              Measure roofs, shoot job photos, build estimates and update job status — all from the truck, the roof or the driveway. Live on Android, iOS coming soon.
+              Measure roofs, shoot job photos, build estimates and update job status — all from the truck, the roof or the driveway.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 26 }}>
               {['Pull a roof measurement from satellite in ~30 seconds', 'Price the job and send an estimate from the field', 'Track every job from lead to paid', 'Live on Android · iOS coming soon'].map(x => (
@@ -410,7 +410,7 @@ export default function ContractorsPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14 }}>
             {workflow.map((s, i) => (
-              <div key={s.n} style={{ padding: '22px 18px', background: navy, borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div key={s.n} style={{ padding: '22px 18px', background: navyMd, borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ fontSize: 13, fontWeight: 900, color: i === workflow.length - 1 ? gold : tealLt, letterSpacing: '0.08em', marginBottom: 10 }}>{s.n}</div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: white, marginBottom: 6 }}>{s.title}</div>
                 <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5 }}>{s.desc}</div>
@@ -560,7 +560,7 @@ export default function ContractorsPage() {
               {[
                 ['💳', 'No credit card required', 'Start your trial in minutes.'],
                 ['🚫', 'Cancel anytime', 'No contracts, no lock-in.'],
-                ['📥', 'Bring your jobs', 'Import by CSV from your old CRM — claim data included.'],
+                ['📥', 'Bring your jobs', 'Import by CSV from your old CRM — insurance claim data included.'],
               ].map(([icon, title, desc]) => (
                 <div key={title as string} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 20, flexShrink: 0 }}>{icon}</span>
