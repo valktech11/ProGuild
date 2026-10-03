@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { DBPR_TRADES, FL_SEO_CITIES, cityToSlug } from '@/config/dbpr-trades'
 import { GUIDES } from '@/config/guides'
+import { SOLUTIONS } from '@/config/solutions'
 
 const BASE = 'https://proguild.ai'
 
@@ -15,6 +16,8 @@ export async function GET() {
   const urls = [
     u(BASE,                '1.0', 'weekly'),
     u(`${BASE}/contractors`, '0.9', 'weekly'),   // For Pros (primary marketing page)
+    u(`${BASE}/for`,       '0.8', 'weekly'),      // For-Pros / SaaS hub
+    ...SOLUTIONS.map(s => u(`${BASE}/for/${s.slug}`, '0.8', 'weekly')),
     u(`${BASE}/search`,    '0.85', 'weekly'),    // Discovery hub (server-rendered; faceted URLs stay noindex)
     u(`${BASE}/verify-license`, '0.85', 'weekly'), // License-check landing (high-intent, low-competition)
     u(`${BASE}/guides`,    '0.7', 'weekly'),       // Content hub
