@@ -53,7 +53,7 @@ const tradeData: Record<Trade, { headline: string; sub: string; phone: string; c
   hvac: {
     headline: 'Built for HVAC service & install.',
     sub: 'Track every unit, keep maintenance on autopilot, and run service and install jobs from one place.',
-    phone: '/app/hvac-twin.jpg',
+    phone: '/app/hvac-ptchart.jpg',
     cards: [
       { icon: '🔧', title: 'Equipment & System Tracking', desc: 'A digital twin for every unit — model, serial, install date and service history, by QR scan.' },
       { icon: '📅', title: 'Maintenance Plans',           desc: 'Recurring maintenance with automated reminders and completion tracking.' },
@@ -181,14 +181,14 @@ function Phone({ src, w = 258, style, className }: { src: string; w?: number; st
   )
 }
 
-// ── Hero visual: two real phones (roof trace + job pricing) ──────────────────
+// ── Hero visual: two real phones (roof visualizer front, trace behind) ───────
 function DeviceMock() {
   return (
-    <div className="pg-hero-visual" style={{ position: 'relative', width: 420, height: 560, flexShrink: 0 }}>
-      {/* Back phone — Roof Visualizer before/after (the closing tool) */}
-      <Phone src="/app/visualizer.jpg" w={238} style={{ position: 'absolute', right: 0, top: 36, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
-      {/* Front phone — satellite roof trace (the differentiator) */}
-      <Phone src="/app/trace.jpg" w={264} style={{ position: 'absolute', left: 4, top: 0, transform: 'perspective(1600px) rotateY(-10deg) rotate(-1deg)' }} />
+    <div className="pg-hero-visual" style={{ position: 'relative', width: 448, height: 560, flexShrink: 0 }}>
+      {/* Back phone — satellite roof trace, peeking from the right */}
+      <Phone src="/app/trace.jpg" w={232} style={{ position: 'absolute', right: 0, top: 44, transform: 'perspective(1600px) rotateY(-13deg) rotate(2deg)' }} />
+      {/* Front phone — Roof Visualizer before/after, fully visible */}
+      <Phone src="/app/visualizer.jpg" w={268} style={{ position: 'absolute', left: 0, top: 0, transform: 'perspective(1600px) rotateY(-9deg) rotate(-1deg)' }} />
     </div>
   )
 }
@@ -218,6 +218,7 @@ export default function ContractorsPage() {
           .pg-roi-phone { display: none !important; }
           .pg-trade { flex-direction: column; }
           .pg-trade-phone { display: none !important; }
+          .pg-hvac-extra { display: none !important; }
         }
       `}</style>
 
@@ -383,8 +384,24 @@ export default function ContractorsPage() {
         </div>
       </section>
 
+      {/* ── HVAC depth showcase ── always-visible HVAC screens */}
+      <section style={{ padding: '64px 24px', background: navyMd }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
+          <SectionLabel text="Built for HVAC" />
+          <h2 style={{ fontSize: 'clamp(24px,4vw,38px)', fontWeight: 800, margin: '0 0 12px' }}>Down to the refrigerant.</h2>
+          <p style={{ color: '#64748B', fontSize: 15, maxWidth: 560, margin: '0 auto 8px' }}>
+            Equipment digital twins, guided diagnosis and EPA-ready refrigerant logs — the HVAC-specific tools a generic field-service app doesn&rsquo;t have.
+          </p>
+          <div style={{ display: 'flex', gap: 26, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', marginTop: 40 }}>
+            <Phone className="pg-hvac-extra" src="/app/hvac-diagnosis.jpg" w={210} style={{ transform: 'perspective(1600px) rotateY(9deg)' }} />
+            <Phone src="/app/hvac-twin.jpg" w={226} style={{ transform: 'perspective(1700px) rotateY(0deg)', zIndex: 2 }} />
+            <Phone className="pg-hvac-extra" src="/app/hvac-refrigerant.jpg" w={210} style={{ transform: 'perspective(1600px) rotateY(-9deg)' }} />
+          </div>
+        </div>
+      </section>
+
       {/* ── Workflow ── */}
-      <section style={{ padding: '72px 24px', background: navyMd }}>
+      <section style={{ padding: '72px 24px', background: navy }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 46 }}>
             <SectionLabel text="How it works" />
