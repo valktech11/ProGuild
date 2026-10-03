@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     siteName: 'ProGuild',
     type: 'website',
   },
+  alternates: { canonical: 'https://proguild.ai/roof-size-calculator' },
 }
 
 export default function RoofSizeCalculatorPage() {

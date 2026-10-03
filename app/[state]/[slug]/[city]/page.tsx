@@ -157,10 +157,34 @@ export default async function CityTradePage(
     }))
   }
 
+  // FAQ — visible on-page (Google requires the content be present to award the
+  // FAQ rich result) and mirrored in FAQPage schema.
+  const faqs = [
+    {
+      q: `How do I know a ${tradeName.toLowerCase()} in ${cityDisplay} is licensed?`,
+      a: `Every ${tradeName.toLowerCase()} listed here is matched to Florida DBPR license records${dbpr ? ` (${dbpr.licenseLabel}, ${dbpr.licenseCodes.join('/')})` : ''}. You can see each contractor's license number on their profile and confirm its current status on the state portal at myfloridalicense.com.`,
+    },
+    {
+      q: `Does ProGuild charge homeowners to contact a ${tradeName.toLowerCase()} in ${cityDisplay}?`,
+      a: `No. ProGuild is always free for homeowners. You contact licensed ${tradeName.toLowerCase()}s directly — there are no shared leads and no fees to reach a pro.`,
+    },
+    {
+      q: `What should I check before hiring a ${tradeName.toLowerCase()} in ${cityDisplay}, FL?`,
+      a: `Confirm the license is active and matches the work${dbpr ? ` (${dbpr.licenseCodes.join('/')} for ${tradeName.toLowerCase()} work)` : ''}, ask for proof of insurance, and get a written estimate. Florida law requires a license for most construction trades.`,
+    },
+  ]
+
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       <div className="min-h-screen" style={{ background: '#FAF9F6', fontFamily: "'DM Sans', sans-serif" }}>
 
@@ -264,6 +288,21 @@ export default async function CityTradePage(
                 style={{ color: '#0F766E', borderColor: 'rgba(15,118,110,0.3)', background: 'rgba(15,118,110,0.05)' }}>
                 All {info.name} →
               </Link>
+            </div>
+          </div>
+
+          {/* FAQ — visible content backing the FAQPage schema */}
+          <div className="mt-10 pt-8 border-t" style={{ borderColor: '#E8E2D9' }}>
+            <h2 className="text-xl font-bold mb-4" style={{ color: '#0A1628', fontFamily: "'DM Serif Display', serif" }}>
+              {tradeName}s in {cityDisplay}, {info.abbr} — FAQ
+            </h2>
+            <div className="space-y-3">
+              {faqs.map((f, i) => (
+                <div key={i} className="rounded-2xl border p-5" style={{ borderColor: '#E8E2D9', background: 'white' }}>
+                  <h3 className="text-base font-bold mb-2" style={{ color: '#0A1628' }}>{f.q}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{f.a}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
