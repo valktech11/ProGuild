@@ -2,7 +2,9 @@ import { NextResponse, NextRequest } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
 const BASE  = 'https://proguild.ai'
-const LIMIT = 45000
+// Supabase hard-caps at 1,000 rows per request regardless of range upper bound.
+// Keep LIMIT at 1,000 so offset math and batch count stay in sync.
+const LIMIT = 1000
 
 export async function GET(
   _req: NextRequest,
@@ -14,17 +16,25 @@ export async function GET(
 
   const offset = batchNum * LIMIT
 
+  // Only emit profiles that are actually indexable:
+  //   - must have a slug (keyword URL, not a raw UUID)
+  //   - must have city (is_claimed profiles always do; DBPR scrapes without city get excluded)
+  //   - must have a trade category linked
+  // This mirrors the noindex gate in app/pro/[id]/page.tsx so sitemap and page agree.
   const { data } = await getSupabaseAdmin()
     .from('pros')
-    .select('id, slug, updated_at')
+    .select('slug, updated_at')
     .eq('profile_status', 'Active')
+    .not('slug', 'is', null)
+    .not('city', 'is', null)
+    .not('trade_category_id', 'is', null)
     .order('updated_at', { ascending: false })
     .range(offset, offset + LIMIT - 1)
 
   if (!data) return new NextResponse('Error', { status: 500 })
 
   const urls = data.map(pro => {
-    const loc = `${BASE}/pro/${pro.slug || pro.id}`
+    const loc = `${BASE}/pro/${pro.slug}`
     const mod = pro.updated_at ? `<lastmod>${new Date(pro.updated_at).toISOString().split('T')[0]}</lastmod>` : ''
     return `  <url><loc>${loc}</loc>${mod}<priority>0.6</priority><changefreq>monthly</changefreq></url>`
   })

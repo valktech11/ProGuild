@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 
 const BASE  = 'https://proguild.ai'
-const LIMIT = 45000
+// Must match LIMIT in pros/[batch]/route.ts
+const LIMIT = 1000
 
 export async function GET() {
   try {
+    // Count only indexable pros — same filter as the batch route
     const { count } = await getSupabaseAdmin()
       .from('pros')
       .select('id', { count: 'exact', head: true })
       .eq('profile_status', 'Active')
+      .not('slug', 'is', null)
+      .not('city', 'is', null)
+      .not('trade_category_id', 'is', null)
 
     const proCount   = count || 0
     const proBatches = Math.ceil(proCount / LIMIT)
