@@ -14,6 +14,7 @@ export async function GET() {
   const urls = [
     u(BASE,                '1.0', 'weekly'),
     u(`${BASE}/contractors`, '0.9', 'weekly'),   // For Pros (primary marketing page)
+    u(`${BASE}/search`,    '0.85', 'weekly'),    // Discovery hub (server-rendered; faceted URLs stay noindex)
     u(`${BASE}/fl`,        '0.9', 'weekly'),
     u(`${BASE}/roof-size-calculator`, '0.8', 'monthly'),
     u(`${BASE}/roof-visualizer`,      '0.8', 'monthly'),
