@@ -13,7 +13,10 @@ export async function GET() {
 
   const urls = [
     u(BASE,                '1.0', 'weekly'),
+    u(`${BASE}/contractors`, '0.9', 'weekly'),   // For Pros (primary marketing page)
     u(`${BASE}/fl`,        '0.9', 'weekly'),
+    u(`${BASE}/roof-size-calculator`, '0.8', 'monthly'),
+    u(`${BASE}/roof-visualizer`,      '0.8', 'monthly'),
     u(`${BASE}/about`,     '0.5', 'monthly'),
     u(`${BASE}/contact`,   '0.4', 'monthly'),
     u(`${BASE}/privacy`,   '0.3', 'yearly'),

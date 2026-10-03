@@ -1,6 +1,13 @@
 User-agent: *
-Allow: /roof-size-calculator
 Allow: /
 Disallow: /dashboard
 Disallow: /admin
 Disallow: /api
+Disallow: /login
+Disallow: /onboarding
+Disallow: /edit-profile
+Disallow: /messages
+Disallow: /upgrade
+Disallow: /claim
+
+Sitemap: https://proguild.ai/sitemaps

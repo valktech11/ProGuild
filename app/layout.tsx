@@ -5,6 +5,7 @@ import { TrialGate } from '@/components/auth/TrialGate'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://proguild.ai'),
   title: 'ProGuild.ai — Your Craft. Your Guild.',
   description: 'Florida\'s verified trades network. Find DBPR-licensed electricians, plumbers, HVAC techs and more. Zero lead fees. License verified.',
   icons: {
