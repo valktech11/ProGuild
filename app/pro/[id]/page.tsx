@@ -18,6 +18,7 @@ type ProMeta = {
   license_number: string | null
   license_expiry_date: string | null
   bio: string | null
+  is_claimed: boolean | null
   trade_category: { slug: string | null; category_name: string | null } | null
 }
 
@@ -26,7 +27,7 @@ async function fetchPro(idOrSlug: string): Promise<ProMeta | null> {
     const col = UUID_RE.test(idOrSlug) ? 'id' : 'slug'
     const { data } = await getSupabaseAdmin()
       .from('pros')
-      .select('id, slug, full_name, city, state, license_number, license_expiry_date, bio, trade_category:trade_categories(slug, category_name)')
+      .select('id, slug, full_name, city, state, license_number, license_expiry_date, bio, is_claimed, trade_category:trade_categories(slug, category_name)')
       .eq(col, idOrSlug)
       .maybeSingle()
     return (data as ProMeta | null) ?? null
@@ -66,10 +67,23 @@ export async function generateMetadata(
     : ''
   const description = `Contact ${displayName}, a DBPR-verified ${trade.toLowerCase()} in ${location}.${licenseLine}`
 
+  // Thin-content floor. Many of the 100k+ imported DBPR profiles are sparse
+  // (name + license only). Indexing near-empty pages dilutes the site and
+  // wastes crawl budget, so a profile is only indexed when it carries real
+  // substance: claimed (owner opted in + enriched) OR has both a trade and a
+  // city. Non-indexable profiles stay crawlable (follow:true) and internally
+  // linked, so they still pass authority and flip to indexable once claimed or
+  // enriched — no URL change, just the robots directive.
+  // Default floor; tune the threshold here if the product call changes.
+  const hasCity  = !!(pro.city && pro.city.trim())
+  const hasTrade = !!(pro.trade_category?.slug || pro.trade_category?.category_name)
+  const indexable = pro.is_claimed === true || (hasCity && hasTrade)
+
   return {
     title,
     description,
     alternates: { canonical },
+    ...(indexable ? {} : { robots: { index: false, follow: true } }),
     openGraph: {
       type: 'profile',
       title,

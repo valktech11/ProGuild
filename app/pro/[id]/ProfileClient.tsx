@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import { initials, avatarColor, starsHtml, formatReviewDate, isPaid, isElite, proFirstName, proDisplayName, tradeDisplayName } from '@/lib/utils'
+import { cityToSlug } from '@/config/dbpr-trades'
 import Loader from '@/components/ui/Loader'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1256,7 +1257,7 @@ export default function ProfileClient() {
                   <div className="text-sm" style={{ color: '#6B7280' }}>Browse licensed {trade.toLowerCase()}s in {pro.city.replace(/\b\w/g, (c: string) => c.toUpperCase())} and nearby.</div>
                 </div>
               </div>
-              <Link href={`/trades/${pro.trade_category.slug}/${(pro.state || '').toLowerCase()}/${encodeURIComponent((pro.city || '').toLowerCase())}`}
+              <Link href={`/${(pro.state || 'fl').toLowerCase()}/${pro.trade_category.slug}/${cityToSlug(pro.city || '')}`}
                 className="text-sm font-semibold px-4 py-2 rounded-lg border whitespace-nowrap transition-colors"
                 style={{ borderColor: '#E8E2D9', color: '#0A1628' }}>
                 Browse nearby pros →
