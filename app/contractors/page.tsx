@@ -36,10 +36,11 @@ const TRADES: { id: Trade; label: string; emoji: string }[] = [
   { id: 'gc',         label: 'General Contractor', emoji: '🏗️' },
 ]
 
-const tradeData: Record<Trade, { headline: string; sub: string; cards: { icon: string; title: string; desc: string }[] }> = {
+const tradeData: Record<Trade, { headline: string; sub: string; phone: string; cards: { icon: string; title: string; desc: string }[] }> = {
   roofing: {
     headline: 'Powerful tools built for roofers.',
     sub: 'From satellite measurements to insurance supplements — everything you need to win more roofs and recover what you’re owed.',
+    phone: '/app/estimate.jpg',
     cards: [
       { icon: '🛡️', title: 'Insurance Supplement Recovery', desc: 'AI scans every claim and surfaces missed line items — recovery often runs several thousand per supplemented claim.' },
       { icon: '🛰️', title: 'Free Satellite Measurements',   desc: 'Rooftop dimensions from satellite imagery in seconds. EagleView charges $40–91/report — we include it.' },
@@ -52,6 +53,7 @@ const tradeData: Record<Trade, { headline: string; sub: string; cards: { icon: s
   hvac: {
     headline: 'Built for HVAC service & install.',
     sub: 'Track every unit, keep maintenance on autopilot, and run service and install jobs from one place.',
+    phone: '/app/hvac-twin.jpg',
     cards: [
       { icon: '🔧', title: 'Equipment & System Tracking', desc: 'A digital twin for every unit — model, serial, install date and service history, by QR scan.' },
       { icon: '📅', title: 'Maintenance Plans',           desc: 'Recurring maintenance with automated reminders and completion tracking.' },
@@ -64,6 +66,7 @@ const tradeData: Record<Trade, { headline: string; sub: string; cards: { icon: s
   plumbing: {
     headline: 'Run your plumbing jobs end to end.',
     sub: 'From the first call to the final invoice — the whole job tracked in one place, on web and in the field.',
+    phone: '/app/dashboard.jpg',
     cards: [
       { icon: '📊', title: 'Service Pipeline',          desc: 'Track every job from call to completion on a visual board.' },
       { icon: '📝', title: 'Estimates & Proposals',     desc: 'Build and send professional estimates in minutes.' },
@@ -76,6 +79,7 @@ const tradeData: Record<Trade, { headline: string; sub: string; cards: { icon: s
   electrical: {
     headline: 'Built for electrical contractors.',
     sub: 'Keep permits, inspections and jobs organized — and get paid faster.',
+    phone: '/app/dashboard.jpg',
     cards: [
       { icon: '📊', title: 'Service Pipeline',          desc: 'Track every job from first contact to final payment.' },
       { icon: '⚡', title: 'Permit & Inspection Tracking', desc: 'Record permit numbers, inspection dates and code notes per job.' },
@@ -88,6 +92,7 @@ const tradeData: Record<Trade, { headline: string; sub: string; cards: { icon: s
   gc: {
     headline: 'Built for general contractors.',
     sub: 'Track projects, subs, budgets and documents across your whole book of work.',
+    phone: '/app/dashboard.jpg',
     cards: [
       { icon: '🏗️', title: 'Project Pipeline',          desc: 'See every project by stage across your whole book.' },
       { icon: '📐', title: 'Sub & Budget Tracking',     desc: 'Track subcontractors, materials budget and permits per project.' },
@@ -211,6 +216,8 @@ export default function ContractorsPage() {
           .pg-field-media { width: 100% !important; max-width: 420px; margin: 0 auto 36px; }
           .pg-roi { flex-direction: column; }
           .pg-roi-phone { display: none !important; }
+          .pg-trade { flex-direction: column; }
+          .pg-trade-phone { display: none !important; }
         }
       `}</style>
 
@@ -362,13 +369,16 @@ export default function ContractorsPage() {
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <h3 style={{ fontSize: 'clamp(20px,3vw,28px)', fontWeight: 800, margin: '0 0 8px' }}>{t.headline}</h3>
             <p style={{ color: '#64748B', fontSize: 14.5, maxWidth: 560, margin: '0 auto' }}>{t.sub}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16 }}>
-            {t.cards.map(c => <Card key={c.title} {...c} />)}
+          <div className="pg-trade" style={{ display: 'flex', gap: 40, alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: '1 1 580px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 14 }}>
+              {t.cards.map(c => <Card key={c.title} {...c} />)}
+            </div>
+            <Phone className="pg-trade-phone" src={t.phone} w={246} style={{ transform: 'perspective(1600px) rotateY(-9deg)' }} />
           </div>
         </div>
       </section>

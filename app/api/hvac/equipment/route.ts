@@ -32,6 +32,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'pro_id, client_id, equipment_type required' }, { status: 400 })
   }
 
+  // Idempotency guard: a rapid double-submit (or a client that retried after a
+  // mis-read response) could create duplicate units. If an identical unit for
+  // this client was created in the last 5 minutes, return it instead of inserting.
+  const { serial_number, model_number } = rest as { serial_number?: string; model_number?: string }
+  if (serial_number || model_number) {
+    const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    let dupQ = getSupabaseAdmin()
+      .from('hvac_equipment')
+      .select('*')
+      .eq('client_id', client_id)
+      .eq('equipment_type', equipment_type)
+      .gte('created_at', cutoff)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (serial_number) dupQ = dupQ.eq('serial_number', serial_number)
+    else if (model_number) dupQ = dupQ.eq('model_number', model_number)
+    const { data: existing } = await dupQ.maybeSingle()
+    if (existing) {
+      return NextResponse.json({ item: existing, equipment: existing, deduped: true }, { status: 200 })
+    }
+  }
+
   const { data, error } = await getSupabaseAdmin()
     .from('hvac_equipment')
     .insert({ pro_id, company_id: __auth.companyId, client_id, equipment_type, ...rest })
