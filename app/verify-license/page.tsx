@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import { DBPR_TRADES } from '@/config/dbpr-trades'
+import { GUIDES } from '@/config/guides'
 import VerifyClient from './VerifyClient'
 
 const canonical = 'https://proguild.ai/verify-license'
@@ -165,6 +166,20 @@ export default function Page() {
                   <h3 className="text-base font-bold mb-2" style={{ color: '#0A1628' }}>{f.q}</h3>
                   <p className="text-sm leading-relaxed" style={{ color: '#4B5563' }}>{f.a}</p>
                 </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Related guides */}
+          <section className="mt-10 pt-8 border-t" style={{ borderColor: '#E8E2D9' }}>
+            <h2 className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: '#6E6456' }}>Related guides</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {GUIDES.slice(0, 4).map(g => (
+                <Link key={g.slug} href={`/guides/${g.slug}`}
+                  className="block rounded-2xl border p-4 transition-colors hover:border-teal-400" style={{ borderColor: '#E8E2D9', background: '#fff' }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#0F766E' }}>{g.category}</div>
+                  <div className="text-sm font-bold" style={{ color: '#0A1628' }}>{g.title}</div>
+                </Link>
               ))}
             </div>
           </section>
