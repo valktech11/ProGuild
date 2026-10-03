@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { notify, notifyOwners, sendPushToFcmToken } from '@/lib/notifications'
+import { notifyRoofer } from '@/lib/notifyRoofer'
 
 // Helper: fetch fcm_token via direct REST (avoids JS client cold-start)
 async function getFcmToken(proId: string): Promise<string | null> {
@@ -59,6 +60,17 @@ export async function POST(
   const leadLabel = est.lead_name || 'A homeowner'
 
   if (proId) {
+    // Email notification — mirrors the "viewed" email in view/route.ts, which
+    // was the only estimate email firing; approval sent none before this.
+    await notifyRoofer({
+      proId,
+      subject:  `🎉 Proposal approved — ${leadLabel}`,
+      headline: 'Proposal Approved',
+      body:     `${leadLabel} approved your proposal ${est.estimate_number}. Time to schedule the job and send the invoice.`,
+      leadId:   est.lead_id ?? null,
+      sb,
+    })
+
     // In-app notification
     void notify({
       proId, companyId,

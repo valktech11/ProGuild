@@ -47,5 +47,8 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ item: data }, { status: 201 })
+  // Return under both keys: GET uses `equipment`, and the mobile client reads
+  // `equipment` from this POST too — returning only `item` made a successful
+  // save surface as "Could not save" (null-cast on the missing key).
+  return NextResponse.json({ item: data, equipment: data }, { status: 201 })
 }
