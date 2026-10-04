@@ -563,26 +563,41 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
 
   // Panel is fixed-position; no body scroll lock needed
 
+  // Get Bearer token for authenticated API calls
+  async function authHeaders(): Promise<Record<string, string>> {
+    try {
+      const { getSupabaseBrowser } = await import('@/lib/supabase-browser')
+      const { data } = await getSupabaseBrowser().auth.getSession()
+      const token = data.session?.access_token
+      if (token) return { 'Authorization': `Bearer ${token}` }
+    } catch {}
+    return {}
+  }
+
   // Load thread list on mount
   useEffect(() => {
-    fetch(`/api/messages?pro_id=${session.id}`)
-      .then(r => r.ok ? r.json() : {} as any)
-      .then((d: any) => { setThreads(d.threads || []); setLoadingThreads(false) })
-      .catch(() => setLoadingThreads(false))
+    authHeaders().then(hdrs =>
+      fetch(`/api/messages?pro_id=${session.id}`, { headers: hdrs })
+        .then(r => r.ok ? r.json() : {} as any)
+        .then((d: any) => { setThreads(d.threads || []); setLoadingThreads(false) })
+        .catch(() => setLoadingThreads(false))
+    )
   }, [session.id])
 
   // Load conversation when activeWithId changes
   useEffect(() => {
     if (!activeWithId) return
     setLoadingMsgs(true)
-    fetch(`/api/messages?pro_id=${session.id}&with_id=${activeWithId}`)
-      .then(r => r.ok ? r.json() : {} as any)
-      .then((d: any) => {
-        setMessages(d.messages || [])
-        setLoadingMsgs(false)
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
-      })
-      .catch(() => setLoadingMsgs(false))
+    authHeaders().then(hdrs => {
+      fetch(`/api/messages?pro_id=${session.id}&with_id=${activeWithId}`, { headers: hdrs })
+        .then(r => r.ok ? r.json() : {} as any)
+        .then((d: any) => {
+          setMessages(d.messages || [])
+          setLoadingMsgs(false)
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+        })
+        .catch(() => setLoadingMsgs(false))
+    })
     // Fetch pro profile for header
     fetch(`/api/pros/${activeWithId}`)
       .then(r => r.ok ? r.json() : {} as any)
@@ -600,9 +615,10 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
   async function sendMessage() {
     if (!text.trim() || !activeWithId || sending) return
     setSending(true)
+    const hdrs = await authHeaders()
     const r = await fetch('/api/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...hdrs },
       body: JSON.stringify({ sender_id: session.id, receiver_id: activeWithId, content: text.trim() }),
     })
     const d = await r.json()
@@ -1915,7 +1931,7 @@ function GuildPageInner() {
     setLoading(true)
     safe(fetch(buildUrl(s, feedFilter, tradeFilter, mineTypeFilter)))
       .then(d => { setPosts(d.posts || []); setLoading(false) })
-      .catch(() => setLoading(false))
+      .catch((err) => { console.error('[Guild] feed load error', err); setLoading(false) })
     // When on the Following tab, fetch how many pros this user follows so the
     // empty-feed hero can distinguish "follows nobody" vs "follows people, no posts yet"
     if (feedFilter === 'following' && s?.id) {
