@@ -1200,6 +1200,115 @@ function ProfileCard({ session }: { session: Session }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Notification Bell — polls /api/notifications, shows unread count badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+type AppNotification = { id: string; type: string; title: string; body: string; read_at: string | null; created_at: string }
+
+function NotificationBell({ proId }: { proId: string }) {
+  const [notifs, setNotifs] = useState<AppNotification[]>([])
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const fetchNotifs = useCallback(async () => {
+    const r = await fetch('/api/notifications')
+    if (r.ok) {
+      const d = await r.json()
+      setNotifs(d.notifications || [])
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotifs()
+    const id = setInterval(fetchNotifs, 30000)
+    return () => clearInterval(id)
+  }, [fetchNotifs])
+
+  useEffect(() => {
+    if (!open) return
+    function onClickOut(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOut)
+    return () => document.removeEventListener('mousedown', onClickOut)
+  }, [open])
+
+  async function markRead() {
+    const unreadIds = notifs.filter(n => !n.read_at).map(n => n.id)
+    if (!unreadIds.length) return
+    await fetch('/api/notifications/read', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: unreadIds }),
+    })
+    setNotifs(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })))
+  }
+
+  function handleOpen() {
+    setOpen(v => !v)
+    if (!open) markRead()
+  }
+
+  const unread = notifs.filter(n => !n.read_at).length
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={handleOpen}
+        className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+        aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 flex items-center justify-center text-[10px] font-bold text-white rounded-full"
+            style={{ background: '#0F766E' }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border shadow-xl z-50 overflow-hidden"
+          style={{ borderColor: '#E4E8E6', boxShadow: '0 20px 40px -12px rgba(10,22,40,0.22), 0 0 0 1px rgba(10,22,40,0.05)' }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: '#F0F2F0' }}>
+            <span className="text-[13px] font-bold text-gray-900">Notifications</span>
+            {notifs.length > 0 && (
+              <button onClick={() => setNotifs([])} className="text-[11px] text-gray-400 hover:text-gray-600">Clear all</button>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+            {notifs.length === 0 ? (
+              <div className="px-4 py-8 text-center text-[13px] text-gray-400">No notifications yet</div>
+            ) : notifs.map(n => (
+              <div key={n.id} className={`px-4 py-3 flex gap-3 items-start transition-colors ${n.read_at ? '' : 'bg-teal-50/50'}`}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: n.type === 'follow' ? '#E6F5F1' : '#F3F4F6' }}>
+                  {n.type === 'follow' ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0B5D4E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                      <line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/>
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] text-gray-800 leading-snug">{n.body}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">{timeAgo(n.created_at)}</div>
+                </div>
+                {!n.read_at && <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#0F766E' }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Account menu (app-bar, right) — visible avatar + real dropdown
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1769,6 +1878,7 @@ function GuildPageInner() {
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       Post
                     </button>
+                    <NotificationBell proId={session.id} />
                     <UserMenu session={session} onSignOut={signOut} />
                   </>
                 ) : (

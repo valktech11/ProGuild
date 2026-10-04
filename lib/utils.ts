@@ -92,12 +92,20 @@ export function timeAgo(dateStr: string): string {
   const ts = new Date(dateStr).getTime()
   if (isNaN(ts)) return ''
   const diff = Date.now() - ts
+  const mins = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-  if (days === 0) return 'Today'
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
   if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
-  return `${Math.floor(days / 30)}mo ago`
+  if (days < 7) {
+    const d = new Date(ts)
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+  const d = new Date(ts)
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
 }
 
 export function formatDate(dateStr: string): string {

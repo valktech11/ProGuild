@@ -23,6 +23,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ following: false })
   } else {
     await getSupabaseAdmin().from('follows').insert({ follower_id, following_id })
+
+    // Notify the followed pro — fire-and-forget, non-blocking
+    const { data: followerPro } = await getSupabaseAdmin()
+      .from('pros')
+      .select('full_name')
+      .eq('id', follower_id)
+      .single()
+    if (followerPro?.full_name) {
+      await getSupabaseAdmin().from('pro_notifications').insert({
+        pro_id: following_id,
+        type: 'follow',
+        title: 'New follower',
+        body: `${followerPro.full_name} started following you`,
+      })
+    }
+
     return NextResponse.json({ following: true })
   }
 }
