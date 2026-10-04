@@ -185,9 +185,11 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   const rootRef = useRef<HTMLDivElement>(null)
   const cfg = POST_TYPES[postType]
 
-  // App-bar "Post" button opens the composer and brings it into view
+  // App-bar "Post" / empty-state buttons open the composer (optionally in a type)
   useEffect(() => {
-    function open() {
+    function open(e: Event) {
+      const t = (e as CustomEvent).detail?.type as PostType | undefined
+      if (t) setPostType(t)
       setExpanded(true)
       rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
@@ -744,66 +746,63 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
 // Empty feed — never a blank void. A branded hero + "people to follow" grid.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onShowAll }: {
+function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onShowAll }: {
   mode: 'following' | 'trade' | 'all'
   tradeLabel: string | null
   suggested: Pro[]
   session: Session | null
   onCompose: () => void
+  onAsk: () => void
   onShowAll: () => void
 }) {
-  const hero = {
-    following: {
-      title: 'Build your Following feed',
-      sub: `Follow ${tradeLabel ? tradeLabel.toLowerCase() : 'the'} pros below and their projects, tips and answers show up here.`,
-    },
-    trade: {
-      title: `Be the first ${tradeLabel || 'trade'} post`,
-      sub: 'Share a job you just wrapped — or follow a few pros to warm up your feed.',
-    },
-    all: {
-      title: 'Your Guild feed starts here',
-      sub: 'Share your first project or follow a few pros, and this feed fills up fast.',
-    },
-  }[mode]
+  const hero = mode === 'following'
+    ? { title: 'Build your Following feed', sub: `Follow ${tradeLabel ? tradeLabel.toLowerCase() : 'the'} pros below — their projects and answers land here.` }
+    : { title: 'Start your Guild presence', sub: 'Share a project, ask a question, or introduce yourself.' }
 
   return (
     <div className="space-y-3">
-      {/* Branded hero */}
+      {/* Branded hero — compact so the feed doesn't feel empty */}
       <div className="relative overflow-hidden rounded-2xl shadow-sm">
-        <div className="px-6 py-8 text-center" style={{ background: 'linear-gradient(125deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }}>
-          <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="px-5 py-5 flex items-center gap-4 text-left" style={{ background: 'linear-gradient(125deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }}>
+          <div className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               {mode === 'following'
                 ? <><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></>
                 : <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></>}
             </svg>
           </div>
-          <h3 className="text-[18px] font-extrabold text-white mb-1">{hero.title}</h3>
-          <p className="text-[13px] text-white/80 max-w-[300px] mx-auto leading-relaxed">{hero.sub}</p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {session && mode !== 'following' && (
-              <button onClick={onCompose}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Share a post
-              </button>
-            )}
-            {mode === 'trade' && (
-              <button onClick={onShowAll}
-                className="px-4 py-2 rounded-full text-[13px] font-bold text-white transition-colors" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.25)' }}>
-                Show all trades
-              </button>
-            )}
-            {!session && (
-              <Link href="/login?tab=signup"
-                className="px-4 py-2 rounded-full text-[13px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
-                Join the Guild
-              </Link>
-            )}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[16px] font-extrabold text-white leading-tight">{hero.title}</h3>
+            <p className="text-[12.5px] text-white/80 leading-snug mt-0.5">{hero.sub}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              {session && mode !== 'following' && (
+                <>
+                  <button onClick={onCompose}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Share a post
+                  </button>
+                  <button onClick={onAsk}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-bold text-white transition-colors" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.28)' }}>
+                    Ask a question
+                  </button>
+                </>
+              )}
+              {!session && (
+                <Link href="/login?tab=signup"
+                  className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
+                  Join the Guild
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>
+      {mode === 'trade' && (
+        <button onClick={onShowAll} className="text-[12.5px] font-semibold hover:underline" style={{ color: '#0F766E' }}>
+          ← Show posts from all trades
+        </button>
+      )}
 
       {/* People to follow — turns the empty state into an action */}
       {session && suggested.length > 0 && (
@@ -955,11 +954,12 @@ function GuildPageInner() {
   ]
   const isStaging = process.env.NEXT_PUBLIC_ENV === 'staging'
 
-  // The pro's own trade leads the filter row and labels the personalised rails
+  // The pro's own trade is the DEFAULT selection and labels the personalised rails
+  // (pills stay in fixed order — no reordering, so no duplicate chip).
   const myTrade = session?.trade_slug
     ? (TRADES.find(t => t.slug === session.trade_slug) || { label: session.trade || 'My trade', slug: session.trade_slug })
     : null
-  const orderedTrades = myTrade ? [myTrade, ...TRADES.filter(t => t.slug !== myTrade.slug)] : TRADES
+  const inList = myTrade ? TRADES.some(t => t.slug === myTrade.slug) : false
   const myTradeLabel = myTrade?.label || null
 
   // Shared segmented feed-tab control (matches homepage nav language)
@@ -1165,32 +1165,40 @@ function GuildPageInner() {
           {/* ── MAIN FEED ── */}
           <div className="min-w-0">
 
-            {/* Contextual trade filter — the pro's own trade leads and is the
-                default; "All trades" is there to broaden. */}
+            {/* Contextual trade filter — fixed order, All Trades first.
+                The pro's trade is simply the default-selected chip (no duplicate). */}
             {feedFilter !== 'following' && (
               <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5"
                 style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                {orderedTrades.map(t => {
+                <button onClick={() => setTradeFilter('')}
+                  className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                  style={tradeFilter === ''
+                    ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
+                    : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
+                  All Trades
+                </button>
+                {/* The pro's trade when it's outside the standard eight */}
+                {myTrade && !inList && (
+                  <button onClick={() => setTradeFilter(tradeFilter === myTrade.slug ? '' : myTrade.slug)}
+                    className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                    style={tradeFilter === myTrade.slug
+                      ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
+                      : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
+                    {myTrade.label}
+                  </button>
+                )}
+                {TRADES.map(t => {
                   const on = tradeFilter === t.slug
-                  const mine = session?.trade_slug === t.slug
                   return (
                     <button key={t.slug} onClick={() => setTradeFilter(on ? '' : t.slug)}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                      className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
                       style={on
                         ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
                         : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
-                      {mine && <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? '#fff' : '#0F766E', display: 'inline-block' }} />}
                       {t.label}
                     </button>
                   )
                 })}
-                <button onClick={() => setTradeFilter('')}
-                  className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
-                  style={tradeFilter === ''
-                    ? { background: '#111827', color: '#fff', borderColor: '#111827' }
-                    : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
-                  All trades
-                </button>
               </div>
             )}
 
@@ -1232,7 +1240,8 @@ function GuildPageInner() {
                 tradeLabel={myTradeLabel}
                 suggested={suggested}
                 session={session}
-                onCompose={() => window.dispatchEvent(new Event('guild:compose'))}
+                onCompose={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'work' } }))}
+                onAsk={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'tip' } }))}
                 onShowAll={() => setTradeFilter('')}
               />
             ) : (
