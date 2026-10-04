@@ -403,7 +403,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 // Follow button + Message button
 // ─────────────────────────────────────────────────────────────────────────────
 
-function FollowButton({ proId, followerId, compact }: { proId: string; followerId: string; compact?: boolean }) {
+function FollowButton({ proId, followerId, compact, onToggle }: { proId: string; followerId: string; compact?: boolean; onToggle?: (nowFollowing: boolean) => void }) {
   const [following, setFollowing] = useState<boolean | null>(null) // null = loading from server
   const [toggling, setToggling] = useState(false)
 
@@ -422,7 +422,10 @@ function FollowButton({ proId, followerId, compact }: { proId: string; followerI
       body: JSON.stringify({ follower_id: followerId, following_id: proId }),
     })
     const d = await r.json()
-    if (r.ok) setFollowing(d.following)
+    if (r.ok) {
+      setFollowing(d.following)
+      onToggle?.(d.following)
+    }
     setToggling(false)
   }
 
@@ -903,7 +906,7 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Recommended-pros strip — horizontal, modern scroll (hidden bar + chevrons + snap + edge fades)
-function FollowStrip({ pros, session, tradeLabel }: { pros: Pro[]; session: Session; tradeLabel: string | null }) {
+function FollowStrip({ pros, session, tradeLabel, onFollowToggle }: { pros: Pro[]; session: Session; tradeLabel: string | null; onFollowToggle?: (nowFollowing: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(false)
@@ -962,7 +965,7 @@ function FollowStrip({ pros, session, tradeLabel }: { pros: Pro[]; session: Sess
               <div className="text-[11.5px] text-gray-500 truncate mt-0.5 mb-3">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
               {session.id !== pro.id && (
                 <div className="flex items-center justify-center gap-1.5">
-                  <FollowButton proId={pro.id} followerId={session.id} compact />
+                  <FollowButton proId={pro.id} followerId={session.id} compact onToggle={onFollowToggle} />
                   <MessageButton proId={pro.id} compact />
                 </div>
               )}
@@ -981,19 +984,27 @@ function FollowStrip({ pros, session, tradeLabel }: { pros: Pro[]; session: Sess
   )
 }
 
-function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose, onAsk, onShowAll }: {
+function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingCount, onCompose, onAsk, onShowAll, onFollowToggle }: {
   mode: 'following' | 'trade' | 'all' | 'mine'
   tradeLabel: string | null
   suggested: Pro[]
   session: Session | null
   hasPosted: boolean
+  followingCount: number | null
   onCompose: () => void
   onAsk: () => void
   onShowAll: () => void
+  onFollowToggle?: (nowFollowing: boolean) => void
 }) {
+  // followingCount === 0 (or null while loading): user follows nobody → full onboarding
+  // followingCount > 0 + mode=following: user follows people, they just haven't posted
+  const followingHasNetwork = mode === 'following' && followingCount !== null && followingCount > 0
+
   // The big welcome hero is onboarding — it disappears once the pro has posted.
   const showWelcome = mode === 'following' || mode === 'mine' || !hasPosted
-  const hero = mode === 'following'
+  const hero = followingHasNetwork
+    ? { title: 'Your network is quiet right now', sub: 'The pros you follow haven\'t posted yet. Check back soon, or browse all posts.' }
+    : mode === 'following'
     ? { title: "You're not following anyone yet", sub: 'Follow pros below to build your Guild feed. Their projects and answers will appear here.' }
     : mode === 'mine'
       ? { title: 'Your posts live here', sub: 'Share a project, ask a question, or post a milestone to get started.' }
@@ -1028,8 +1039,14 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose,
                     )}
                   </>
                 )}
-                {session && mode === 'following' && (
+                {session && mode === 'following' && !followingHasNetwork && (
                   <span className="text-[12.5px] text-white/80">Find pros to follow in the "People to follow" section below.</span>
+                )}
+                {session && followingHasNetwork && (
+                  <button onClick={onShowAll}
+                    className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
+                    Browse all posts →
+                  </button>
                 )}
                 {!session && (
                   <Link href="/login?tab=signup"
@@ -1075,8 +1092,8 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose,
         </div>
       )}
 
-      {session && suggested.length > 0 && (
-        <FollowStrip pros={suggested} session={session} tradeLabel={tradeLabel} />
+      {session && suggested.length > 0 && !followingHasNetwork && (
+        <FollowStrip pros={suggested} session={session} tradeLabel={tradeLabel} onFollowToggle={onFollowToggle} />
       )}
     </div>
   )
@@ -1095,6 +1112,7 @@ function GuildPageInner() {
   const [session, setSession] = useState<Session | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [suggested, setSuggested] = useState<Pro[]>([])
+  const [followingCount, setFollowingCount] = useState<number | null>(null)
   const [trendingQuestions, setTrendingQuestions] = useState<Post[]>([])
   const [jobAlerts, setJobAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1174,7 +1192,8 @@ function GuildPageInner() {
       safe(fetch('/api/jobs?status=Open&limit=3')),
       safe(fetch(`/api/posts?limit=5&post_type=tip${trade}`)),
       s ? safe(fetch(`/api/posts?pro_id=${s.id}&limit=1`)) : Promise.resolve({ posts: [] }),
-    ]).then(([prosData, likesData, jobsData, qData, mineData]) => {
+      s ? safe(fetch(`/api/follows?pro_id=${s.id}`)) : Promise.resolve({ following_count: 0 }),
+    ]).then(([prosData, likesData, jobsData, qData, mineData, followData]) => {
       let pros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
       // If the pro's own trade is too thin, backfill with top pros from any trade
       if (s?.trade_slug && pros.length < 6) {
@@ -1189,6 +1208,7 @@ function GuildPageInner() {
       setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
       setHasPosted((mineData.posts || []).length > 0) // welcome card disappears after first post
+      setFollowingCount(followData.following_count ?? 0)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_real?.id])
@@ -1586,9 +1606,11 @@ function GuildPageInner() {
                 suggested={suggested}
                 session={session}
                 hasPosted={hasPosted}
+                followingCount={followingCount}
                 onCompose={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'work' } }))}
                 onAsk={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'tip' } }))}
-                onShowAll={() => setTradeFilter('')}
+                onShowAll={() => { window.location.href = '/guild' }}
+                onFollowToggle={(nowFollowing) => setFollowingCount(c => c !== null ? c + (nowFollowing ? 1 : -1) : null)}
               />
             ) : (
               <div className="space-y-3">
