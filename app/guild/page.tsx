@@ -648,15 +648,16 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
 // Trade filter pills
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Slugs MUST match trade_categories.slug in the DB (see HomeClient PRIMARY_TRADES)
 const TRADES = [
-  { label: 'Roofing',     slug: 'roofing-contractor' },
+  { label: 'Roofing',     slug: 'roofing' },
   { label: 'HVAC',        slug: 'hvac-technician' },
   { label: 'Electrical',  slug: 'electrician' },
   { label: 'Plumbing',    slug: 'plumber' },
   { label: 'General',     slug: 'general-contractor' },
   { label: 'Pool & Spa',  slug: 'pool-spa' },
   { label: 'Painting',    slug: 'painter' },
-  { label: 'Flooring',    slug: 'carpenter' },
+  { label: 'Flooring',    slug: 'flooring' },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -747,7 +748,7 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onShowAll }: {
-  mode: 'following' | 'trade' | 'all'
+  mode: 'following' | 'trade' | 'all' | 'mine'
   tradeLabel: string | null
   suggested: Pro[]
   session: Session | null
@@ -757,7 +758,9 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
 }) {
   const hero = mode === 'following'
     ? { title: 'Build your Following feed', sub: `Follow ${tradeLabel ? tradeLabel.toLowerCase() : 'the'} pros below — their projects and answers land here.` }
-    : { title: 'Start your Guild presence', sub: 'Share a project, ask a question, or introduce yourself.' }
+    : mode === 'mine'
+      ? { title: 'Your posts live here', sub: 'Share a project, ask a question, or post a milestone to get started.' }
+      : { title: 'Start your Guild presence', sub: 'Share a project, ask a question, or introduce yourself.' }
 
   return (
     <div className="space-y-3">
@@ -812,7 +815,7 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
             <span className="text-[13px] font-bold text-gray-800">People to follow{tradeLabel ? ` in ${tradeLabel}` : ''}</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            {suggested.map(pro => (
+            {suggested.slice(0, 6).map(pro => (
               <div key={pro.id} className="rounded-xl border p-3 flex flex-col items-center text-center" style={{ borderColor: '#EEF1F0' }}>
                 <Link href={`/pro/${(pro as any).slug || pro.id}`} className="mb-1.5">
                   <Avatar pro={pro} size={12} />
@@ -827,6 +830,16 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
                 {session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} compact />}
               </div>
             ))}
+            {/* Keep the grid even — a browse card fills the odd cell */}
+            {(Math.min(suggested.length, 6) % 2 === 1) && (
+              <Link href={tradeLabel ? `/fl?trade=${suggested[0]?.trade_category?.slug || ''}` : '/fl'}
+                className="rounded-xl border border-dashed flex flex-col items-center justify-center text-center p-3 transition-colors hover:bg-gray-50" style={{ borderColor: '#D7DEDB' }}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center mb-1.5" style={{ background: '#E6F5F1' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <span className="text-[12px] font-bold text-gray-700 leading-tight">Browse all<br/>{tradeLabel || 'pros'}</span>
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -838,7 +851,7 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
 // Guild Page — main component
 // ─────────────────────────────────────────────────────────────────────────────
 
-type FeedFilter = 'all' | 'following' | 'questions'
+type FeedFilter = 'all' | 'following' | 'questions' | 'projects' | 'mine'
 
 function GuildPageInner() {
   const { session: _real, loading: authLoading, signOut } = useProSession()
@@ -855,9 +868,9 @@ function GuildPageInner() {
   // A logged-in pro's feed DEFAULTS to their own trade.
   const [tradeFilter, setTradeFilter] = useState<string | null>(null)
 
-  // URL-driven tab — ?tab=questions|following (feed is default)
+  // URL-driven tab — feed is default; left-nav adds projects|mine
   const tabParam = searchParams.get('tab') as FeedFilter | null
-  const feedFilter: FeedFilter = tabParam && ['all','following','questions'].includes(tabParam) ? tabParam : 'all'
+  const feedFilter: FeedFilter = tabParam && ['all','following','questions','projects','mine'].includes(tabParam) ? tabParam : 'all'
 
   // Seed the trade filter once auth resolves: a pro lands on their own trade.
   useEffect(() => {
@@ -866,11 +879,14 @@ function GuildPageInner() {
   }, [authLoading, _real, tradeFilter])
 
   function buildUrl(s: Session | null, ff: FeedFilter, trade: string) {
+    // My Posts — only this pro's own posts, no trade/feed filter
+    if (ff === 'mine' && s) return `/api/posts?pro_id=${s.id}&limit=30`
     const base = s ? `/api/posts?feed_for=${s.id}&limit=30` : `/api/posts?limit=30`
     const p = new URLSearchParams()
     // Following shows everyone you follow, across trades — so no trade filter there.
     if (trade && ff !== 'following') p.set('trade_slug', trade)
     if (ff === 'questions') p.set('post_type', 'tip')
+    if (ff === 'projects')  p.set('post_type', 'work')
     if (ff === 'following')  p.set('following', '1')
     const qs = p.toString()
     return qs ? `${base}&${qs}` : base
@@ -905,13 +921,13 @@ function GuildPageInner() {
     ]).then(([prosData, likesData, jobsData, qData]) => {
       let pros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
       // If the pro's own trade is too thin, backfill with top pros from any trade
-      if (s?.trade_slug && pros.length < 3) {
-        safe(fetch('/api/pros?limit=8&sort=rating&status=all')).then((all: any) => {
+      if (s?.trade_slug && pros.length < 6) {
+        safe(fetch('/api/pros?limit=12&sort=rating&status=all')).then((all: any) => {
           const extra = (all.pros || []).filter((p: Pro) => p.id !== s?.id && !pros.some((x: Pro) => x.id === p.id))
-          setSuggested([...pros, ...extra].slice(0, 5))
+          setSuggested([...pros, ...extra].slice(0, 6))
         })
       } else {
-        setSuggested(pros.slice(0, 5))
+        setSuggested(pros.slice(0, 6))
       }
       setLikedIds(new Set(likesData.likes || []))
       setJobAlerts(jobsData.jobs || [])
@@ -1093,8 +1109,8 @@ function GuildPageInner() {
                     { href: '/guild',               tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
                     { href: '/guild?tab=questions',  tab: 'questions',  label: 'Q&A',        icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
                     { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
-                    { href: '/jobs',                 tab: null,         label: 'Projects',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-                    { href: `/pro/${session.slug || session.id}?tab=posts`, tab: null, label: 'My Posts', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
+                    { href: '/guild?tab=projects',   tab: 'projects',   label: 'Projects',   icon: 'M2 3h20v4H2zM4 7v13a1 1 0 001 1h14a1 1 0 001-1V7M10 11h4' },
+                    { href: '/guild?tab=mine',       tab: 'mine',       label: 'My Posts',   icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
                   ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
                     const active = item.tab
                       ? feedFilter === item.tab
@@ -1165,11 +1181,10 @@ function GuildPageInner() {
           {/* ── MAIN FEED ── */}
           <div className="min-w-0">
 
-            {/* Contextual trade filter — fixed order, All Trades first.
-                The pro's trade is simply the default-selected chip (no duplicate). */}
-            {feedFilter !== 'following' && (
-              <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5"
-                style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+            {/* Contextual trade filter — fixed order, All Trades first, wraps so
+                every chip stays visible. The pro's trade is the default selection. */}
+            {(feedFilter === 'all' || feedFilter === 'questions' || feedFilter === 'projects') && (
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <button onClick={() => setTradeFilter('')}
                   className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
                   style={tradeFilter === ''
@@ -1236,7 +1251,7 @@ function GuildPageInner() {
               </div>
             ) : postsWithLikes.length === 0 ? (
               <EmptyFeed
-                mode={feedFilter === 'following' ? 'following' : (tradeFilter ? 'trade' : 'all')}
+                mode={feedFilter === 'following' ? 'following' : feedFilter === 'mine' ? 'mine' : (tradeFilter ? 'trade' : 'all')}
                 tradeLabel={myTradeLabel}
                 suggested={suggested}
                 session={session}
@@ -1273,8 +1288,8 @@ function GuildPageInner() {
               </div>
               {suggested.length === 0 ? (
                 <div className="text-[12px] text-gray-400">No suggestions yet.</div>
-              ) : suggested.map((pro, i) => (
-                <div key={pro.id} className={`flex items-center gap-2.5 py-2 ${i < suggested.length - 1 ? 'border-b border-gray-100' : ''}`}>
+              ) : suggested.slice(0, 5).map((pro, i, arr) => (
+                <div key={pro.id} className={`flex items-center gap-2.5 py-2 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   <Link href={`/pro/${(pro as any).slug || pro.id}`} className="flex-shrink-0">
                     <Avatar pro={pro} size={8} />
                   </Link>
