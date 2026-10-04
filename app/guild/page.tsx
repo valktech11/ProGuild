@@ -1789,7 +1789,7 @@ function GuildPageInner() {
                 {/* Navigation — active item fills with the brand gradient */}
                 <nav className="px-2 pb-2 pt-1.5 border-t" style={{ borderColor: '#EEF1F0' }}>
                   {([
-                    { href: '/guild',               tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
+                    { href: '/guild?tab=all',        tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
                     { href: '/guild?tab=questions',  tab: 'questions',  label: 'Q&A',        icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
                     { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
                     { href: '/guild?tab=projects',   tab: 'projects',   label: 'Projects',   icon: 'M2 3h20v4H2zM4 7v13a1 1 0 001 1h14a1 1 0 001-1V7M10 11h4' },
@@ -1797,7 +1797,7 @@ function GuildPageInner() {
                   ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
                     const active = item.tab
                       ? feedFilter === item.tab
-                      : (item.href === '/guild' && feedFilter === 'all')
+                      : (item.href === '/guild?tab=all' && feedFilter === 'all')
                     return (
                       <Link key={item.href} href={item.href}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all"
