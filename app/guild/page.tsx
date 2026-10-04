@@ -412,7 +412,7 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
   const isOwn = session?.id === post.pro_id
   const isQuestion = post.post_type === 'tip'
   const isMilestone = post.post_type === 'milestone'
-  const cfg = POST_TYPES[post.post_type]
+  const cfg = POST_TYPES[post.post_type] || POST_TYPES['update']
 
   async function loadComments() {
     if (comments.length > 0) { setShowComments(s => !s); return }
@@ -719,12 +719,14 @@ export default function GuildPage() {
     const s = _real
     setSession(s)
 
+    const safe = (p: Promise<Response>): Promise<any> => p.then(r => r.ok ? r.json() : {}).catch(() => ({}))
+
     Promise.all([
-      fetch(buildUrl(s)).then(r => r.json()),
-      fetch('/api/pros?limit=8&sort=rating').then(r => r.json()),
-      s ? fetch(`/api/posts/likes?pro_id=${s.id}`).then(r => r.json()) : Promise.resolve({ likes: [] }),
-      fetch('/api/jobs?status=Open&limit=3').then(r => r.json()),
-      fetch('/api/posts?limit=5&post_type=tip').then(r => r.json()),
+      safe(fetch(buildUrl(s))),
+      safe(fetch('/api/pros?limit=8&sort=rating')),
+      s ? safe(fetch(`/api/posts/likes?pro_id=${s.id}`)) : Promise.resolve({ likes: [] }),
+      safe(fetch('/api/jobs?status=Open&limit=3')),
+      safe(fetch('/api/posts?limit=5&post_type=tip')),
     ]).then(([postsData, prosData, likesData, jobsData, qData]) => {
       setPosts(postsData.posts || [])
       const allPros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
@@ -733,7 +735,7 @@ export default function GuildPage() {
       setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
   }, [tradeFilter, feedFilter, _real])
 
   const postsWithLikes = posts.map(p => ({ ...p, liked_by_me: likedIds.has(p.id) }))
