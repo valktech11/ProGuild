@@ -470,13 +470,26 @@ function FollowButton({ proId, followerId, compact, onToggle }: { proId: string;
   )
 }
 
-// Message button — fires guild:dm event to open the in-page slide-over panel
-function MessageButton({ proId, compact }: { proId: string; compact?: boolean }) {
+// Message button — only shown when session user and target are mutually connected
+function MessageButton({ proId, followerId, compact }: { proId: string; followerId: string; compact?: boolean }) {
+  const [canMessage, setCanMessage] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    // Check both directions: does session follow target AND does target follow session?
+    Promise.all([
+      fetch(`/api/follows?follower_id=${followerId}&following_id=${proId}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/follows?follower_id=${proId}&following_id=${followerId}`).then(r => r.ok ? r.json() : null),
+    ]).then(([a, b]) => {
+      setCanMessage(!!(a?.following && b?.following))
+    }).catch(() => setCanMessage(false))
+  }, [proId, followerId])
+
+  if (!canMessage) return null
+
   return (
     <button
       onClick={() => window.dispatchEvent(new CustomEvent('guild:dm', { detail: { proId } }))}
       className={`inline-flex items-center gap-1.5 font-semibold border rounded-lg transition-colors hover:bg-gray-50 ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} border-gray-200 text-gray-600`}>
-      {/* Speech bubble icon */}
       <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
       </svg>
@@ -503,11 +516,7 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Lock body scroll while panel is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [])
+  // Panel is fixed-position; no body scroll lock needed
 
   // Load thread list on mount
   useEffect(() => {
@@ -1266,7 +1275,7 @@ function FollowStrip({ pros, session, tradeLabel, onFollowToggle }: { pros: Pro[
               {session.id !== pro.id && (
                 <div className="flex items-center justify-center gap-1.5">
                   <FollowButton proId={pro.id} followerId={session.id} compact onToggle={onFollowToggle} />
-                  <MessageButton proId={pro.id} compact />
+                  <MessageButton proId={pro.id} followerId={session.id} compact />
                 </div>
               )}
             </div>
@@ -1785,11 +1794,10 @@ function GuildPageInner() {
                     { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
                     { href: '/guild?tab=projects',   tab: 'projects',   label: 'Projects',   icon: 'M2 3h20v4H2zM4 7v13a1 1 0 001 1h14a1 1 0 001-1V7M10 11h4' },
                     { href: '/guild?tab=mine',       tab: 'mine',       label: 'My Posts',   icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
-                    { href: '/messages',             tab: null,         label: 'Messages',   icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
                   ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
                     const active = item.tab
                       ? feedFilter === item.tab
-                      : (item.href === '/guild' && feedFilter === 'all') || item.href === '/messages' && false
+                      : (item.href === '/guild' && feedFilter === 'all')
                     return (
                       <Link key={item.href} href={item.href}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all"
@@ -2027,7 +2035,7 @@ function GuildPageInner() {
                   {session && session.id !== pro.id && (
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <FollowButton proId={pro.id} followerId={session.id} compact />
-                      <MessageButton proId={pro.id} compact />
+                      <MessageButton proId={pro.id} followerId={session.id} compact />
                     </div>
                   )}
                 </div>
@@ -2129,7 +2137,6 @@ function GuildPageInner() {
               { href: '/dashboard', label: 'Home',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', active: false },
               { href: '/jobs',      label: 'Projects', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', active: false },
               { href: '/guild',     label: 'The Guild',icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
-              { href: '/messages',  label: 'Messages', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', active: false },
             ] : [
               { href: '/',          label: 'Find Pros',icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z', active: false },
               { href: '/post-job',  label: 'Post Job', icon: 'M12 4v16m8-8H4', active: false },
