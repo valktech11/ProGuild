@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
 import Link from 'next/link'
 import { Session, Post, Pro, PostType } from '@/types'
@@ -693,8 +694,11 @@ function ProfileCard({ session }: { session: Session }) {
 // Guild Page — main component
 // ─────────────────────────────────────────────────────────────────────────────
 
+type FeedFilter = 'all' | 'following' | 'questions' | 'network'
+
 export default function GuildPage() {
   const { session: _real } = useProSession()
+  const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [suggested, setSuggested] = useState<Pro[]>([])
@@ -704,13 +708,16 @@ export default function GuildPage() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
   const [tradeFilter, setTradeFilter] = useState('')
-  const [feedFilter, setFeedFilter] = useState<'all' | 'following' | 'questions'>('all')
 
-  function buildUrl(s: Session | null) {
+  // URL-driven tab — ?tab=discover|questions|following|network
+  const tabParam = searchParams.get('tab') as FeedFilter | null
+  const feedFilter: FeedFilter = tabParam && ['all','following','questions','network'].includes(tabParam) ? tabParam : 'all'
+
+  function buildUrl(s: Session | null, ff: FeedFilter) {
     const base = s ? `/api/posts?feed_for=${s.id}&limit=30` : `/api/posts?limit=30`
     const p = new URLSearchParams()
     if (tradeFilter) p.set('trade_slug', tradeFilter)
-    if (feedFilter === 'questions') p.set('post_type', 'tip')
+    if (ff === 'questions') p.set('post_type', 'tip')
     const qs = p.toString()
     return qs ? `${base}&${qs}` : base
   }
@@ -722,7 +729,7 @@ export default function GuildPage() {
     const safe = (p: Promise<Response>): Promise<any> => p.then(r => r.ok ? r.json() : {}).catch(() => ({}))
 
     Promise.all([
-      safe(fetch(buildUrl(s))),
+      safe(fetch(buildUrl(s, feedFilter))),
       safe(fetch('/api/pros?limit=8&sort=rating&status=all')),
       s ? safe(fetch(`/api/posts/likes?pro_id=${s.id}`)) : Promise.resolve({ likes: [] }),
       safe(fetch('/api/jobs?status=Open&limit=3')),
@@ -762,8 +769,33 @@ export default function GuildPage() {
   }
 
   return (
-    <DashboardShell session={session} newLeads={0}>
+    <DashboardShell session={session} newLeads={0} noSidebar={!!session}>
       <div className="min-h-screen" style={{ backgroundColor: '#F3F2EF' }}>
+
+        {/* ── Logged-in Guild header ── */}
+        {session && (
+          <div className="bg-white border-b border-gray-200 px-6 h-14 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Link href="/guild" className="flex items-center gap-2">
+                <div className="w-7 h-7">
+                  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="url(#g2)"/>
+                    <text x="8.5" y="21" fontSize="12" fontWeight="700" fill="white" fontFamily="DM Sans,sans-serif">PG</text>
+                    <defs><linearGradient id="g2" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="#14B8A6"/><stop offset="1" stopColor="#0C5F57"/></linearGradient></defs>
+                  </svg>
+                </div>
+                <span className="font-serif text-[15px] font-bold text-gray-900">The Guild</span>
+              </Link>
+            </div>
+            <Link href="/dashboard"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              My Business →
+            </Link>
+          </div>
+        )}
 
         {/* ── Public nav ── */}
         {!session && (
@@ -837,32 +869,37 @@ export default function GuildPage() {
               <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm space-y-0.5">
                 {/* Main */}
                 {[
-                  { href: '/guild',    label: 'Home',     icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z', active: true },
-                  { href: '/guild?tab=discover', label: 'Discover', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
-                  { href: '/guild?tab=questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                  { href: '/jobs',     label: 'Projects',  icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-                  { href: '/pro-network', label: 'Network', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-                ].map(item => (
-                  <Link key={item.href} href={item.href}
-                    className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors ${item.active ? 'text-teal-700 bg-teal-50 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={item.active ? 2.25 : 1.75} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
-                    {item.label}
-                  </Link>
-                ))}
+                  { href: '/guild',              tab: null,        label: 'Home',      icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
+                  { href: '/guild?tab=questions', tab: 'questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                  { href: '/jobs',               tab: null,        label: 'Projects',  icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+                  { href: '/guild?tab=network',  tab: 'network',   label: 'Network',   icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+                ].map(item => {
+                  const active = item.tab ? feedFilter === item.tab : (feedFilter === 'all' && item.href === '/guild')
+                  return (
+                    <Link key={item.href} href={item.href}
+                      className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors ${active ? 'text-teal-700 bg-teal-50 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.25 : 1.75} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
+                      {item.label}
+                    </Link>
+                  )
+                })}
                 {/* My Activity */}
                 <div className="pt-2 pb-1 px-2.5">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">My Activity</p>
                 </div>
                 {[
-                  { href: '/guild?tab=following', label: 'Following', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
-                  { href: `/pro/${session.slug || session.id}?tab=posts`, label: 'My Posts', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
-                ].map(item => (
-                  <Link key={item.href} href={item.href}
-                    className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
-                    {item.label}
-                  </Link>
-                ))}
+                  { href: '/guild?tab=following', tab: 'following', label: 'Following', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+                  { href: `/pro/${session.slug || session.id}?tab=posts`, tab: null, label: 'My Posts', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
+                ].map(item => {
+                  const active = item.tab ? feedFilter === item.tab : false
+                  return (
+                    <Link key={item.href} href={item.href}
+                      className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors ${active ? 'text-teal-700 bg-teal-50 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.25 : 1.75} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
+                      {item.label}
+                    </Link>
+                  )
+                })}
                 {/* My Profile */}
                 <div className="pt-2 pb-1 px-2.5">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">My Profile</p>
@@ -870,7 +907,6 @@ export default function GuildPage() {
                 {[
                   { href: `/pro/${session.slug || session.id}`, label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                   { href: `/pro/${session.slug || session.id}#reputation`, label: 'Reputation', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
-                  { href: '/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
                 ].map(item => (
                   <Link key={item.href} href={item.href}
                     className="flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
@@ -908,10 +944,10 @@ export default function GuildPage() {
                   { key: 'questions', label: 'Questions' },
                   ...(session ? [{ key: 'following', label: 'Following' }] : []),
                 ] as { key: typeof feedFilter; label: string }[]).map(tab => (
-                  <button key={tab.key} onClick={() => setFeedFilter(tab.key)}
-                    className={`flex-1 py-3 text-[13px] font-semibold transition-colors ${feedFilter === tab.key ? 'text-teal-700 border-b-2 border-teal-600 bg-teal-50/30' : 'text-gray-500 hover:text-gray-700'}`}>
+                  <Link key={tab.key} href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
+                    className={`flex-1 py-3 text-[13px] font-semibold transition-colors text-center ${feedFilter === tab.key ? 'text-teal-700 border-b-2 border-teal-600 bg-teal-50/30' : 'text-gray-500 hover:text-gray-700'}`}>
                     {tab.label}
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -1023,7 +1059,7 @@ export default function GuildPage() {
               <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-[13px] font-bold text-gray-900">Trending Questions</div>
-                  <button onClick={() => setFeedFilter('questions')} className="text-[11px] text-teal-600 hover:underline font-medium">See all</button>
+                  <Link href="/guild?tab=questions" className="text-[11px] text-teal-600 hover:underline font-medium">See all</Link>
                 </div>
                 <div className="space-y-3">
                   {trendingQuestions.slice(0, 4).map((post, i, arr) => (

@@ -761,8 +761,8 @@ function TopHeader({ session, dk, onAddLead, onToggleDark }: {
 // ── Main shell ────────────────────────────────────────────────────────────────
 import { TrialBanner } from '@/components/layout/TrialBanner'
 
-export default function DashboardShell({ children, session, newLeads = 0, onAddLead, darkMode, onToggleDark, fullBleed }: {
-  children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void; fullBleed?: boolean
+export default function DashboardShell({ children, session, newLeads = 0, onAddLead, darkMode, onToggleDark, fullBleed, noSidebar }: {
+  children: React.ReactNode; session: Session | null; newLeads?: number; onAddLead?: () => void; darkMode?: boolean; onToggleDark?: () => void; fullBleed?: boolean; noSidebar?: boolean
 }) {
   const p   = usePathname()
   const nav = buildNav(newLeads, session?.trade_slug, session?.trade)
@@ -801,7 +801,7 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
         {/* ── DESKTOP ──────────────────────────────────────────────────────── */}
         <div className="hidden md:flex h-screen overflow-hidden">
 
-          {session && <aside className="flex-shrink-0 flex flex-col h-full overflow-hidden"
+          {session && !noSidebar && <aside className="flex-shrink-0 flex flex-col h-full overflow-hidden"
             style={{ width: 220, background: 'linear-gradient(180deg,#0F2847 0%,#091525 60%,#060D18 100%)', borderRight: '1px solid rgba(255,255,255,.04)' }}>
 
             {/* Logo */}
@@ -854,6 +854,18 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
                 <div className="mb-0.5"><NavLink item={{ label: 'Settings', href: '/dashboard/settings', icon: icon.settings }} active={p === '/dashboard/settings'} /></div>
                 <div className="mb-0.5"><NavLink item={{ label: 'Team', href: '/dashboard/settings/team', icon: (a: boolean) => <I sw={a?2.2:1.6} d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 100 8 4 4 0 000-8z" /> }} active={p === '/dashboard/settings/team'} /></div>
               </div>
+            </div>
+
+            {/* Open The Guild CTA */}
+            <div className="flex-shrink-0 px-4 pb-3">
+              <Link href="/guild"
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold transition-all hover:brightness-110 active:scale-[.98]"
+                style={{ background: 'rgba(20,184,166,0.15)', color: '#2DD4BF', border: '1px solid rgba(45,212,191,0.3)', textDecoration: 'none' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Open The Guild →
+              </Link>
             </div>
 
             {/* Pro identity bottom */}
@@ -918,13 +930,15 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
 
         {/* ── MOBILE ───────────────────────────────────────────────────────── */}
         <div className="md:hidden" suppressHydrationWarning>
-          <main className="pb-[68px] min-h-screen" style={{ backgroundColor: t.pageBg }}>
+          <main className={`${noSidebar ? '' : 'pb-[68px]'} min-h-screen`} style={{ backgroundColor: t.pageBg }}>
             <TrialBanner session={session} />
             {children}
           </main>
-          <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
-          <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
-          <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={handleAddLead} />
+          {!noSidebar && <>
+            <MobileNav nl={newLeads} onAdd={() => setSheetOpen(true)} onMore={() => setMoreOpen(true)} pipelineLabel={getTradeConfig(session?.trade_slug).labels.pipeline} />
+            <MoreDrawer open={moreOpen} onClose={() => setMoreOpen(false)} session={session} nl={newLeads} dk={dk} onToggleDark={onToggleDark} />
+            <QuickSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onAddLead={handleAddLead} />
+          </>}
         </div>
       </div>
 
