@@ -919,8 +919,8 @@ export default function DashboardShell({ children, session, newLeads = 0, onAddL
           </aside>}
 
           <main className={`pg-main flex-1 flex flex-col ${fullBleed ? 'overflow-hidden' : 'overflow-y-auto'}`} style={{ backgroundColor: t.pageBg, color: dk ? '#F1F5F9' : undefined }}>
-            {/* ── Top header bar ─────────────────────────────────────────── */}
-            {session && <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />}
+            {/* ── Top header bar — suppressed on noSidebar pages (e.g. The Guild) ── */}
+            {session && !noSidebar && <TopHeader session={session} dk={dk} onAddLead={onAddLead} onToggleDark={onToggleDark} />}
             <TrialBanner session={session} />
             <div className={fullBleed ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1'}>
               {children}

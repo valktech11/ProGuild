@@ -768,206 +768,245 @@ function GuildPageInner() {
     setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
+  // Sticky offset: header top row (56px) + feed tab strip (44px) = 100px
+  const STICKY_TOP = 100
+
   return (
-    <DashboardShell session={session} newLeads={0} noSidebar={!!session}>
+    <DashboardShell session={session} newLeads={0} noSidebar>
       <div className="min-h-screen" style={{ backgroundColor: '#EDECEA' }}>
 
-        {/* ══════════════════════════════════════════════════════════════
-            HEADER — dark teal bar: logo | trade pills | user identity
-        ══════════════════════════════════════════════════════════════ */}
-        <header className="sticky top-0 z-40" style={{ background: 'linear-gradient(135deg, #0D4F47 0%, #0F6B5E 100%)' }}>
-          {/* Top row */}
-          <div className="px-5 h-14 flex items-center gap-4">
-            {/* Logo */}
-            <Link href="/guild" className="flex items-center gap-2.5 flex-shrink-0">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2L4 7V16C4 22.6 9.4 28.4 16 30C22.6 28.4 28 22.6 28 16V7L16 2Z" fill="rgba(255,255,255,0.18)"/>
-                <path d="M16 5L6.5 9V16C6.5 21.2 10.8 26 16 27.5C21.2 26 25.5 21.2 25.5 16V9L16 5Z" fill="rgba(255,255,255,0.1)"/>
-                <text x="9" y="21" fontSize="11" fontWeight="800" fill="white" fontFamily="system-ui,sans-serif" letterSpacing="-0.5">PG</text>
+        {/* ════════════════════════════════════════════════════════════════
+            HEADER — single sticky block, two rows, no DashboardShell chrome
+            Row 1 (56px): shield logo | trade pills (scroll) | user avatar
+            Row 2 (44px): feed tab strip
+        ════════════════════════════════════════════════════════════════ */}
+        <header className="sticky top-0 z-40" style={{ background: 'linear-gradient(160deg, #0C4840 0%, #0D5C52 60%, #0F6B5E 100%)', boxShadow: '0 1px 0 rgba(0,0,0,0.15)' }}>
+
+          {/* ── Row 1: brand + filter + identity ── */}
+          <div className="flex items-center gap-3 px-4 h-14">
+
+            {/* Brand: shield mark + wordmark */}
+            <Link href="/guild" className="flex items-center gap-2 flex-shrink-0 group">
+              {/* Shield SVG — no text label, just the geometric mark */}
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <path d="M15 2L3 7.5V15C3 21.6 8.4 27.5 15 29C21.6 27.5 27 21.6 27 15V7.5L15 2Z" fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
+                <path d="M10 15l3.5 3.5L20.5 11" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <span className="text-white font-bold text-[16px] tracking-tight">The Guild</span>
+              <span className="text-white font-bold text-[15px] tracking-tight group-hover:opacity-80 transition-opacity">The Guild</span>
             </Link>
 
-            {/* Trade filter pills — scrollable, center of header */}
-            <div className="flex-1 overflow-x-auto flex items-center gap-1.5 px-2" style={{ scrollbarWidth: 'none' }}>
+            {/* Trade filter pills — horizontal scroll, fills remaining space */}
+            <div className="flex-1 overflow-x-auto flex items-center gap-1" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
               <button
                 onClick={() => setTradeFilter('')}
-                className={`flex-shrink-0 px-3 py-1 rounded-full text-[12px] font-semibold transition-all ${!tradeFilter ? 'bg-white text-teal-900' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
+                  !tradeFilter
+                    ? 'bg-white text-teal-800'
+                    : 'text-white/65 hover:text-white hover:bg-white/10 border border-white/10'
+                }`}>
                 All Trades
               </button>
               {TRADES.map(t => (
                 <button key={t.slug}
                   onClick={() => setTradeFilter(tradeFilter === t.slug ? '' : t.slug)}
-                  className={`flex-shrink-0 px-3 py-1 rounded-full text-[12px] font-semibold transition-all whitespace-nowrap ${tradeFilter === t.slug ? 'bg-white text-teal-900' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all whitespace-nowrap ${
+                    tradeFilter === t.slug
+                      ? 'bg-white text-teal-800'
+                      : 'text-white/65 hover:text-white hover:bg-white/10 border border-white/10'
+                  }`}>
                   {t.label}
                 </button>
               ))}
             </div>
 
-            {/* Right — user identity or auth buttons */}
+            {/* Right: user identity (once) or auth CTAs */}
             {session ? (
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <Link href="/dashboard"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                  style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                {/* Dashboard shortcut — icon only on mobile, icon+label on md+ */}
+                <Link href="/dashboard" title="My Business"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                  style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
                   </svg>
-                  My Business
+                  <span className="hidden sm:inline">Dashboard</span>
                 </Link>
-                <Link href={`/pro/${session.slug || session.id}`} className="flex items-center gap-2">
-                  <div className="ring-2 ring-white/30 rounded-full">
+                {/* Avatar only — name shown in sidebar */}
+                <Link href={`/pro/${session.slug || session.id}`}
+                  className="flex items-center gap-2 rounded-full hover:opacity-80 transition-opacity">
+                  <div style={{ padding: 2, borderRadius: '50%', background: 'rgba(255,255,255,0.25)' }}>
                     <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={8} />
-                  </div>
-                  <div className="hidden md:block text-right">
-                    <div className="text-white text-[13px] font-semibold leading-tight">{session.name?.split(' ')[0]}</div>
-                    <div className="text-white/55 text-[11px] leading-tight">{session.trade}</div>
                   </div>
                 </Link>
               </div>
             ) : (
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Link href="/login" className="text-white/80 text-[13px] font-medium px-3 py-1.5 hover:text-white transition-colors">Log in</Link>
-                <Link href="/login?tab=signup" className="text-[13px] font-semibold px-4 py-1.5 rounded-lg transition-all"
-                  style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+                <Link href="/login" className="text-white/75 text-[13px] font-medium hover:text-white transition-colors whitespace-nowrap">Log in</Link>
+                <Link href="/login?tab=signup"
+                  className="text-[12px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all"
+                  style={{ background: 'rgba(255,255,255,0.14)', color: 'white', border: '1px solid rgba(255,255,255,0.22)' }}>
                   Join Free
                 </Link>
               </div>
             )}
           </div>
 
-          {/* Feed filter tabs — bottom strip of header */}
-          <div className="flex border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          {/* ── Row 2: feed context tabs — what are you looking at? ── */}
+          {/*
+            Purpose: not redundant nav — these change the feed's content type.
+            Feed = latest activity from all trades (default landing)
+            Questions = Q&A mode, shows only question posts
+            Following = personalised — posts from people you follow
+            Network = discover new pros in your trade/area
+          */}
+          <div className="flex" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             {([
-              { key: 'all', label: 'Feed' },
-              { key: 'questions', label: 'Questions' },
-              ...(session ? [{ key: 'following', label: 'Following' }] : []),
-              { key: 'network', label: 'Network' },
-            ] as { key: typeof feedFilter; label: string }[]).map(tab => (
-              <Link key={tab.key} href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
-                className={`px-5 py-2.5 text-[13px] font-semibold transition-all relative ${
-                  feedFilter === tab.key
-                    ? 'text-white'
-                    : 'text-white/50 hover:text-white/80'
-                }`}>
-                {tab.label}
-                {feedFilter === tab.key && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-t-full" />
-                )}
-              </Link>
-            ))}
+              { key: 'all'       as const, label: 'Feed',      desc: 'Latest from all trades' },
+              { key: 'questions' as const, label: 'Q&A',       desc: 'Questions & expert answers' },
+              ...(session ? [{ key: 'following' as const, label: 'Following', desc: 'Posts from people you follow' }] : []),
+              { key: 'network'   as const, label: 'Network',   desc: 'Discover pros near you' },
+            ]).map(tab => {
+              const active = feedFilter === tab.key
+              return (
+                <Link key={tab.key}
+                  href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
+                  title={tab.desc}
+                  className="relative flex-1 flex items-center justify-center py-2.5 text-[12.5px] font-semibold transition-colors"
+                  style={{ color: active ? 'white' : 'rgba(255,255,255,0.45)' }}>
+                  {tab.label}
+                  {active && <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full" style={{ background: 'rgba(255,255,255,0.85)' }} />}
+                </Link>
+              )
+            })}
           </div>
         </header>
 
-        {/* ══════════════════════════════════════════════════════════════
-            3-col layout
-        ══════════════════════════════════════════════════════════════ */}
-        <div className="max-w-6xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-5 items-start">
+        {/* ════════════════════════════════════════════════════════════════
+            3-col layout: left sidebar | feed | right sidebar
+        ════════════════════════════════════════════════════════════════ */}
+        <div className="max-w-[1100px] mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
 
-          {/* ── LEFT SIDEBAR — single unified panel ── */}
-          <div className="hidden lg:block sticky top-[88px]">
+          {/* ── LEFT SIDEBAR ── */}
+          <aside className="hidden lg:block" style={{ position: 'sticky', top: STICKY_TOP }}>
             {session ? (
-              /* Logged-in: single card, avatar → identity → nav seamless */
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200/80">
-                {/* Identity block */}
-                <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200/60">
+                {/* Profile identity — compact, no large banner */}
+                <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="ring-2 ring-teal-100 rounded-full flex-shrink-0">
+                    <div style={{ flexShrink: 0, borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)' }}>
                       <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={11} />
                     </div>
                     <div className="min-w-0">
                       <div className="text-[14px] font-bold text-gray-900 leading-tight truncate">{session.name}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5 truncate">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
                       {session.is_verified && (
                         <div className="flex items-center gap-1 mt-0.5">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                          <span className="text-[11px] text-green-700 font-semibold">Licensed & Verified</span>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                          <span className="text-[10px] text-green-700 font-semibold">Verified</span>
                         </div>
                       )}
-                      <div className="text-[11px] text-gray-400 mt-0.5 truncate">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
                     </div>
                   </div>
                   <Link href={`/pro/${session.slug || session.id}`}
                     className="block w-full py-1.5 text-center text-[12px] font-semibold rounded-lg transition-colors"
-                    style={{ background: '#F0FDF9', color: '#0F766E', border: '1px solid #99F6E4' }}>
-                    View profile
+                    style={{ background: '#F0FDF9', color: '#0F766E', border: '1px solid #CCFBF1' }}>
+                    View profile →
                   </Link>
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-2">
-                  {[
-                    { href: '/guild',              tab: null,        label: 'Home',      icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
-                    { href: '/guild?tab=questions', tab: 'questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                    { href: '/jobs',               tab: null,        label: 'Projects',  icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-                    { href: '/guild?tab=network',  tab: 'network',   label: 'Network',   icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-                    { href: '/guild?tab=following', tab: 'following', label: 'Following', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+                <nav className="py-2">
+                  {([
+                    { href: '/guild',               tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
+                    { href: '/guild?tab=questions',  tab: 'questions',  label: 'Q&A',        icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+                    { href: '/guild?tab=network',    tab: 'network',    label: 'Network',    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+                    { href: '/jobs',                 tab: null,         label: 'Projects',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
                     { href: `/pro/${session.slug || session.id}?tab=posts`, tab: null, label: 'My Posts', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
-                    { href: `/pro/${session.slug || session.id}#reputation`, tab: null, label: 'Reputation', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
-                  ].map(item => {
-                    const active = item.tab ? feedFilter === item.tab : (item.href === '/guild' && feedFilter === 'all')
+                  ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
+                    const active = item.tab
+                      ? feedFilter === item.tab
+                      : (item.href === '/guild' && feedFilter === 'all')
                     return (
                       <Link key={item.href} href={item.href}
-                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all relative overflow-hidden"
+                        className="flex items-center gap-3 mx-2 px-3 py-2 rounded-xl text-[13px] font-medium transition-all relative"
                         style={active ? { color: '#0F766E', background: '#F0FDF9', fontWeight: 600 } : { color: '#6B7280' }}>
-                        {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-teal-500" />}
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.75} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
+                        {active && <span className="absolute left-0 inset-y-1.5 w-[3px] rounded-r-full bg-teal-500" />}
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+                          <path d={item.icon}/>
+                        </svg>
                         {item.label}
                       </Link>
                     )
                   })}
                 </nav>
+
+                {/* Back to CRM */}
+                <div className="px-4 pb-3 pt-1 border-t border-gray-100">
+                  <Link href="/dashboard"
+                    className="flex items-center gap-2 text-[11px] text-gray-400 hover:text-teal-600 transition-colors py-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 12H5M12 5l-7 7 7 7"/>
+                    </svg>
+                    Back to CRM
+                  </Link>
+                </div>
               </div>
             ) : (
-              /* Logged-out: single card */
-              <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm">
-                <div className="px-4 py-5 border-b border-gray-100">
-                  <div className="text-[15px] font-bold text-gray-900 mb-1">Join The Guild</div>
-                  <p className="text-[13px] text-gray-500 mb-4 leading-relaxed">Connect with licensed pros, share your work, build your reputation.</p>
-                  <Link href="/login?tab=signup" className="block w-full py-2 text-center text-[13px] font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors mb-2">
+              /* Guest sidebar */
+              <div className="bg-white rounded-2xl border border-gray-200/60 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg width="16" height="16" viewBox="0 0 30 30" fill="none">
+                      <path d="M15 2L3 7.5V15C3 21.6 8.4 27.5 15 29C21.6 27.5 27 21.6 27 15V7.5L15 2Z" fill="#0D9488" opacity="0.2" stroke="#0D9488" strokeWidth="1.5"/>
+                      <path d="M10 15l3.5 3.5L20.5 11" stroke="#0D9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div className="text-[14px] font-bold text-gray-900">The Guild</div>
+                  </div>
+                  <p className="text-[12px] text-gray-500 mb-3 leading-relaxed">Connect with licensed tradespeople, share your work, and build your reputation.</p>
+                  <Link href="/login?tab=signup" className="block w-full py-2 text-center text-[12px] font-bold bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors mb-2">
                     Join Free
                   </Link>
-                  <Link href="/login" className="block w-full py-2 text-center text-[13px] font-semibold border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
+                  <Link href="/login" className="block w-full py-2 text-center text-[12px] font-semibold border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
                     Log in
                   </Link>
                 </div>
-                <nav className="p-2">
-                  {[
-                    { href: '/guild',          label: 'The Guild',      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
-                    { href: '/jobs',           label: 'Open Projects',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-                    { href: '/verify-license', label: 'License Lookup', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-                    { href: '/guides',         label: 'Guides',         icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-                  ].map(item => (
+                <nav className="py-2">
+                  {([
+                    { href: '/guild',          label: 'The Guild',     icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
+                    { href: '/jobs',           label: 'Open Projects', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', active: false },
+                    { href: '/verify-license', label: 'License Check', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', active: false },
+                  ]).map(item => (
                     <Link key={item.href} href={item.href}
-                      className="flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all"
-                      style={(item as any).active ? { color: '#0F766E', background: '#F0FDF9', fontWeight: 600 } : { color: '#6B7280' }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
+                      className="flex items-center gap-3 mx-2 px-3 py-2 rounded-xl text-[13px] font-medium transition-all"
+                      style={item.active ? { color: '#0F766E', background: '#F0FDF9', fontWeight: 600 } : { color: '#6B7280' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={item.active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
                       {item.label}
                     </Link>
                   ))}
                 </nav>
               </div>
             )}
-          </div>
+          </aside>
 
           {/* ── MAIN FEED ── */}
           <div className="min-w-0">
-            {/* Composer */}
             {session && <PostComposer session={session} onPost={post => setPosts(p => [post as Post, ...p])} />}
 
-            {/* Login prompt for guests */}
             {!session && (
-              <div className="bg-white rounded-2xl border border-gray-200/80 p-4 mb-3 shadow-sm flex items-center gap-4">
+              <div className="bg-white rounded-2xl border border-gray-200/60 p-4 mb-3 shadow-sm flex items-center gap-4">
                 <div className="flex-1">
                   <p className="text-[14px] font-semibold text-gray-900 mb-0.5">Share your work with the Guild</p>
-                  <p className="text-[12px] text-gray-500">Licensed pros post projects, answer questions, and build reputation.</p>
+                  <p className="text-[12px] text-gray-500">Licensed pros post projects, answer questions, build reputation.</p>
                 </div>
-                <Link href="/login?tab=signup" className="flex-shrink-0 px-4 py-2 bg-teal-600 text-white text-[12px] font-semibold rounded-xl hover:bg-teal-700 transition-colors">
+                <Link href="/login?tab=signup" className="flex-shrink-0 px-4 py-2 bg-teal-600 text-white text-[12px] font-bold rounded-xl hover:bg-teal-700 transition-colors">
                   Join Free
                 </Link>
               </div>
             )}
 
-            {/* Posts */}
             {loading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => (
@@ -993,7 +1032,7 @@ function GuildPageInner() {
                 </div>
                 <div className="font-semibold text-gray-700 mb-1">Nothing here yet</div>
                 <div className="text-[13px] text-gray-400">
-                  {tradeFilter ? 'No posts in this trade. Try a different filter.' : 'Be the first to post in The Guild.'}
+                  {tradeFilter ? 'No posts in this trade — try a different filter.' : 'Be the first to post in The Guild.'}
                 </div>
                 {tradeFilter && (
                   <button onClick={() => setTradeFilter('')} className="mt-3 text-[13px] text-teal-600 font-semibold hover:underline">
@@ -1018,28 +1057,28 @@ function GuildPageInner() {
           </div>
 
           {/* ── RIGHT SIDEBAR ── */}
-          <div className="hidden lg:block space-y-4 sticky top-24">
+          <aside className="hidden lg:block space-y-3" style={{ position: 'sticky', top: STICKY_TOP }}>
 
             {/* Top Pros */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <div className="text-[13px] font-bold text-gray-900">Top Pros{session?.city ? ` in ${session.city}` : ''}</div>
+                <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">
+                  Top Pros{session?.city ? ` · ${session.city}` : ''}
+                </span>
                 <Link href="/" className="text-[11px] text-teal-600 hover:underline font-medium">See all</Link>
               </div>
               {suggested.length === 0 ? (
                 <div className="text-[12px] text-gray-400">No suggestions yet.</div>
               ) : suggested.map((pro, i) => (
-                <div key={pro.id} className={`flex items-center gap-3 py-2.5 ${i < suggested.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <div key={pro.id} className={`flex items-center gap-2.5 py-2 ${i < suggested.length - 1 ? 'border-b border-gray-100' : ''}`}>
                   <Link href={`/pro/${(pro as any).slug || pro.id}`} className="flex-shrink-0">
-                    <Avatar pro={pro} size={9} />
+                    <Avatar pro={pro} size={8} />
                   </Link>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`/pro/${(pro as any).slug || pro.id}`} className="text-[13px] font-semibold text-gray-900 hover:text-teal-600 truncate">
-                        {pro.full_name}
-                      </Link>
+                    <div className="flex items-center gap-1">
+                      <Link href={`/pro/${(pro as any).slug || pro.id}`} className="text-[12px] font-semibold text-gray-900 hover:text-teal-600 truncate">{pro.full_name}</Link>
                       {pro.is_verified && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#16a34a" className="flex-shrink-0">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="#16a34a" className="flex-shrink-0">
                           <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
                         </svg>
                       )}
@@ -1053,26 +1092,25 @@ function GuildPageInner() {
               ))}
             </div>
 
-            {/* Trending Questions */}
+            {/* Trending Q&A */}
             {trendingQuestions.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-[13px] font-bold text-gray-900">Trending Questions</div>
+                  <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Trending Q&amp;A</span>
                   <Link href="/guild?tab=questions" className="text-[11px] text-teal-600 hover:underline font-medium">See all</Link>
                 </div>
                 <div className="space-y-3">
                   {trendingQuestions.slice(0, 4).map((post, i, arr) => (
-                    <div key={post.id} className={`pb-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                      <p className="text-[12px] text-gray-800 font-medium leading-snug line-clamp-2 mb-1.5">{post.content}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                        <span className="flex items-center gap-0.5">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                          {post.comment_count || 0} answers
-                        </span>
+                    <Link key={post.id} href={`/guild?tab=questions`}
+                      className={`block pb-3 ${i < arr.length - 1 ? 'border-b border-gray-100' : ''} hover:opacity-80 transition-opacity`}>
+                      <p className="text-[12px] text-gray-800 font-medium leading-snug line-clamp-2 mb-1">{post.content}</p>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        <span>{post.comment_count || 0} answers</span>
                         <span>·</span>
                         <span>{(post.pro as any)?.trade_category?.category_name || 'General'}</span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -1082,19 +1120,19 @@ function GuildPageInner() {
             {jobAlerts.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-[13px] font-bold text-gray-900">Open Projects</div>
-                  <Link href="/jobs" className="text-[11px] text-teal-600 hover:underline font-medium">Browse all</Link>
+                  <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Open Projects</span>
+                  <Link href="/jobs" className="text-[11px] text-teal-600 hover:underline font-medium">Browse</Link>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {jobAlerts.map(job => (
                     <Link key={job.id} href="/jobs"
-                      className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-50 transition-colors -mx-1">
-                      <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                      className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors -mx-1">
+                      <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-gray-800 truncate leading-tight">{job.title}</div>
-                        <div className="text-[11px] text-gray-400 mt-0.5">
+                        <div className="text-[12px] font-semibold text-gray-800 truncate">{job.title}</div>
+                        <div className="text-[11px] text-gray-400">
                           {job.city || job.state || 'Florida'}{job.budget_range ? ` · ${job.budget_range}` : ''}
                         </div>
                       </div>
@@ -1104,46 +1142,44 @@ function GuildPageInner() {
               </div>
             )}
 
-            {/* Footer */}
-            <div className="text-[11px] text-gray-400 px-1 leading-relaxed">
-              <div className="flex flex-wrap gap-x-2 gap-y-1 mb-2">
+            {/* Footer links */}
+            <div className="text-[11px] text-gray-400 px-1">
+              <div className="flex flex-wrap gap-x-2 gap-y-1 mb-1.5">
                 <Link href="/guides" className="hover:text-teal-600">Guides</Link>
                 <Link href="/verify-license" className="hover:text-teal-600">License Lookup</Link>
                 <Link href="/fl" className="hover:text-teal-600">Find Pros</Link>
                 <Link href="/post-job" className="hover:text-teal-600">Post a Project</Link>
               </div>
-              <div className="text-[10px] text-gray-300">© 2026 ProGuild.ai · Licensed professionals only</div>
+              <div className="text-[10px] text-gray-300">© 2026 ProGuild.ai</div>
             </div>
-          </div>
+          </aside>
         </div>
 
-        {/* ── Mobile bottom bar ── */}
+        {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-stretch h-14">
             {(session ? [
-              { href: '/dashboard', label: 'Home', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-              { href: '/jobs', label: 'Projects', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-              { href: '/guild', label: 'The Guild', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
-              { href: '/messages', label: 'Messages', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+              { href: '/dashboard', label: 'Home',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', active: false },
+              { href: '/jobs',      label: 'Projects', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', active: false },
+              { href: '/guild',     label: 'The Guild',icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
+              { href: '/messages',  label: 'Messages', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', active: false },
             ] : [
-              { href: '/', label: 'Find Pros', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
-              { href: '/post-job', label: 'Post Job', icon: 'M12 4v16m8-8H4' },
-              { href: '/guild', label: 'The Guild', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
-              { href: '/login', label: 'Log in', icon: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1' },
-            ]).map((item: any) => {
-              const active = item.active || false
-              return (
-                <a key={item.href} href={item.href}
-                  className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
-                  style={{ color: active ? '#0F766E' : '#9CA3AF' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
-                    <path d={item.icon}/>
-                  </svg>
-                  <span className="text-[10px] font-medium leading-none">{item.label}</span>
-                </a>
-              )
-            })}
+              { href: '/',          label: 'Find Pros',icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z', active: false },
+              { href: '/post-job',  label: 'Post Job', icon: 'M12 4v16m8-8H4', active: false },
+              { href: '/guild',     label: 'The Guild',icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
+              { href: '/login',     label: 'Log in',   icon: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1', active: false },
+            ]).map(item => (
+              <a key={item.href} href={item.href}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                style={{ color: item.active ? '#0F766E' : '#9CA3AF' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth={item.active ? 2.5 : 1.75} strokeLinecap="round" strokeLinejoin="round">
+                  <path d={item.icon}/>
+                </svg>
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              </a>
+            ))}
           </div>
         </nav>
       </div>
