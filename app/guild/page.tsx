@@ -333,7 +333,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                 <input ref={beforeRef} type="file" accept="image/*" className="hidden" onChange={handleBeforePhoto} />
                 <button onClick={() => fileRef.current?.click()} disabled={uploading || photos.length >= 5}
                   title="Add photos"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-colors text-[12px] font-medium disabled:opacity-40">
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-colors text-[12px] font-medium disabled:opacity-40 ${isBeforeAfter && postType === 'work' ? 'hidden' : ''}`}>
                   {uploading
                     ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                     : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -352,11 +352,24 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                 )}
                 {/* Before photo upload — shown when B/A is toggled on */}
                 {postType === 'work' && isBeforeAfter && (
-                  <button onClick={() => beforeRef.current?.click()} disabled={uploading}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${beforePhoto ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    {beforePhoto ? 'Before ✓' : 'Add "Before" photo'}
-                  </button>
+                  <>
+                    <button onClick={() => beforeRef.current?.click()} disabled={uploading}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${beforePhoto ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
+                      {beforePhoto
+                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      }
+                      {beforePhoto ? 'Before ✓' : '+ Before photo'}
+                    </button>
+                    <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${photos.length > 0 ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
+                      {photos.length > 0
+                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      }
+                      {photos.length > 0 ? 'After ✓' : '+ After photo'}
+                    </button>
+                  </>
                 )}
               </div>
 
