@@ -764,16 +764,9 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
 
   return (
     <div className="space-y-3">
-      {/* Branded hero — compact so the feed doesn't feel empty */}
+      {/* Branded hero — compact, with a clearly-illustrative SVG (not a photo) */}
       <div className="relative overflow-hidden rounded-2xl shadow-sm">
         <div className="px-5 py-5 flex items-center gap-4 text-left" style={{ background: 'linear-gradient(125deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }}>
-          <div className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {mode === 'following'
-                ? <><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></>
-                : <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></>}
-            </svg>
-          </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-[16px] font-extrabold text-white leading-tight">{hero.title}</h3>
             <p className="text-[12.5px] text-white/80 leading-snug mt-0.5">{hero.sub}</p>
@@ -804,6 +797,33 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
                 </Link>
               )}
             </div>
+          </div>
+
+          {/* Illustration — stacked post cards + play glyph (vector, clearly artwork) */}
+          <div className="hidden sm:block flex-shrink-0 self-stretch" aria-hidden="true">
+            <svg width="140" height="104" viewBox="0 0 150 120" fill="none">
+              {/* back card, tilted */}
+              <rect x="26" y="30" width="92" height="74" rx="10" transform="rotate(-7 72 67)"
+                fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5"/>
+              {/* front card */}
+              <rect x="34" y="20" width="94" height="82" rx="11"
+                fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5"/>
+              {/* author row */}
+              <circle cx="51" cy="37" r="7" fill="rgba(255,255,255,0.35)"/>
+              <rect x="63" y="33" width="40" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+              <rect x="63" y="41" width="26" height="3.5" rx="1.75" fill="rgba(255,255,255,0.28)"/>
+              {/* media block with play */}
+              <rect x="44" y="53" width="74" height="38" rx="6"
+                fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2"/>
+              <circle cx="81" cy="72" r="11" fill="rgba(255,255,255,0.94)"/>
+              <path d="M78 67.5 L87 72 L78 76.5 Z" fill="#0F766E"/>
+              {/* photo chip */}
+              <g transform="translate(103,13)">
+                <rect x="0" y="0" width="27" height="27" rx="8" fill="rgba(255,255,255,0.92)"/>
+                <circle cx="9.5" cy="9.5" r="2.6" fill="#0D9488"/>
+                <path d="M4 21 L11.5 13.5 L16 18 L20 14 L23 17 L23 22 Q23 23 22 23 L5 23 Q4 23 4 22 Z" fill="#0F766E"/>
+              </g>
+            </svg>
           </div>
         </div>
       </div>
