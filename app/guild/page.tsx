@@ -157,8 +157,8 @@ const POST_TYPES: Record<PostType, { label: string; color: string; bg: string; b
   },
   update: {
     label: 'Discussion',
-    color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200', dot: '#6B7280',
-    placeholder: 'Start a discussion — share a thought, tip, or industry news...',
+    color: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-200', dot: '#0284C7',
+    placeholder: 'Share a tip, an opinion, or industry news — no question needed.',
     icon: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
   },
   milestone: {
@@ -789,6 +789,12 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-bold text-white transition-colors" style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.28)' }}>
                     Ask a question
                   </button>
+                  {mode === 'trade' && (
+                    <button onClick={onShowAll}
+                      className="px-3 py-1.5 rounded-full text-[12.5px] font-semibold text-white/85 hover:text-white transition-colors">
+                      See all trades →
+                    </button>
+                  )}
                 </>
               )}
               {!session && (
@@ -801,11 +807,6 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
           </div>
         </div>
       </div>
-      {mode === 'trade' && (
-        <button onClick={onShowAll} className="text-[12.5px] font-semibold hover:underline" style={{ color: '#0F766E' }}>
-          ← Show posts from all trades
-        </button>
-      )}
 
       {/* People to follow — turns the empty state into an action */}
       {session && suggested.length > 0 && (
@@ -832,7 +833,7 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onAsk, onS
             ))}
             {/* Keep the grid even — a browse card fills the odd cell */}
             {(Math.min(suggested.length, 6) % 2 === 1) && (
-              <Link href={tradeLabel ? `/fl?trade=${suggested[0]?.trade_category?.slug || ''}` : '/fl'}
+              <Link href={suggested[0]?.trade_category?.slug ? `/search?trade=${suggested[0].trade_category.slug}` : '/search'}
                 className="rounded-xl border border-dashed flex flex-col items-center justify-center text-center p-3 transition-colors hover:bg-gray-50" style={{ borderColor: '#D7DEDB' }}>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center mb-1.5" style={{ background: '#E6F5F1' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1284,7 +1285,7 @@ function GuildPageInner() {
                 <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: '#3B4452' }}>
                   {myTradeLabel ? `Top ${myTradeLabel} Pros` : 'Top Pros'}
                 </span>
-                <Link href={myTrade ? `/fl?trade=${myTrade.slug}` : '/fl'} className="text-[11px] font-semibold hover:underline" style={{ color: '#0F766E' }}>See all</Link>
+                <Link href={myTrade ? `/search?trade=${myTrade.slug}` : '/search'} className="text-[11px] font-semibold hover:underline" style={{ color: '#0F766E' }}>See all</Link>
               </div>
               {suggested.length === 0 ? (
                 <div className="text-[12px] text-gray-400">No suggestions yet.</div>
@@ -1370,10 +1371,10 @@ function GuildPageInner() {
                 <span className="text-[11px] font-semibold text-gray-400">· Resources</span>
               </div>
               {([
+                { href: '/jobs',           label: 'Find Work' },
                 { href: '/guides',         label: 'Trade Guides' },
                 { href: '/verify-license', label: 'License Lookup' },
-                { href: '/fl',             label: 'Find Pros' },
-                { href: '/post-job',       label: 'Post a Project' },
+                { href: '/search',         label: 'Find Pros' },
               ]).map(l => (
                 <Link key={l.href} href={l.href}
                   className="flex items-center justify-between px-2 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-white"
