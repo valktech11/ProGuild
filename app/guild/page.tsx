@@ -178,10 +178,13 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   const [postType, setPostType] = useState<PostType>('work')
   const [content, setContent] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
+  const [beforePhoto, setBeforePhoto] = useState<string>('')
+  const [isBeforeAfter, setIsBeforeAfter] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const beforeRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const cfg = POST_TYPES[postType]
 
@@ -216,18 +219,37 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  async function handleBeforePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setUploading(true)
+    const form = new FormData()
+    form.append('file', file); form.append('pro_id', session.id)
+    form.append('bucket', 'portfolio'); form.append('folder', `posts/${session.id}`)
+    const r = await fetch('/api/upload', { method: 'POST', body: form })
+    const d = await r.json()
+    if (r.ok) setBeforePhoto(d.url)
+    setUploading(false)
+    if (beforeRef.current) beforeRef.current.value = ''
+  }
+
   async function handlePost() {
     if (!content.trim() && photos.length === 0) return
     setPosting(true); setError('')
+    const payload: any = { pro_id: session.id, content, photo_urls: photos, post_type: postType }
+    if (postType === 'work' && isBeforeAfter && beforePhoto && photos.length > 0) {
+      payload.is_before_after = true
+      payload.before_photo_url = beforePhoto
+      // Use the first uploaded photo as the "after"
+    }
     const r = await fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pro_id: session.id, content, photo_urls: photos, post_type: postType }),
+      body: JSON.stringify(payload),
     })
     const d = await r.json()
     if (r.ok) {
       onPost(d.post)
-      setContent(''); setPhotos([]); setExpanded(false)
+      setContent(''); setPhotos([]); setBeforePhoto(''); setIsBeforeAfter(false); setExpanded(false)
     } else {
       setError(d.error || 'Could not post. Please try again.')
     }
@@ -306,8 +328,9 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 
             {/* Bottom bar */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhoto} />
+                <input ref={beforeRef} type="file" accept="image/*" className="hidden" onChange={handleBeforePhoto} />
                 <button onClick={() => fileRef.current?.click()} disabled={uploading || photos.length >= 5}
                   title="Add photos"
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-gray-500 hover:text-teal-600 hover:bg-teal-50 transition-colors text-[12px] font-medium disabled:opacity-40">
@@ -317,10 +340,28 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                   }
                   <span>Photo{photos.length > 0 ? ` (${photos.length}/5)` : ''}</span>
                 </button>
+                {/* Before/After toggle — only for Project posts */}
+                {postType === 'work' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsBeforeAfter(b => !b)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${isBeforeAfter ? 'text-teal-700 bg-teal-50 hover:bg-teal-100' : 'text-gray-500 hover:text-teal-600 hover:bg-teal-50'}`}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="10" height="18" rx="1"/><rect x="12" y="3" width="10" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                    Before &amp; After
+                  </button>
+                )}
+                {/* Before photo upload — shown when B/A is toggled on */}
+                {postType === 'work' && isBeforeAfter && (
+                  <button onClick={() => beforeRef.current?.click()} disabled={uploading}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${beforePhoto ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    {beforePhoto ? 'Before ✓' : 'Add "Before" photo'}
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
-                <button onClick={() => { setExpanded(false); setContent(''); setPhotos([]) }}
+                <button onClick={() => { setExpanded(false); setContent(''); setPhotos([]); setBeforePhoto(''); setIsBeforeAfter(false) }}
                   className="px-3 py-1.5 text-[13px] text-gray-500 hover:text-gray-700 transition-colors">
                   Cancel
                 </button>
@@ -363,26 +404,37 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FollowButton({ proId, followerId, compact }: { proId: string; followerId: string; compact?: boolean }) {
-  const [following, setFollowing] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [following, setFollowing] = useState<boolean | null>(null) // null = loading from server
+  const [toggling, setToggling] = useState(false)
+
+  // Fetch server state on mount
+  useEffect(() => {
+    fetch(`/api/follows?follower_id=${followerId}&following_id=${proId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setFollowing(d.following) })
+      .catch(() => setFollowing(false))
+  }, [proId, followerId])
+
   async function toggle() {
-    setLoading(true)
+    setToggling(true)
     const r = await fetch('/api/follows', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ follower_id: followerId, following_id: proId }),
     })
     const d = await r.json()
     if (r.ok) setFollowing(d.following)
-    setLoading(false)
+    setToggling(false)
   }
+
+  const isLoading = following === null || toggling
   return (
-    <button onClick={toggle} disabled={loading}
+    <button onClick={toggle} disabled={isLoading}
       className={`font-semibold transition-all border rounded-lg ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} ${
         following
           ? 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500'
           : 'border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100'
       }`}>
-      {loading ? '…' : following ? 'Following' : '+ Follow'}
+      {isLoading ? '…' : following ? 'Following' : '+ Follow'}
     </button>
   )
 }
@@ -393,7 +445,7 @@ function MessageButton({ proId, compact }: { proId: string; compact?: boolean })
     <Link href={`/messages?to=${proId}`}
       className={`inline-flex items-center gap-1 font-semibold border rounded-lg transition-colors hover:bg-gray-50 ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} border-gray-200 text-gray-600`}>
       <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      {compact ? '' : 'Message'}
+      Message
     </Link>
   )
 }
@@ -480,7 +532,9 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
               </span>
             )}
             {isOwn && (
-              <button onClick={() => onDelete(post.id)} className="ml-auto text-gray-200 hover:text-red-400 transition-colors text-xs px-1" title="Delete post">✕</button>
+              <button onClick={() => {
+                if (window.confirm('Delete this post? This cannot be undone.')) onDelete(post.id)
+              }} className="ml-auto text-gray-400 hover:text-red-500 transition-colors text-xs px-1" title="Delete post">✕</button>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -715,8 +769,8 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
   }, [])
   const profileHref = `/pro/${session.slug || session.id}`
   const items: { href: string; label: string; icon: string }[] = [
-    { href: profileHref,                 label: 'View profile',       icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z' },
-    { href: `${profileHref}?tab=posts`,  label: 'My posts',           icon: 'M4 6h16M4 12h16M4 18h11' },
+    { href: profileHref,            label: 'View profile',       icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z' },
+    { href: '/guild?tab=mine',      label: 'My posts',           icon: 'M4 6h16M4 12h16M4 18h11' },
     { href: '/dashboard',                label: 'Business dashboard', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
     { href: '/dashboard/settings',       label: 'Settings',           icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
   ]
@@ -1079,7 +1133,7 @@ function GuildPageInner() {
   const myTradeLabel = myTrade?.label || null
   // Pro's own trade leads the pill row; the rest fall into a "More" menu so it stays one line.
   const orderedPills = myTrade ? [myTrade, ...TRADES.filter(t => t.slug !== myTrade.slug)] : TRADES
-  const VISIBLE_PILLS = 4
+  const VISIBLE_PILLS = 6
   const inlinePills = orderedPills.slice(0, VISIBLE_PILLS)
   const morePills = orderedPills.slice(VISIBLE_PILLS)
   const pillOn = { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
@@ -1242,10 +1296,11 @@ function GuildPageInner() {
                     { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
                     { href: '/guild?tab=projects',   tab: 'projects',   label: 'Projects',   icon: 'M2 3h20v4H2zM4 7v13a1 1 0 001 1h14a1 1 0 001-1V7M10 11h4' },
                     { href: '/guild?tab=mine',       tab: 'mine',       label: 'My Posts',   icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
+                    { href: '/messages',             tab: null,         label: 'Messages',   icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
                   ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
                     const active = item.tab
                       ? feedFilter === item.tab
-                      : (item.href === '/guild' && feedFilter === 'all')
+                      : (item.href === '/guild' && feedFilter === 'all') || item.href === '/messages' && false
                     return (
                       <Link key={item.href} href={item.href}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all"

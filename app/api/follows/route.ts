@@ -30,6 +30,20 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
+  const followerId = searchParams.get('follower_id')
+  const followingId = searchParams.get('following_id')
+
+  // Pair check: ?follower_id=X&following_id=Y → { following: bool }
+  if (followerId && followingId) {
+    const { data } = await getSupabaseAdmin()
+      .from('follows')
+      .select('id')
+      .eq('follower_id', followerId)
+      .eq('following_id', followingId)
+      .maybeSingle()
+    return NextResponse.json({ following: !!data })
+  }
+
   if (!proId) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
 
   const [followers, following] = await Promise.all([
