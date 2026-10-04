@@ -156,7 +156,7 @@ const POST_TYPES: Record<PostType, { label: string; color: string; bg: string; b
     icon: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
   },
   update: {
-    label: 'Discussion',
+    label: 'Post',
     color: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-200', dot: '#0284C7',
     placeholder: 'Share a tip, an opinion, or industry news — no question needed.',
     icon: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
@@ -341,7 +341,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
           {([
             { type: 'work' as PostType,      label: 'Project',    fg: '#0F766E', bg: '#E6F5F1', hov: 'hover:bg-teal-50',   icon: <><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></> },
             { type: 'tip' as PostType,       label: 'Question',   fg: '#6D28D9', bg: '#F1EBFE', hov: 'hover:bg-violet-50', icon: <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></> },
-            { type: 'update' as PostType,    label: 'Discussion', fg: '#0369A1', bg: '#E5F2FB', hov: 'hover:bg-sky-50',    icon: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/> },
+            { type: 'update' as PostType,    label: 'Post',       fg: '#0369A1', bg: '#E5F2FB', hov: 'hover:bg-sky-50',    icon: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/> },
             { type: 'milestone' as PostType, label: 'Milestone',  fg: '#B45309', bg: '#FDF0DC', hov: 'hover:bg-amber-50',  icon: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/> },
           ]).map(btn => (
             <button key={btn.type} onClick={() => { setPostType(btn.type); setExpanded(true) }}
@@ -1029,7 +1029,7 @@ function GuildPageInner() {
         ════════════════════════════════════════════════════════════════ */}
         <header className="sticky top-0 z-40">
           <div className="max-w-[1128px] mx-auto px-4 pt-3">
-            <div className="h-12 flex items-center gap-3 rounded-full bg-white/95 backdrop-blur pl-3 pr-2"
+            <div className="h-12 flex items-center justify-between gap-3 rounded-full bg-white/95 backdrop-blur pl-3 pr-2"
               style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
               {/* Brand — ProGuild mark + "The Guild" lockup.
@@ -1047,13 +1047,9 @@ function GuildPageInner() {
                 )}
               </Link>
 
-              {/* Center — warm-sand segmented feed tabs */}
-              <div className="hidden md:flex mx-auto flex-shrink-0">
-                <TabPills />
-              </div>
-
-              {/* Right — compose + account chip, or auth CTAs */}
-              <div className="flex items-center gap-2 flex-shrink-0 ml-auto md:ml-0">
+              {/* Right — compose + account chip, or auth CTAs.
+                  Desktop section nav lives in the left rail (primary); no top tabs. */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {session ? (
                   <>
                     <button onClick={() => window.dispatchEvent(new Event('guild:compose'))}
@@ -1077,8 +1073,9 @@ function GuildPageInner() {
               </div>
             </div>
 
-            {/* Mobile segmented tabs — centered under the pill */}
-            <div className="md:hidden flex justify-center mt-2">
+            {/* Section tabs below the pill — shown whenever the left rail is hidden
+                (< lg). On lg+ the left rail is the primary nav, so no top tabs. */}
+            <div className="lg:hidden flex justify-center mt-2">
               <TabPills size="sm" />
             </div>
           </div>
