@@ -1872,7 +1872,7 @@ function GuildPageInner() {
                 + key trades, with the rest under a "More" menu so it never wraps.
                 min-w-0 + overflow-hidden keeps pills from bleeding into the right rail. */}
             {(feedFilter === 'all' || feedFilter === 'questions' || feedFilter === 'projects') && (
-              <div className="flex items-center gap-2 mb-3 min-w-0 overflow-hidden">
+              <div className="pg-hscroll flex items-center gap-2 mb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
                 <button onClick={() => setTradeFilter('')}
                   className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
                   style={tradeFilter === '' ? pillOn : pillOff}>
