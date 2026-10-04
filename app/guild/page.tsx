@@ -234,13 +234,11 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 
   return (
     <div ref={rootRef} id="guild-composer" className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4 shadow-sm" style={{ scrollMarginTop: 72 }}>
-      {/* Collapsed prompt */}
+      {/* Collapsed prompt — full-width, no avatar (keeps one face on the page) */}
       {!expanded && (
         <div className="flex items-center gap-3 px-4 pt-4 pb-3 cursor-text" onClick={() => setExpanded(true)}>
-          <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex', flexShrink: 0 }}>
-            <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
-          </span>
-          <div className="flex-1 px-4 py-2.5 rounded-full bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-white transition-colors text-[14px] text-gray-500 select-none">
+          <div className="flex-1 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-gray-50 border border-gray-200 hover:border-teal-300 hover:bg-white transition-colors text-[14px] text-gray-500 select-none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Share your work or ask the Guild a question…
           </div>
         </div>
@@ -267,15 +265,10 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
           </div>
 
           <div className="p-4">
-            {/* Author row */}
-            <div className="flex items-center gap-3 mb-3">
-              <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex', flexShrink: 0 }}>
-                <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
-              </span>
-              <div>
-                <div className="text-[14px] font-bold text-gray-900 leading-tight">{session.name}</div>
-                <div className="text-[12px] text-gray-400">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
-              </div>
+            {/* Author line — name only, avatar lives in the profile card */}
+            <div className="mb-2">
+              <span className="text-[14px] font-bold text-gray-900">{session.name}</span>
+              <span className="text-[12px] text-gray-400"> · {session.trade}{session.city ? ` · ${session.city}` : ''}</span>
             </div>
 
             {/* Text area */}
@@ -715,11 +708,10 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(o => !o)} aria-label="Account menu" aria-expanded={open}
-        className="flex items-center gap-2 pl-1 pr-2 sm:pr-2.5 py-1 rounded-full border transition-colors"
+        className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full border transition-colors hover:bg-gray-50"
         style={{ borderColor: open ? '#5DCAA5' : '#E5E7EB' }}>
-        <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={7} />
-        <span className="hidden sm:block text-[13px] font-semibold text-gray-700 max-w-[88px] truncate">{session.name?.split(' ')[0] || 'Account'}</span>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}><polyline points="6 9 12 15 18 9"/></svg>
+        <span className="text-[13px] font-bold text-gray-800 max-w-[96px] truncate">{session.name?.split(' ')[0] || 'Account'}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 py-1.5 z-50"
@@ -741,6 +733,101 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
               Sign out
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty feed — never a blank void. A branded hero + "people to follow" grid.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EmptyFeed({ mode, tradeLabel, suggested, session, onCompose, onShowAll }: {
+  mode: 'following' | 'trade' | 'all'
+  tradeLabel: string | null
+  suggested: Pro[]
+  session: Session | null
+  onCompose: () => void
+  onShowAll: () => void
+}) {
+  const hero = {
+    following: {
+      title: 'Build your Following feed',
+      sub: `Follow ${tradeLabel ? tradeLabel.toLowerCase() : 'the'} pros below and their projects, tips and answers show up here.`,
+    },
+    trade: {
+      title: `Be the first ${tradeLabel || 'trade'} post`,
+      sub: 'Share a job you just wrapped — or follow a few pros to warm up your feed.',
+    },
+    all: {
+      title: 'Your Guild feed starts here',
+      sub: 'Share your first project or follow a few pros, and this feed fills up fast.',
+    },
+  }[mode]
+
+  return (
+    <div className="space-y-3">
+      {/* Branded hero */}
+      <div className="relative overflow-hidden rounded-2xl shadow-sm">
+        <div className="px-6 py-8 text-center" style={{ background: 'linear-gradient(125deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }}>
+          <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {mode === 'following'
+                ? <><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></>
+                : <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></>}
+            </svg>
+          </div>
+          <h3 className="text-[18px] font-extrabold text-white mb-1">{hero.title}</h3>
+          <p className="text-[13px] text-white/80 max-w-[300px] mx-auto leading-relaxed">{hero.sub}</p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            {session && mode !== 'following' && (
+              <button onClick={onCompose}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Share a post
+              </button>
+            )}
+            {mode === 'trade' && (
+              <button onClick={onShowAll}
+                className="px-4 py-2 rounded-full text-[13px] font-bold text-white transition-colors" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.25)' }}>
+                Show all trades
+              </button>
+            )}
+            {!session && (
+              <Link href="/login?tab=signup"
+                className="px-4 py-2 rounded-full text-[13px] font-bold bg-white hover:opacity-90 transition-opacity" style={{ color: '#0B5D4E' }}>
+                Join the Guild
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* People to follow — turns the empty state into an action */}
+      {session && suggested.length > 0 && (
+        <div className="bg-white rounded-2xl border p-4 shadow-sm" style={{ borderColor: '#E4E8E6' }}>
+          <div className="flex items-center gap-1.5 mb-3">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <span className="text-[13px] font-bold text-gray-800">People to follow{tradeLabel ? ` in ${tradeLabel}` : ''}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {suggested.map(pro => (
+              <div key={pro.id} className="rounded-xl border p-3 flex flex-col items-center text-center" style={{ borderColor: '#EEF1F0' }}>
+                <Link href={`/pro/${(pro as any).slug || pro.id}`} className="mb-1.5">
+                  <Avatar pro={pro} size={12} />
+                </Link>
+                <div className="flex items-center gap-1 justify-center">
+                  <Link href={`/pro/${(pro as any).slug || pro.id}`} className="text-[12.5px] font-bold text-gray-900 hover:text-teal-700 truncate max-w-[110px]">{pro.full_name}</Link>
+                  {pro.is_verified && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#0F766E" className="flex-shrink-0"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                  )}
+                </div>
+                <div className="text-[11px] text-gray-400 truncate max-w-[130px] mb-2.5">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
+                {session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} compact />}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -908,13 +995,17 @@ function GuildPageInner() {
             <div className="h-12 flex items-center gap-3 rounded-full bg-white/95 backdrop-blur pl-3 pr-2"
               style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
-              {/* Brand — real ProGuild mark + serif wordmark (matches homepage) */}
-              <Link href="/guild" className="flex items-center gap-2 flex-shrink-0">
+              {/* Brand — ProGuild mark + "The Guild" lockup.
+                  DM Serif Display has no bold weight, so no font-bold (avoids faux-bold). */}
+              <Link href="/guild" className="flex items-center gap-2.5 flex-shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="ProGuild" className="w-7 h-7 rounded-lg flex-shrink-0" />
-                <span className="font-serif text-[18px] font-bold tracking-tight leading-none" style={{ color: '#0A1628' }}>The&nbsp;Guild</span>
+                <img src="/logo.png" alt="ProGuild" className="w-8 h-8 rounded-lg flex-shrink-0" />
+                <span className="flex flex-col leading-none">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: '#0D9488' }}>ProGuild</span>
+                  <span className="font-serif text-[17px] leading-none" style={{ color: '#0A1628', letterSpacing: '-0.005em' }}>The&nbsp;Guild</span>
+                </span>
                 {isStaging && (
-                  <span className="hidden sm:inline ml-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                  <span className="hidden sm:inline ml-1 self-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide"
                     style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D' }}>STAGING</span>
                 )}
               </Link>
@@ -1024,11 +1115,12 @@ function GuildPageInner() {
                   })}
                 </nav>
 
-                {/* Back to CRM */}
-                <div className="px-4 pb-3 pt-1 border-t border-gray-100">
+                {/* Back to CRM — a real button, not a faded link */}
+                <div className="px-3 pb-3 pt-2 border-t" style={{ borderColor: '#EEF1F0' }}>
                   <Link href="/dashboard"
-                    className="flex items-center gap-2 text-[11px] text-gray-400 hover:text-teal-600 transition-colors py-1.5">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    className="flex items-center justify-center gap-2 py-2 rounded-xl text-[12.5px] font-bold transition-colors"
+                    style={{ color: '#374151', background: '#F3F4F2', border: '1px solid #E4E8E6' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 12H5M12 5l-7 7 7 7"/>
                     </svg>
                     Back to CRM
@@ -1135,28 +1227,14 @@ function GuildPageInner() {
                 ))}
               </div>
             ) : postsWithLikes.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-14 text-center shadow-sm">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#E6F5F1' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                </div>
-                <div className="font-bold text-gray-800 mb-1">
-                  {feedFilter === 'following' ? 'Your Following feed is empty' : 'Nothing here yet'}
-                </div>
-                <div className="text-[13px] text-gray-500 max-w-[280px] mx-auto">
-                  {feedFilter === 'following'
-                    ? 'Follow pros from the Top Pros list and their posts will show up here.'
-                    : tradeFilter
-                      ? `No ${myTradeLabel && tradeFilter === session?.trade_slug ? myTradeLabel.toLowerCase() : 'posts in this trade'} yet — broaden to all trades to see more.`
-                      : 'Be the first to post in The Guild.'}
-                </div>
-                {feedFilter === 'following' ? (
-                  <Link href="/guild" className="inline-block mt-3 text-[13px] font-bold text-teal-700 hover:underline">Browse the feed →</Link>
-                ) : tradeFilter ? (
-                  <button onClick={() => setTradeFilter('')} className="mt-3 text-[13px] text-teal-700 font-bold hover:underline">
-                    Show all trades
-                  </button>
-                ) : null}
-              </div>
+              <EmptyFeed
+                mode={feedFilter === 'following' ? 'following' : (tradeFilter ? 'trade' : 'all')}
+                tradeLabel={myTradeLabel}
+                suggested={suggested}
+                session={session}
+                onCompose={() => window.dispatchEvent(new Event('guild:compose'))}
+                onShowAll={() => setTradeFilter('')}
+              />
             ) : (
               <div className="space-y-3">
                 {postsWithLikes.map(post => (
