@@ -182,7 +182,18 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const cfg = POST_TYPES[postType]
+
+  // App-bar "Post" button opens the composer and brings it into view
+  useEffect(() => {
+    function open() {
+      setExpanded(true)
+      rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    window.addEventListener('guild:compose', open)
+    return () => window.removeEventListener('guild:compose', open)
+  }, [])
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []) as File[]
@@ -222,13 +233,15 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-3 shadow-sm">
+    <div ref={rootRef} id="guild-composer" className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4 shadow-sm" style={{ scrollMarginTop: 72 }}>
       {/* Collapsed prompt */}
       {!expanded && (
-        <div className="flex items-center gap-3 px-4 py-3 cursor-text" onClick={() => setExpanded(true)}>
-          <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
-          <div className="flex-1 px-4 py-2.5 rounded-full bg-gray-100 hover:bg-gray-150 transition-colors text-[14px] text-gray-400 select-none">
-            Share a project, question, or update...
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3 cursor-text" onClick={() => setExpanded(true)}>
+          <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex', flexShrink: 0 }}>
+            <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
+          </span>
+          <div className="flex-1 px-4 py-2.5 rounded-full bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-white transition-colors text-[14px] text-gray-500 select-none">
+            Share your work or ask the Guild a question…
           </div>
         </div>
       )}
@@ -322,38 +335,21 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
         </div>
       )}
 
-      {/* Quick-action row (always visible when collapsed) */}
+      {/* Quick-action row — crisp, color-coded entry points (not grey ghosts) */}
       {!expanded && (
-        <div className="flex border-t border-gray-100">
+        <div className="flex items-stretch border-t border-gray-100 px-1.5 py-1.5">
           {([
-            { type: 'work' as PostType,      label: 'Project',    color: 'hover:text-teal-600 hover:bg-teal-50' },
-            { type: 'tip' as PostType,       label: 'Question',   color: 'hover:text-violet-600 hover:bg-violet-50' },
-            { type: 'update' as PostType,    label: 'Discussion', color: 'hover:text-gray-700 hover:bg-gray-50' },
-            { type: 'milestone' as PostType, label: 'Milestone',  color: 'hover:text-amber-600 hover:bg-amber-50' },
-          ] as const).map(btn => (
+            { type: 'work' as PostType,      label: 'Project',    fg: '#0F766E', bg: '#E6F5F1', hov: 'hover:bg-teal-50',   icon: <><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></> },
+            { type: 'tip' as PostType,       label: 'Question',   fg: '#6D28D9', bg: '#F1EBFE', hov: 'hover:bg-violet-50', icon: <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></> },
+            { type: 'update' as PostType,    label: 'Discussion', fg: '#0369A1', bg: '#E5F2FB', hov: 'hover:bg-sky-50',    icon: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/> },
+            { type: 'milestone' as PostType, label: 'Milestone',  fg: '#B45309', bg: '#FDF0DC', hov: 'hover:bg-amber-50',  icon: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/> },
+          ]).map(btn => (
             <button key={btn.type} onClick={() => { setPostType(btn.type); setExpanded(true) }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium text-gray-400 transition-colors ${btn.color}`}>
-              {btn.type === 'work' && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-              )}
-              {btn.type === 'tip' && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              )}
-              {btn.type === 'update' && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-              )}
-              {btn.type === 'milestone' && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-              )}
-              <span className="hidden sm:inline">{btn.label}</span>
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-xl transition-colors ${btn.hov}`}>
+              <span className="inline-flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 9, background: btn.bg }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={btn.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{btn.icon}</svg>
+              </span>
+              <span className="text-[12.5px] font-semibold text-gray-600 hidden sm:inline">{btn.label}</span>
             </button>
           ))}
         </div>
@@ -691,13 +687,70 @@ function ProfileCard({ session }: { session: Session }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Account menu (app-bar, right) — visible avatar + real dropdown
+// ─────────────────────────────────────────────────────────────────────────────
+
+function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => Promise<void> | void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onDoc(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onEsc)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc) }
+  }, [])
+  const profileHref = `/pro/${session.slug || session.id}`
+  const items: { href: string; label: string; icon: string }[] = [
+    { href: profileHref,                 label: 'View profile',       icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z' },
+    { href: `${profileHref}?tab=posts`,  label: 'My posts',           icon: 'M4 6h16M4 12h16M4 18h11' },
+    { href: '/dashboard',                label: 'Business dashboard', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
+    { href: '/dashboard/settings',       label: 'Settings',           icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
+  ]
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(o => !o)} aria-label="Account menu" aria-expanded={open}
+        className="flex items-center gap-1 rounded-full p-0.5 sm:pr-1.5 hover:bg-gray-100 transition-colors">
+        <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex' }}>
+          <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={8} />
+        </span>
+        <svg className="hidden sm:block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 py-1.5 z-50"
+          style={{ boxShadow: '0 14px 40px rgba(15,23,22,0.16)' }}>
+          <div className="px-3.5 pb-2.5 pt-1 mb-1 border-b border-gray-100">
+            <div className="text-[13.5px] font-bold text-gray-900 truncate">{session.name}</div>
+            <div className="text-[11.5px] text-gray-400 truncate">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
+          </div>
+          {items.map(it => (
+            <Link key={it.label} href={it.href} onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={it.icon}/></svg>
+              {it.label}
+            </Link>
+          ))}
+          <div className="border-t border-gray-100 mt-1 pt-1">
+            <button onClick={() => { setOpen(false); onSignOut?.() }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Guild Page — main component
 // ─────────────────────────────────────────────────────────────────────────────
 
-type FeedFilter = 'all' | 'following' | 'questions' | 'network'
+type FeedFilter = 'all' | 'following' | 'questions'
 
 function GuildPageInner() {
-  const { session: _real } = useProSession()
+  const { session: _real, signOut } = useProSession()
   const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -709,9 +762,9 @@ function GuildPageInner() {
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
   const [tradeFilter, setTradeFilter] = useState('')
 
-  // URL-driven tab — ?tab=discover|questions|following|network
+  // URL-driven tab — ?tab=questions|following (feed is default)
   const tabParam = searchParams.get('tab') as FeedFilter | null
-  const feedFilter: FeedFilter = tabParam && ['all','following','questions','network'].includes(tabParam) ? tabParam : 'all'
+  const feedFilter: FeedFilter = tabParam && ['all','following','questions'].includes(tabParam) ? tabParam : 'all'
 
   function buildUrl(s: Session | null, ff: FeedFilter) {
     const base = s ? `/api/posts?feed_for=${s.id}&limit=30` : `/api/posts?limit=30`
@@ -722,28 +775,38 @@ function GuildPageInner() {
     return qs ? `${base}&${qs}` : base
   }
 
+  const safe = useCallback(
+    (p: Promise<Response>): Promise<any> => p.then(r => r.ok ? r.json() : {}).catch(() => ({})),
+    []
+  )
+
+  // Feed stream — reloads only when the filter/tab/identity changes
+  useEffect(() => {
+    const s = _real
+    setLoading(true)
+    safe(fetch(buildUrl(s, feedFilter)))
+      .then(d => { setPosts(d.posts || []); setLoading(false) })
+      .catch(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeFilter, feedFilter, _real])
+
+  // Rail widgets + likes — loaded once per identity, not on every tab switch
   useEffect(() => {
     const s = _real
     setSession(s)
-
-    const safe = (p: Promise<Response>): Promise<any> => p.then(r => r.ok ? r.json() : {}).catch(() => ({}))
-
     Promise.all([
-      safe(fetch(buildUrl(s, feedFilter))),
       safe(fetch('/api/pros?limit=8&sort=rating&status=all')),
       s ? safe(fetch(`/api/posts/likes?pro_id=${s.id}`)) : Promise.resolve({ likes: [] }),
       safe(fetch('/api/jobs?status=Open&limit=3')),
       safe(fetch('/api/posts?limit=5&post_type=tip')),
-    ]).then(([postsData, prosData, likesData, jobsData, qData]) => {
-      setPosts(postsData.posts || [])
-      const allPros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
-      setSuggested(allPros.slice(0, 5))
+    ]).then(([prosData, likesData, jobsData, qData]) => {
+      setSuggested((prosData.pros || []).filter((p: Pro) => p.id !== s?.id).slice(0, 5))
       setLikedIds(new Set(likesData.likes || []))
       setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [tradeFilter, feedFilter, _real])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_real])
 
   const postsWithLikes = posts.map(p => ({ ...p, liked_by_me: likedIds.has(p.id) }))
 
@@ -768,124 +831,98 @@ function GuildPageInner() {
     setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
-  // Sticky offset: header top row (56px) + feed tab strip (44px) = 100px
-  const STICKY_TOP = 100
+  // Single white app bar is 56px tall; sticky rails + pill strip sit just under it
+  const HEADER_H = 56
+  const STICKY_TOP = HEADER_H + 16
+
+  const TABS: { key: FeedFilter; label: string; desc: string }[] = [
+    { key: 'all',       label: 'Feed',      desc: 'Latest work from every trade' },
+    { key: 'questions', label: 'Q&A',       desc: 'Questions answered by licensed pros' },
+    ...(session ? [{ key: 'following' as FeedFilter, label: 'Following', desc: 'Posts from pros you follow' }] : []),
+  ]
 
   return (
     <DashboardShell session={session} newLeads={0} noSidebar>
-      <div className="min-h-screen" style={{ backgroundColor: '#EDECEA' }}>
+      <div className="min-h-screen" style={{ backgroundColor: '#F1F4F3' }}>
 
         {/* ════════════════════════════════════════════════════════════════
-            HEADER — single sticky block, two rows, no DashboardShell chrome
-            Row 1 (56px): shield logo | trade pills (scroll) | user avatar
-            Row 2 (44px): feed tab strip
+            APP BAR — one slim white bar. Teal is an accent, not the canvas.
+            [ logo ] ·· [ Feed / Q&A / Following ] ·· [ Post · account ]
         ════════════════════════════════════════════════════════════════ */}
-        <header className="sticky top-0 z-40" style={{ background: 'linear-gradient(160deg, #0C4840 0%, #0D5C52 60%, #0F6B5E 100%)', boxShadow: '0 1px 0 rgba(0,0,0,0.15)' }}>
+        <header className="sticky top-0 z-40 bg-white" style={{ borderBottom: '1px solid #E4E8E6' }}>
+          <div className="max-w-[1128px] mx-auto flex items-center gap-4 px-4" style={{ height: HEADER_H }}>
 
-          {/* ── Row 1: brand + filter + identity ── */}
-          <div className="flex items-center gap-3 px-4 h-14">
-
-            {/* Brand: shield mark + wordmark */}
-            <Link href="/guild" className="flex items-center gap-2 flex-shrink-0 group">
-              {/* Shield SVG — no text label, just the geometric mark */}
-              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <path d="M15 2L3 7.5V15C3 21.6 8.4 27.5 15 29C21.6 27.5 27 21.6 27 15V7.5L15 2Z" fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.35)" strokeWidth="1"/>
-                <path d="M10 15l3.5 3.5L20.5 11" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-white font-bold text-[15px] tracking-tight group-hover:opacity-80 transition-opacity">The Guild</span>
+            {/* Brand — solid teal tile with a verification check (not an outline shield) */}
+            <Link href="/guild" className="flex items-center gap-2.5 flex-shrink-0 group">
+              <span style={{ width: 32, height: 32, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg, #14B8A6 0%, #0F766E 100%)', boxShadow: '0 2px 7px rgba(15,118,110,0.35)' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span className="text-[16px] tracking-tight leading-none">
+                <span className="font-medium text-gray-400">The</span>{' '}
+                <span className="font-extrabold text-gray-900">Guild</span>
+              </span>
             </Link>
 
-            {/* Trade filter pills — horizontal scroll, fills remaining space */}
-            <div className="flex-1 overflow-x-auto flex items-center gap-1" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-              <button
-                onClick={() => setTradeFilter('')}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${
-                  !tradeFilter
-                    ? 'bg-white text-teal-800'
-                    : 'text-white/65 hover:text-white hover:bg-white/10 border border-white/10'
-                }`}>
-                All Trades
-              </button>
-              {TRADES.map(t => (
-                <button key={t.slug}
-                  onClick={() => setTradeFilter(tradeFilter === t.slug ? '' : t.slug)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all whitespace-nowrap ${
-                    tradeFilter === t.slug
-                      ? 'bg-white text-teal-800'
-                      : 'text-white/65 hover:text-white hover:bg-white/10 border border-white/10'
-                  }`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            {/* Center — feed context tabs (desktop). These change what the feed shows. */}
+            <nav className="hidden md:flex flex-1 items-center justify-center gap-1">
+              {TABS.map(tab => {
+                const active = feedFilter === tab.key
+                return (
+                  <Link key={tab.key}
+                    href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
+                    title={tab.desc}
+                    className={`relative flex items-center px-3.5 text-[13.5px] font-semibold transition-colors ${active ? 'text-teal-700' : 'text-gray-500 hover:text-gray-900'}`}
+                    style={{ height: HEADER_H }}>
+                    {tab.label}
+                    {active && <span className="absolute left-2 right-2 bottom-0 h-[3px] rounded-t-full bg-teal-600" />}
+                  </Link>
+                )
+              })}
+            </nav>
 
-            {/* Right: user identity (once) or auth CTAs */}
-            {session ? (
-              <div className="flex items-center gap-2.5 flex-shrink-0">
-                {/* Dashboard shortcut — icon only on mobile, icon+label on md+ */}
-                <Link href="/dashboard" title="My Business"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                  style={{ background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.16)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                  </svg>
-                  <span className="hidden sm:inline">Dashboard</span>
-                </Link>
-                {/* Avatar only — name shown in sidebar */}
-                <Link href={`/pro/${session.slug || session.id}`}
-                  className="flex items-center gap-2 rounded-full hover:opacity-80 transition-opacity">
-                  <div style={{ padding: 2, borderRadius: '50%', background: 'rgba(255,255,255,0.25)' }}>
-                    <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={8} />
-                  </div>
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Link href="/login" className="text-white/75 text-[13px] font-medium hover:text-white transition-colors whitespace-nowrap">Log in</Link>
-                <Link href="/login?tab=signup"
-                  className="text-[12px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all"
-                  style={{ background: 'rgba(255,255,255,0.14)', color: 'white', border: '1px solid rgba(255,255,255,0.22)' }}>
-                  Join Free
-                </Link>
-              </div>
-            )}
+            {/* Right — compose + account, or auth CTAs */}
+            <div className="flex items-center gap-2 flex-shrink-0 ml-auto md:ml-0">
+              {session ? (
+                <>
+                  <button onClick={() => window.dispatchEvent(new Event('guild:compose'))}
+                    className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-bold text-white bg-teal-600 hover:bg-teal-700 active:bg-teal-800 transition-colors">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Post
+                  </button>
+                  <UserMenu session={session} onSignOut={signOut} />
+                </>
+              ) : (
+                <>
+                  <Link href="/login" className="text-gray-600 text-[13.5px] font-semibold hover:text-gray-900 transition-colors px-2 whitespace-nowrap">Log in</Link>
+                  <Link href="/login?tab=signup"
+                    className="text-[13px] font-bold px-3.5 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors whitespace-nowrap">
+                    Join Free
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* ── Row 2: feed context tabs — what are you looking at? ── */}
-          {/*
-            Purpose: not redundant nav — these change the feed's content type.
-            Feed = latest activity from all trades (default landing)
-            Questions = Q&A mode, shows only question posts
-            Following = personalised — posts from people you follow
-            Network = discover new pros in your trade/area
-          */}
-          <div className="flex" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            {([
-              { key: 'all'       as const, label: 'Feed',      desc: 'Latest from all trades' },
-              { key: 'questions' as const, label: 'Q&A',       desc: 'Questions & expert answers' },
-              ...(session ? [{ key: 'following' as const, label: 'Following', desc: 'Posts from people you follow' }] : []),
-              { key: 'network'   as const, label: 'Network',   desc: 'Discover pros near you' },
-            ]).map(tab => {
+          {/* Mobile tab strip — tabs don't fit the bar on small screens */}
+          <nav className="md:hidden flex px-1" style={{ borderTop: '1px solid #EEF1F0' }}>
+            {TABS.map(tab => {
               const active = feedFilter === tab.key
               return (
                 <Link key={tab.key}
                   href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
-                  title={tab.desc}
-                  className="relative flex-1 flex items-center justify-center py-2.5 text-[12.5px] font-semibold transition-colors"
-                  style={{ color: active ? 'white' : 'rgba(255,255,255,0.45)' }}>
+                  className={`relative flex-1 flex items-center justify-center py-2.5 text-[13px] font-semibold transition-colors ${active ? 'text-teal-700' : 'text-gray-500'}`}>
                   {tab.label}
-                  {active && <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full" style={{ background: 'rgba(255,255,255,0.85)' }} />}
+                  {active && <span className="absolute left-4 right-4 bottom-0 h-[2.5px] rounded-t-full bg-teal-600" />}
                 </Link>
               )
             })}
-          </div>
+          </nav>
         </header>
 
         {/* ════════════════════════════════════════════════════════════════
             3-col layout: left sidebar | feed | right sidebar
         ════════════════════════════════════════════════════════════════ */}
-        <div className="max-w-[1100px] mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-[200px_1fr_240px] gap-4 items-start">
+        <div className="max-w-[1128px] mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-[212px_1fr_264px] gap-5 items-start">
 
           {/* ── LEFT SIDEBAR ── */}
           <aside className="hidden lg:block" style={{ position: 'sticky', top: STICKY_TOP }}>
@@ -921,7 +958,6 @@ function GuildPageInner() {
                     { href: '/guild',               tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
                     { href: '/guild?tab=questions',  tab: 'questions',  label: 'Q&A',        icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
                     { href: '/guild?tab=following',  tab: 'following',  label: 'Following',  icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
-                    { href: '/guild?tab=network',    tab: 'network',    label: 'Network',    icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
                     { href: '/jobs',                 tab: null,         label: 'Projects',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
                     { href: `/pro/${session.slug || session.id}?tab=posts`, tab: null, label: 'My Posts', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z' },
                   ] as { href: string; tab: string | null; label: string; icon: string }[]).map(item => {
@@ -959,10 +995,9 @@ function GuildPageInner() {
               <div className="bg-white rounded-2xl border border-gray-200/60 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center gap-2 mb-2">
-                    <svg width="16" height="16" viewBox="0 0 30 30" fill="none">
-                      <path d="M15 2L3 7.5V15C3 21.6 8.4 27.5 15 29C21.6 27.5 27 21.6 27 15V7.5L15 2Z" fill="#0D9488" opacity="0.2" stroke="#0D9488" strokeWidth="1.5"/>
-                      <path d="M10 15l3.5 3.5L20.5 11" stroke="#0D9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg, #14B8A6 0%, #0F766E 100%)' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
                     <div className="text-[14px] font-bold text-gray-900">The Guild</div>
                   </div>
                   <p className="text-[12px] text-gray-500 mb-3 leading-relaxed">Connect with licensed tradespeople, share your work, and build your reputation.</p>
@@ -993,6 +1028,34 @@ function GuildPageInner() {
 
           {/* ── MAIN FEED ── */}
           <div className="min-w-0">
+
+            {/* Contextual trade filter — belongs to the feed, not the global chrome.
+                Crisp white chips on the page; active chip fills teal. */}
+            <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5"
+              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+              <button onClick={() => setTradeFilter('')}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all border ${
+                  !tradeFilter
+                    ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                }`}>
+                All trades
+              </button>
+              {TRADES.map(t => {
+                const on = tradeFilter === t.slug
+                return (
+                  <button key={t.slug} onClick={() => setTradeFilter(on ? '' : t.slug)}
+                    className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border ${
+                      on
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
+                    }`}>
+                    {t.label}
+                  </button>
+                )
+              })}
+            </div>
+
             {session && <PostComposer session={session} onPost={post => setPosts(p => [post as Post, ...p])} />}
 
             {!session && (
