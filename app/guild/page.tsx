@@ -305,23 +305,65 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
               className="w-full text-[15px] text-gray-900 bg-transparent border-none outline-none resize-none placeholder-gray-400 leading-relaxed mb-3"
             />
 
-            {/* Photo previews */}
-            {photos.length > 0 && (
-              <div className="flex gap-2 flex-wrap mb-3">
-                {photos.map((url, i) => (
-                  <div key={i} className="relative">
-                    <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover" />
-                    <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center leading-none hover:bg-red-600 transition-colors">✕</button>
-                  </div>
-                ))}
-                {photos.length < 5 && (
-                  <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                    className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 hover:border-teal-400 hover:text-teal-400 transition-colors">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
-                )}
+            {/* Before/After preview — replaces generic grid when B/A mode is on */}
+            {isBeforeAfter && postType === 'work' ? (
+              <div className="flex gap-2 mb-3">
+                {/* Before slot */}
+                <div className="flex-1 relative">
+                  {beforePhoto ? (
+                    <div className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                      <img src={beforePhoto} alt="Before" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-0 left-0 right-0 py-1 text-center text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.45)' }}>BEFORE</div>
+                      <button onClick={() => setBeforePhoto('')}
+                        className="absolute top-1 right-1 w-5 h-5 bg-gray-900/70 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors">✕</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => beforeRef.current?.click()} disabled={uploading}
+                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors"
+                      style={{ aspectRatio: '4/3' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span className="text-[11px] font-semibold">Before</span>
+                    </button>
+                  )}
+                </div>
+                {/* After slot */}
+                <div className="flex-1 relative">
+                  {photos[0] ? (
+                    <div className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                      <img src={photos[0]} alt="After" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-0 left-0 right-0 py-1 text-center text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.45)' }}>AFTER</div>
+                      <button onClick={() => setPhotos([])}
+                        className="absolute top-1 right-1 w-5 h-5 bg-gray-900/70 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition-colors">✕</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors"
+                      style={{ aspectRatio: '4/3' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span className="text-[11px] font-semibold">After</span>
+                    </button>
+                  )}
+                </div>
               </div>
+            ) : (
+              /* Normal photo grid */
+              photos.length > 0 && (
+                <div className="flex gap-2 flex-wrap mb-3">
+                  {photos.map((url, i) => (
+                    <div key={i} className="relative">
+                      <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                      <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-800 text-white rounded-full text-xs flex items-center justify-center leading-none hover:bg-red-600 transition-colors">✕</button>
+                    </div>
+                  ))}
+                  {photos.length < 5 && (
+                    <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                      className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 hover:border-teal-400 hover:text-teal-400 transition-colors">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                  )}
+                </div>
+              )
             )}
 
             {error && <div className="text-xs text-red-600 mb-2">{error}</div>}
@@ -349,27 +391,6 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="10" height="18" rx="1"/><rect x="12" y="3" width="10" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
                     Before &amp; After
                   </button>
-                )}
-                {/* Before photo upload — shown when B/A is toggled on */}
-                {postType === 'work' && isBeforeAfter && (
-                  <>
-                    <button onClick={() => beforeRef.current?.click()} disabled={uploading}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${beforePhoto ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
-                      {beforePhoto
-                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      }
-                      {beforePhoto ? 'Before ✓' : '+ Before photo'}
-                    </button>
-                    <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors border ${photos.length > 0 ? 'border-teal-300 text-teal-700 bg-teal-50' : 'border-dashed border-gray-300 text-gray-500 hover:border-teal-400 hover:text-teal-600'}`}>
-                      {photos.length > 0
-                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      }
-                      {photos.length > 0 ? 'After ✓' : '+ After photo'}
-                    </button>
-                  </>
                 )}
               </div>
 
