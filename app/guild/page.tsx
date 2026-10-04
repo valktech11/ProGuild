@@ -755,7 +755,7 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
 type FeedFilter = 'all' | 'following' | 'questions'
 
 function GuildPageInner() {
-  const { session: _real, signOut } = useProSession()
+  const { session: _real, loading: authLoading, signOut } = useProSession()
   const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -765,17 +765,27 @@ function GuildPageInner() {
   const [loading, setLoading] = useState(true)
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
-  const [tradeFilter, setTradeFilter] = useState('')
+  // null = not yet initialised; '' = All trades (explicit); slug = a trade.
+  // A logged-in pro's feed DEFAULTS to their own trade.
+  const [tradeFilter, setTradeFilter] = useState<string | null>(null)
 
   // URL-driven tab — ?tab=questions|following (feed is default)
   const tabParam = searchParams.get('tab') as FeedFilter | null
   const feedFilter: FeedFilter = tabParam && ['all','following','questions'].includes(tabParam) ? tabParam : 'all'
 
-  function buildUrl(s: Session | null, ff: FeedFilter) {
+  // Seed the trade filter once auth resolves: a pro lands on their own trade.
+  useEffect(() => {
+    if (authLoading || tradeFilter !== null) return
+    setTradeFilter(_real?.trade_slug || '')
+  }, [authLoading, _real, tradeFilter])
+
+  function buildUrl(s: Session | null, ff: FeedFilter, trade: string) {
     const base = s ? `/api/posts?feed_for=${s.id}&limit=30` : `/api/posts?limit=30`
     const p = new URLSearchParams()
-    if (tradeFilter) p.set('trade_slug', tradeFilter)
+    // Following shows everyone you follow, across trades — so no trade filter there.
+    if (trade && ff !== 'following') p.set('trade_slug', trade)
     if (ff === 'questions') p.set('post_type', 'tip')
+    if (ff === 'following')  p.set('following', '1')
     const qs = p.toString()
     return qs ? `${base}&${qs}` : base
   }
@@ -787,25 +797,36 @@ function GuildPageInner() {
 
   // Feed stream — reloads only when the filter/tab/identity changes
   useEffect(() => {
+    if (tradeFilter === null) return // wait for trade seed
     const s = _real
     setLoading(true)
-    safe(fetch(buildUrl(s, feedFilter)))
+    safe(fetch(buildUrl(s, feedFilter, tradeFilter)))
       .then(d => { setPosts(d.posts || []); setLoading(false) })
       .catch(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tradeFilter, feedFilter, _real])
 
-  // Rail widgets + likes — loaded once per identity, not on every tab switch
+  // Rail widgets + likes — loaded once per identity, personalised to the pro's trade
   useEffect(() => {
     const s = _real
     setSession(s)
+    const trade = s?.trade_slug ? `&trade_slug=${s.trade_slug}` : ''
     Promise.all([
-      safe(fetch('/api/pros?limit=8&sort=rating&status=all')),
+      safe(fetch(`/api/pros?limit=8&sort=rating&status=all${trade}`)),
       s ? safe(fetch(`/api/posts/likes?pro_id=${s.id}`)) : Promise.resolve({ likes: [] }),
       safe(fetch('/api/jobs?status=Open&limit=3')),
-      safe(fetch('/api/posts?limit=5&post_type=tip')),
+      safe(fetch(`/api/posts?limit=5&post_type=tip${trade}`)),
     ]).then(([prosData, likesData, jobsData, qData]) => {
-      setSuggested((prosData.pros || []).filter((p: Pro) => p.id !== s?.id).slice(0, 5))
+      let pros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
+      // If the pro's own trade is too thin, backfill with top pros from any trade
+      if (s?.trade_slug && pros.length < 3) {
+        safe(fetch('/api/pros?limit=8&sort=rating&status=all')).then((all: any) => {
+          const extra = (all.pros || []).filter((p: Pro) => p.id !== s?.id && !pros.some((x: Pro) => x.id === p.id))
+          setSuggested([...pros, ...extra].slice(0, 5))
+        })
+      } else {
+        setSuggested(pros.slice(0, 5))
+      }
       setLikedIds(new Set(likesData.likes || []))
       setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
@@ -846,6 +867,13 @@ function GuildPageInner() {
     ...(session ? [{ key: 'following' as FeedFilter, label: 'Following', desc: 'Posts from pros you follow' }] : []),
   ]
   const isStaging = process.env.NEXT_PUBLIC_ENV === 'staging'
+
+  // The pro's own trade leads the filter row and labels the personalised rails
+  const myTrade = session?.trade_slug
+    ? (TRADES.find(t => t.slug === session.trade_slug) || { label: session.trade || 'My trade', slug: session.trade_slug })
+    : null
+  const orderedTrades = myTrade ? [myTrade, ...TRADES.filter(t => t.slug !== myTrade.slug)] : TRADES
+  const myTradeLabel = myTrade?.label || null
 
   // Shared segmented feed-tab control (matches homepage nav language)
   const TabPills = ({ size = 'md' }: { size?: 'md' | 'sm' }) => (
@@ -936,33 +964,40 @@ function GuildPageInner() {
           {/* ── LEFT SIDEBAR ── */}
           <aside className="hidden lg:block" style={{ position: 'sticky', top: STICKY_TOP }}>
             {session ? (
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200/60">
-                {/* Profile identity — compact, no large banner */}
-                <div className="p-4 border-b border-gray-100">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div style={{ flexShrink: 0, borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)' }}>
-                      <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={11} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[14px] font-bold text-gray-900 leading-tight truncate">{session.name}</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5 truncate">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
-                      {session.is_verified && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="#16a34a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-                          <span className="text-[10px] text-green-700 font-semibold">Verified</span>
-                        </div>
-                      )}
-                    </div>
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border" style={{ borderColor: '#E4E8E6' }}>
+                {/* Trade cover + identity */}
+                <div className="h-14" style={{ background: 'linear-gradient(120deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }} />
+                <div className="px-4 pb-4">
+                  <div className="-mt-8 mb-2">
+                    <span style={{ display: 'inline-flex', borderRadius: '50%', padding: 3, background: '#fff' }}>
+                      <span style={{ display: 'inline-flex', borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)' }}>
+                        <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={13} />
+                      </span>
+                    </span>
                   </div>
+                  <div className="text-[16px] font-extrabold text-gray-900 leading-tight truncate">{session.name}</div>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {myTradeLabel && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#E6F5F1', color: '#0B5D4E' }}>{myTradeLabel}</span>
+                    )}
+                    {session.city && <span className="text-[12px] font-medium text-gray-500">{session.city}{session.state ? `, ${session.state}` : ''}</span>}
+                  </div>
+                  {session.is_verified && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#0F766E"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                      <span className="text-[11px] font-bold" style={{ color: '#0B5D4E' }}>Guild Verified</span>
+                    </div>
+                  )}
                   <Link href={`/pro/${session.slug || session.id}`}
-                    className="block w-full py-1.5 text-center text-[12px] font-semibold rounded-lg transition-colors"
-                    style={{ background: '#F0FDF9', color: '#0F766E', border: '1px solid #CCFBF1' }}>
-                    View profile →
+                    className="flex items-center justify-center gap-1.5 w-full mt-3.5 py-2 text-[12.5px] font-bold text-white rounded-xl transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 4px 12px -4px rgba(15,118,110,0.6)' }}>
+                    View profile
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                   </Link>
                 </div>
 
-                {/* Navigation */}
-                <nav className="py-2">
+                {/* Navigation — active item fills with the brand gradient */}
+                <nav className="px-2 pb-2 pt-1.5 border-t" style={{ borderColor: '#EEF1F0' }}>
                   {([
                     { href: '/guild',               tab: null,         label: 'Home',       icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z' },
                     { href: '/guild?tab=questions',  tab: 'questions',  label: 'Q&A',        icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -975,11 +1010,12 @@ function GuildPageInner() {
                       : (item.href === '/guild' && feedFilter === 'all')
                     return (
                       <Link key={item.href} href={item.href}
-                        className="flex items-center gap-3 mx-2 px-3 py-2 rounded-xl text-[13px] font-medium transition-all relative"
-                        style={active ? { color: '#0F766E', background: '#F0FDF9', fontWeight: 600 } : { color: '#6B7280' }}>
-                        {active && <span className="absolute left-0 inset-y-1.5 w-[3px] rounded-r-full bg-teal-500" />}
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all"
+                        style={active
+                          ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', fontWeight: 700, boxShadow: '0 3px 10px -4px rgba(15,118,110,0.6)' }
+                          : { color: '#374151', fontWeight: 600 }}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth={active ? 2.3 : 1.8} strokeLinecap="round" strokeLinejoin="round">
                           <path d={item.icon}/>
                         </svg>
                         {item.label}
@@ -1037,32 +1073,34 @@ function GuildPageInner() {
           {/* ── MAIN FEED ── */}
           <div className="min-w-0">
 
-            {/* Contextual trade filter — belongs to the feed, not the global chrome.
-                Crisp white chips on the page; active chip fills teal. */}
-            <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5"
-              style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-              <button onClick={() => setTradeFilter('')}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all border ${
-                  !tradeFilter
-                    ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
-                }`}>
-                All trades
-              </button>
-              {TRADES.map(t => {
-                const on = tradeFilter === t.slug
-                return (
-                  <button key={t.slug} onClick={() => setTradeFilter(on ? '' : t.slug)}
-                    className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border ${
-                      on
-                        ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700'
-                    }`}>
-                    {t.label}
-                  </button>
-                )
-              })}
-            </div>
+            {/* Contextual trade filter — the pro's own trade leads and is the
+                default; "All trades" is there to broaden. */}
+            {feedFilter !== 'following' && (
+              <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-0.5"
+                style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                {orderedTrades.map(t => {
+                  const on = tradeFilter === t.slug
+                  const mine = session?.trade_slug === t.slug
+                  return (
+                    <button key={t.slug} onClick={() => setTradeFilter(on ? '' : t.slug)}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                      style={on
+                        ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
+                        : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
+                      {mine && <span style={{ width: 6, height: 6, borderRadius: '50%', background: on ? '#fff' : '#0F766E', display: 'inline-block' }} />}
+                      {t.label}
+                    </button>
+                  )
+                })}
+                <button onClick={() => setTradeFilter('')}
+                  className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                  style={tradeFilter === ''
+                    ? { background: '#111827', color: '#fff', borderColor: '#111827' }
+                    : { background: '#fff', color: '#4B5563', borderColor: '#E4E8E6' }}>
+                  All trades
+                </button>
+              </div>
+            )}
 
             {session && <PostComposer session={session} onPost={post => setPosts(p => [post as Post, ...p])} />}
 
@@ -1097,19 +1135,27 @@ function GuildPageInner() {
                 ))}
               </div>
             ) : postsWithLikes.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-16 text-center shadow-sm">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <div className="bg-white rounded-2xl border border-gray-200 p-14 text-center shadow-sm">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#E6F5F1' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                 </div>
-                <div className="font-semibold text-gray-700 mb-1">Nothing here yet</div>
-                <div className="text-[13px] text-gray-400">
-                  {tradeFilter ? 'No posts in this trade — try a different filter.' : 'Be the first to post in The Guild.'}
+                <div className="font-bold text-gray-800 mb-1">
+                  {feedFilter === 'following' ? 'Your Following feed is empty' : 'Nothing here yet'}
                 </div>
-                {tradeFilter && (
-                  <button onClick={() => setTradeFilter('')} className="mt-3 text-[13px] text-teal-600 font-semibold hover:underline">
-                    Clear filter
+                <div className="text-[13px] text-gray-500 max-w-[280px] mx-auto">
+                  {feedFilter === 'following'
+                    ? 'Follow pros from the Top Pros list and their posts will show up here.'
+                    : tradeFilter
+                      ? `No ${myTradeLabel && tradeFilter === session?.trade_slug ? myTradeLabel.toLowerCase() : 'posts in this trade'} yet — broaden to all trades to see more.`
+                      : 'Be the first to post in The Guild.'}
+                </div>
+                {feedFilter === 'following' ? (
+                  <Link href="/guild" className="inline-block mt-3 text-[13px] font-bold text-teal-700 hover:underline">Browse the feed →</Link>
+                ) : tradeFilter ? (
+                  <button onClick={() => setTradeFilter('')} className="mt-3 text-[13px] text-teal-700 font-bold hover:underline">
+                    Show all trades
                   </button>
-                )}
+                ) : null}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1130,13 +1176,13 @@ function GuildPageInner() {
           {/* ── RIGHT SIDEBAR ── */}
           <aside className="hidden lg:block space-y-3" style={{ position: 'sticky', top: STICKY_TOP }}>
 
-            {/* Top Pros */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            {/* Top Pros — personalised to the pro's own trade */}
+            <div className="bg-white rounded-2xl border border-gray-200/70 p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">
-                  Top Pros{session?.city ? ` · ${session.city}` : ''}
+                <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: '#3B4452' }}>
+                  {myTradeLabel ? `Top ${myTradeLabel} Pros` : 'Top Pros'}
                 </span>
-                <Link href="/" className="text-[11px] text-teal-600 hover:underline font-medium">See all</Link>
+                <Link href={myTrade ? `/fl?trade=${myTrade.slug}` : '/fl'} className="text-[11px] font-semibold hover:underline" style={{ color: '#0F766E' }}>See all</Link>
               </div>
               {suggested.length === 0 ? (
                 <div className="text-[12px] text-gray-400">No suggestions yet.</div>
@@ -1163,12 +1209,12 @@ function GuildPageInner() {
               ))}
             </div>
 
-            {/* Trending Q&A */}
+            {/* Trending Q&A — scoped to the pro's trade */}
             {trendingQuestions.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200/70 p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Trending Q&amp;A</span>
-                  <Link href="/guild?tab=questions" className="text-[11px] text-teal-600 hover:underline font-medium">See all</Link>
+                  <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: '#3B4452' }}>{myTradeLabel ? `${myTradeLabel} Q&A` : 'Trending Q&A'}</span>
+                  <Link href="/guild?tab=questions" className="text-[11px] font-semibold hover:underline" style={{ color: '#0F766E' }}>See all</Link>
                 </div>
                 <div className="space-y-3">
                   {trendingQuestions.slice(0, 4).map((post, i, arr) => (
@@ -1213,15 +1259,30 @@ function GuildPageInner() {
               </div>
             )}
 
-            {/* Footer links — readable, not faded */}
-            <div className="px-1 pt-1">
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] font-medium" style={{ color: '#5B6472' }}>
-                <Link href="/guides" className="hover:text-teal-700 transition-colors">Guides</Link>
-                <Link href="/verify-license" className="hover:text-teal-700 transition-colors">License Lookup</Link>
-                <Link href="/fl" className="hover:text-teal-700 transition-colors">Find Pros</Link>
-                <Link href="/post-job" className="hover:text-teal-700 transition-colors">Post a Project</Link>
+            {/* Resources — a small branded card, not loose vanilla links */}
+            <div className="rounded-2xl border p-3.5 shadow-sm" style={{ borderColor: '#E4E8E6', background: 'linear-gradient(170deg, #FFFFFF 0%, #F6FBF9 100%)' }}>
+              <div className="flex items-center gap-2 mb-2 px-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="ProGuild" className="w-5 h-5 rounded-md flex-shrink-0" />
+                <span className="font-serif text-[13px] font-bold" style={{ color: '#0A1628' }}>ProGuild</span>
+                <span className="text-[11px] font-semibold text-gray-400">· Resources</span>
               </div>
-              <div className="mt-2.5 text-[11px] font-medium text-gray-400">© 2026 ProGuild.ai</div>
+              {([
+                { href: '/guides',         label: 'Trade Guides' },
+                { href: '/verify-license', label: 'License Lookup' },
+                { href: '/fl',             label: 'Find Pros' },
+                { href: '/post-job',       label: 'Post a Project' },
+              ]).map(l => (
+                <Link key={l.href} href={l.href}
+                  className="flex items-center justify-between px-2 py-1.5 rounded-lg text-[12.5px] font-semibold transition-colors hover:bg-white"
+                  style={{ color: '#374151' }}>
+                  {l.label}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </Link>
+              ))}
+              <div className="mt-2 pt-2.5 border-t px-2 text-[10.5px] font-medium text-gray-400" style={{ borderColor: '#EEF1F0' }}>
+                © 2026 ProGuild.ai · Florida's verified trades
+              </div>
             </div>
           </aside>
         </div>

@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   const search     = searchParams.get('search')?.trim() // text search in content
   const postType   = searchParams.get('post_type')    // filter by type
   const city       = searchParams.get('city')         // filter by pro's city
+  const onlyFollowing = searchParams.get('following') === '1' // only pros feedFor follows
 
   let query = getSupabaseAdmin()
     .from('posts')
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     posts = posts.filter(p => (p.pro as any)?.city?.toLowerCase() === city.toLowerCase())
   }
 
-  // Boost followed pros to top if feed_for provided
+  // Following-aware ordering/filtering when feed_for provided
   if (feedFor && !proId) {
     const { data: followData } = await getSupabaseAdmin()
       .from('follows')
@@ -43,12 +44,19 @@ export async function GET(req: NextRequest) {
       .eq('follower_id', feedFor)
 
     const followingIds = new Set((followData || []).map(f => f.following_id))
-    followingIds.add(feedFor)
 
-    posts = [
-      ...posts.filter(p => followingIds.has(p.pro_id)),
-      ...posts.filter(p => !followingIds.has(p.pro_id)),
-    ]
+    if (onlyFollowing) {
+      // Following tab — ONLY posts from pros the user follows (not their own)
+      posts = posts.filter(p => followingIds.has(p.pro_id))
+    } else {
+      // Default feed — boost followed pros (and self) to the top
+      const boosted = new Set(followingIds)
+      boosted.add(feedFor)
+      posts = [
+        ...posts.filter(p => boosted.has(p.pro_id)),
+        ...posts.filter(p => !boosted.has(p.pro_id)),
+      ]
+    }
   }
 
   return NextResponse.json({ posts })
