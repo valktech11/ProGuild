@@ -808,6 +808,229 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Reaction config — per post_type
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ReactionCfg = {
+  label: string
+  activeColor: string
+  activeBg: string
+  activeBorder: string
+  hoverCls: string
+  activeCls: string
+  icon: (active: boolean) => React.ReactNode
+}
+
+function getReactionCfg(postType: string): ReactionCfg {
+  if (postType === 'work') return {
+    label: 'Respect',
+    activeColor: '#0F766E',
+    activeBg: 'rgba(14,122,110,0.08)',
+    activeBorder: '1px solid rgba(14,122,110,0.3)',
+    hoverCls: 'hover:text-teal-700 hover:bg-teal-50',
+    activeCls: 'text-teal-700 bg-teal-50 font-semibold',
+    icon: (active: boolean) => (
+      <svg width="15" height="15" viewBox="0 0 16 16"
+        fill={active ? '#0F766E' : 'none'}
+        stroke={active ? 'none' : 'currentColor'} strokeWidth="1.5">
+        <path d="M8 0.5 C8 0.5 9.4 6.2 9.4 6.2 C9.4 6.2 15.5 8 15.5 8 C15.5 8 9.4 9.8 9.4 9.8 C9.4 9.8 8 15.5 8 15.5 C8 15.5 6.6 9.8 6.6 9.8 C6.6 9.8 0.5 8 0.5 8 C0.5 8 6.6 6.2 6.6 6.2 Z"/>
+      </svg>
+    ),
+  }
+  if (postType === 'tip') return {
+    label: 'Helpful',
+    activeColor: '#7C3AED',
+    activeBg: 'rgba(124,58,237,0.08)',
+    activeBorder: '1px solid rgba(124,58,237,0.3)',
+    hoverCls: 'hover:text-violet-700 hover:bg-violet-50',
+    activeCls: 'text-violet-700 bg-violet-50 font-semibold',
+    icon: (active: boolean) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke={active ? '#7C3AED' : 'currentColor'} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21h6M12 3a6 6 0 00-4 10.38V17a1 1 0 001 1h6a1 1 0 001-1v-3.62A6 6 0 0012 3z"/>
+      </svg>
+    ),
+  }
+  if (postType === 'milestone') return {
+    label: 'Congrats',
+    activeColor: '#D97706',
+    activeBg: 'rgba(217,119,6,0.08)',
+    activeBorder: '1px solid rgba(217,119,6,0.3)',
+    hoverCls: 'hover:text-amber-700 hover:bg-amber-50',
+    activeCls: 'text-amber-700 bg-amber-50 font-semibold',
+    icon: (active: boolean) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke={active ? '#D97706' : 'currentColor'} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4M12 17v4M8 21h8M7 9a5 5 0 005 5 5 5 0 005-5V5H7v4z"/>
+      </svg>
+    ),
+  }
+  // update / default
+  return {
+    label: 'Useful',
+    activeColor: '#0369A1',
+    activeBg: 'rgba(3,105,161,0.08)',
+    activeBorder: '1px solid rgba(3,105,161,0.3)',
+    hoverCls: 'hover:text-sky-700 hover:bg-sky-50',
+    activeCls: 'text-sky-700 bg-sky-50 font-semibold',
+    icon: (active: boolean) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke={active ? '#0369A1' : 'currentColor'} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
+        <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
+      </svg>
+    ),
+  }
+}
+
+// Attribution popover + reaction button
+function ReactionButton({ post, session, onLike, liking, isOwn }: {
+  post: Post & { liked_by_me: boolean }
+  session: Session | null
+  onLike: (id: string) => void
+  liking: boolean
+  isOwn: boolean
+}) {
+  const [showAttrib, setShowAttrib] = useState(false)
+  const [reactors, setReactors] = useState<{ id: string; full_name: string; profile_photo_url?: string | null; trade_category?: { category_name: string } | null }[]>([])
+  const [loadingReactors, setLoadingReactors] = useState(false)
+  const attribRef = useRef<HTMLDivElement>(null)
+
+  const cfg = getReactionCfg(post.post_type)
+  const active = post.liked_by_me
+
+  useEffect(() => {
+    if (!showAttrib) return
+    function onOut(e: MouseEvent) {
+      if (attribRef.current && !attribRef.current.contains(e.target as Node)) setShowAttrib(false)
+    }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [showAttrib])
+
+  async function openAttrib(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (post.like_count === 0 && !isOwn) return
+    if (post.like_count === 0) { setShowAttrib(v => !v); return }
+    setShowAttrib(v => !v)
+    if (reactors.length > 0) return
+    setLoadingReactors(true)
+    try {
+      const r = await fetch(`/api/posts/likes?post_id=${post.id}`)
+      if (r.ok) { const d = await r.json(); setReactors(d.reactors || []) }
+    } catch {}
+    setLoadingReactors(false)
+  }
+
+  // Owner: read-only colored stat — same look as active, cursor-default, always shows count
+  if (isOwn) {
+    return (
+      <div className="relative" ref={attribRef}>
+        <button
+          onClick={openAttrib}
+          style={{ background: cfg.activeBg, border: cfg.activeBorder, borderRadius: 8, color: cfg.activeColor, cursor: post.like_count > 0 ? 'pointer' : 'default' }}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-semibold transition-colors ${post.like_count > 0 ? 'hover:opacity-80' : ''}`}>
+          {cfg.icon(true)}
+          <span>{cfg.label}</span>
+          <span className="text-[11px] font-semibold tabular-nums">{post.like_count}</span>
+        </button>
+        {showAttrib && (
+          <AttributionPopover
+            reactors={reactors}
+            loading={loadingReactors}
+            label={cfg.label}
+            count={post.like_count}
+            color={cfg.activeColor}
+            onClose={() => setShowAttrib(false)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // Other user: clickable reaction + count click opens attribution
+  return (
+    <div className="relative flex items-center" ref={attribRef}>
+      <button
+        onClick={() => session ? onLike(post.id) : (window.location.href = '/login')}
+        disabled={liking}
+        style={active ? { background: cfg.activeBg, border: cfg.activeBorder, borderRadius: 8, color: cfg.activeColor } : {}}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors border border-transparent ${
+          active ? cfg.activeCls : `text-gray-500 ${cfg.hoverCls}`
+        }`}>
+        {cfg.icon(active)}
+        <span>{cfg.label}</span>
+      </button>
+      {post.like_count > 0 && (
+        <button
+          onClick={openAttrib}
+          style={{ color: cfg.activeColor }}
+          className="text-[12px] font-bold tabular-nums px-1.5 py-1 rounded hover:underline transition-colors">
+          {post.like_count}
+        </button>
+      )}
+      {showAttrib && (
+        <AttributionPopover
+          reactors={reactors}
+          loading={loadingReactors}
+          label={cfg.label}
+          count={post.like_count}
+          color={cfg.activeColor}
+          onClose={() => setShowAttrib(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function AttributionPopover({ reactors, loading, label, count, color, onClose }: {
+  reactors: { id: string; full_name: string; profile_photo_url?: string | null; trade_category?: { category_name: string } | null }[]
+  loading: boolean
+  label: string
+  count: number
+  color: string
+  onClose: () => void
+}) {
+  return (
+    <div className="absolute left-0 bottom-full mb-2 w-64 bg-white rounded-xl border border-gray-200 shadow-xl z-50 overflow-hidden"
+      style={{ boxShadow: '0 16px 32px -8px rgba(10,22,40,0.18), 0 0 0 1px rgba(10,22,40,0.05)' }}>
+      <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+        <span className="text-[12px] font-bold text-gray-700"
+          style={{ color }}>
+          {count} {count === 1 ? 'pro' : 'pros'} gave {label}
+        </span>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div className="max-h-52 overflow-y-auto">
+        {loading ? (
+          <div className="px-3 py-4 text-[12px] text-gray-400 text-center">Loading…</div>
+        ) : count === 0 ? (
+          <div className="px-3 py-4 text-[12px] text-gray-400 text-center">No reactions yet</div>
+        ) : reactors.length === 0 ? (
+          <div className="px-3 py-4 text-[12px] text-gray-400 text-center">Loading…</div>
+        ) : reactors.map(r => (
+          <a key={r.id} href={`/pro/${r.id}`}
+            className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors">
+            <Avatar pro={r} size={7} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-semibold text-gray-800 truncate">{r.full_name}</div>
+              {r.trade_category?.category_name && (
+                <div className="text-[11px] text-gray-400 truncate">{r.trade_category.category_name}</div>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Post Card
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1054,97 +1277,8 @@ function PostCard({ post, session, onLike, onDelete, onEdit, liking }: {
 
       {/* Action bar */}
       <div className="flex items-center gap-0.5 px-3 py-2 border-t border-gray-100">
-        {/* Contextual reaction: label + icon + color keyed to post_type */}
-        {(() => {
-          // Per post_type: label, icon SVG path(s), active color classes
-          const isWork = post.post_type === 'work'
-          const isTip2 = post.post_type === 'tip'
-          const isMilestone2 = post.post_type === 'milestone'
-          // update / default → Useful (blue)
-
-          const reactionCfg = isWork
-            ? {
-                label: 'Respect',
-                activeColor: '#0F766E',
-                activeBg: 'rgba(14,122,110,0.08)',
-                activeBorder: '1px solid rgba(14,122,110,0.3)',
-                hoverCls: 'hover:text-teal-700 hover:bg-teal-50',
-                activeCls: 'text-teal-700 bg-teal-50 font-semibold',
-                icon: (active: boolean) => (
-                  <svg width="15" height="15" viewBox="0 0 16 16"
-                    fill={active ? '#0F766E' : 'none'}
-                    stroke={active ? 'none' : 'currentColor'}
-                    strokeWidth="1.3">
-                    <path d="M8 0.5 C8 0.5 9.4 6.2 9.4 6.2 C9.4 6.2 15.5 8 15.5 8 C15.5 8 9.4 9.8 9.4 9.8 C9.4 9.8 8 15.5 8 15.5 C8 15.5 6.6 9.8 6.6 9.8 C6.6 9.8 0.5 8 0.5 8 C0.5 8 6.6 6.2 6.6 6.2 Z"/>
-                  </svg>
-                ),
-              }
-            : isTip2
-            ? {
-                label: 'Helpful',
-                activeColor: '#7C3AED',
-                activeBg: 'rgba(124,58,237,0.08)',
-                activeBorder: '1px solid rgba(124,58,237,0.3)',
-                hoverCls: 'hover:text-violet-700 hover:bg-violet-50',
-                activeCls: 'text-violet-700 bg-violet-50 font-semibold',
-                icon: (active: boolean) => (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke={active ? '#7C3AED' : 'currentColor'} strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21h6M12 3a6 6 0 00-4 10.38V17a1 1 0 001 1h6a1 1 0 001-1v-3.62A6 6 0 0012 3z"/>
-                  </svg>
-                ),
-              }
-            : isMilestone2
-            ? {
-                label: 'Congrats',
-                activeColor: '#D97706',
-                activeBg: 'rgba(217,119,6,0.08)',
-                activeBorder: '1px solid rgba(217,119,6,0.3)',
-                hoverCls: 'hover:text-amber-700 hover:bg-amber-50',
-                activeCls: 'text-amber-700 bg-amber-50 font-semibold',
-                icon: (active: boolean) => (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke={active ? '#D97706' : 'currentColor'} strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4M12 17v4M8 21h8M7 9a5 5 0 005 5 5 5 0 005-5V5H7v4z"/>
-                  </svg>
-                ),
-              }
-            : {
-                label: 'Useful',
-                activeColor: '#0369A1',
-                activeBg: 'rgba(3,105,161,0.08)',
-                activeBorder: '1px solid rgba(3,105,161,0.3)',
-                hoverCls: 'hover:text-sky-700 hover:bg-sky-50',
-                activeCls: 'text-sky-700 bg-sky-50 font-semibold',
-                icon: (active: boolean) => (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke={active ? '#0369A1' : 'currentColor'} strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-                    <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-                  </svg>
-                ),
-              }
-
-          const active = post.liked_by_me
-          return (
-            <button
-              onClick={() => session ? onLike(post.id) : (window.location.href = '/login')}
-              disabled={isOwn || liking}
-              style={active ? { background: reactionCfg.activeBg, border: reactionCfg.activeBorder, borderRadius: 8, color: reactionCfg.activeColor } : {}}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors border border-transparent ${
-                isOwn ? 'text-gray-200 cursor-default' :
-                active ? reactionCfg.activeCls :
-                `text-gray-500 ${reactionCfg.hoverCls}`
-              }`}>
-              {reactionCfg.icon(active)}
-              <span>{reactionCfg.label}</span>
-              {post.like_count > 0 && <span className="text-[11px] font-semibold tabular-nums">{post.like_count}</span>}
-            </button>
-          )
-        })()}
+        {/* Contextual reaction with attribution popover */}
+        <ReactionButton post={post} session={session} onLike={onLike} liking={liking} isOwn={isOwn} />
 
         {/* Comment / Answer */}
         <button onClick={loadComments}

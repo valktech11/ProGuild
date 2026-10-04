@@ -28,6 +28,19 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
+  const postId = searchParams.get('post_id')
+
+  // ?post_id=X → return list of pros who reacted to this post (for attribution popover)
+  if (postId) {
+    const { data } = await getSupabaseAdmin()
+      .from('post_likes')
+      .select('pro:pros!pro_id(id, full_name, profile_photo_url, trade_category:trade_categories(category_name))')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    return NextResponse.json({ reactors: (data || []).map((l: any) => l.pro).filter(Boolean) })
+  }
+
   if (!proId) return NextResponse.json({ likes: [] })
 
   const { data } = await getSupabaseAdmin()
