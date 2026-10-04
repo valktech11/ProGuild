@@ -996,8 +996,10 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingC
   onShowAll: () => void
   onFollowToggle?: (nowFollowing: boolean) => void
 }) {
-  // followingCount === 0 (or null while loading): user follows nobody → full onboarding
-  // followingCount > 0 + mode=following: user follows people, they just haven't posted
+  // followingCount === null: still fetching — defer hero to avoid flash of wrong state
+  // followingCount === 0: user follows nobody → onboarding
+  // followingCount > 0 + mode=following: user follows people but no posts yet
+  const followingLoading = mode === 'following' && followingCount === null && !!session
   const followingHasNetwork = mode === 'following' && followingCount !== null && followingCount > 0
 
   // The big welcome hero is onboarding — it disappears once the pro has posted.
@@ -1009,6 +1011,15 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingC
     : mode === 'mine'
       ? { title: 'Your posts live here', sub: 'Share a project, ask a question, or post a milestone to get started.' }
       : { title: 'Start your Guild presence', sub: 'Share a project, ask a question, or introduce yourself.' }
+
+  if (followingLoading) {
+    return (
+      <div className="bg-white rounded-2xl border p-5 shadow-sm flex items-center gap-3" style={{ borderColor: '#E4E8E6' }}>
+        <div className="w-8 h-8 rounded-full border-2 border-teal-200 border-t-teal-600 animate-spin flex-shrink-0" />
+        <span className="text-[13px] text-gray-500">Loading your feed…</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -1176,6 +1187,14 @@ function GuildPageInner() {
     safe(fetch(buildUrl(s, feedFilter, tradeFilter, mineTypeFilter)))
       .then(d => { setPosts(d.posts || []); setLoading(false) })
       .catch(() => setLoading(false))
+    // When on the Following tab, fetch how many pros this user follows so the
+    // empty-feed hero can distinguish "follows nobody" vs "follows people, no posts yet"
+    if (feedFilter === 'following' && s?.id) {
+      safe(fetch(`/api/follows?pro_id=${s.id}`))
+        .then(d => { setFollowingCount(typeof d.following_count === 'number' ? d.following_count : 0) })
+    } else if (feedFilter !== 'following') {
+      setFollowingCount(null) // reset so it re-fetches next time Following tab is opened
+    }
     // Keyed on _real?.id (not the object) so a silent re-resolve on tab refocus
     // doesn't retrigger a refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1192,8 +1211,7 @@ function GuildPageInner() {
       safe(fetch('/api/jobs?status=Open&limit=3')),
       safe(fetch(`/api/posts?limit=5&post_type=tip${trade}`)),
       s ? safe(fetch(`/api/posts?pro_id=${s.id}&limit=1`)) : Promise.resolve({ posts: [] }),
-      s ? safe(fetch(`/api/follows?pro_id=${s.id}`)) : Promise.resolve({ following_count: 0 }),
-    ]).then(([prosData, likesData, jobsData, qData, mineData, followData]) => {
+    ]).then(([prosData, likesData, jobsData, qData, mineData]) => {
       let pros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
       // If the pro's own trade is too thin, backfill with top pros from any trade
       if (s?.trade_slug && pros.length < 6) {
@@ -1208,7 +1226,6 @@ function GuildPageInner() {
       setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
       setHasPosted((mineData.posts || []).length > 0) // welcome card disappears after first post
-      setFollowingCount(followData.following_count ?? 0)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_real?.id])
