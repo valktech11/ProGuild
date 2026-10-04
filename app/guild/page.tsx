@@ -7,7 +7,7 @@
  * Auth: public (read-only) | logged-in (full interaction)
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import DashboardShell from '@/components/layout/DashboardShell'
@@ -696,7 +696,7 @@ function ProfileCard({ session }: { session: Session }) {
 
 type FeedFilter = 'all' | 'following' | 'questions' | 'network'
 
-export default function GuildPage() {
+function GuildPageInner() {
   const { session: _real } = useProSession()
   const searchParams = useSearchParams()
   const [session, setSession] = useState<Session | null>(null)
@@ -1149,5 +1149,13 @@ export default function GuildPage() {
         </nav>
       </div>
     </DashboardShell>
+  )
+}
+
+export default function GuildPage() {
+  return (
+    <Suspense fallback={null}>
+      <GuildPageInner />
+    </Suspense>
   )
 }
