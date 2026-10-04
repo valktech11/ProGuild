@@ -359,7 +359,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Follow button
+// Follow button + Message button
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FollowButton({ proId, followerId, compact }: { proId: string; followerId: string; compact?: boolean }) {
@@ -384,6 +384,17 @@ function FollowButton({ proId, followerId, compact }: { proId: string; followerI
       }`}>
       {loading ? '…' : following ? 'Following' : '+ Follow'}
     </button>
+  )
+}
+
+// Message button — links to /messages?to=<proId> (v1: link, not modal)
+function MessageButton({ proId, compact }: { proId: string; compact?: boolean }) {
+  return (
+    <Link href={`/messages?to=${proId}`}
+      className={`inline-flex items-center gap-1 font-semibold border rounded-lg transition-colors hover:bg-gray-50 ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} border-gray-200 text-gray-600`}>
+      <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      {compact ? '' : 'Message'}
+    </Link>
   )
 }
 
@@ -570,11 +581,12 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
         </button>
 
         {/* Right actions */}
-        {!isOwn && (
+        {!isOwn && session && (
           <div className="flex items-center gap-1.5 ml-auto">
-            <Link href={`/pro/${post.pro_id}`} title="View Profile"
-              className="flex items-center justify-center w-7 h-7 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-teal-600 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <Link href={`/messages?to=${post.pro_id}`} title="Message"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              Message
             </Link>
             <Link href={`/post-job?pro=${post.pro_id}`} title="Request Quote"
               className="flex items-center justify-center w-7 h-7 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
@@ -805,7 +817,12 @@ function FollowStrip({ pros, session, tradeLabel }: { pros: Pro[]; session: Sess
                 {pro.is_verified && <svg width="11" height="11" viewBox="0 0 24 24" fill="#0F766E" className="flex-shrink-0"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>}
               </div>
               <div className="text-[11.5px] text-gray-500 truncate mt-0.5 mb-3">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
-              {session.id !== pro.id && <FollowButton proId={pro.id} followerId={session.id} compact />}
+              {session.id !== pro.id && (
+                <div className="flex items-center justify-center gap-1.5">
+                  <FollowButton proId={pro.id} followerId={session.id} compact />
+                  <MessageButton proId={pro.id} compact />
+                </div>
+              )}
             </div>
           ))}
           <Link href={seeAll} className="flex-shrink-0 rounded-2xl border border-dashed flex flex-col items-center justify-center text-center p-4 hover:bg-gray-50 transition-colors"
@@ -1062,7 +1079,7 @@ function GuildPageInner() {
   const myTradeLabel = myTrade?.label || null
   // Pro's own trade leads the pill row; the rest fall into a "More" menu so it stays one line.
   const orderedPills = myTrade ? [myTrade, ...TRADES.filter(t => t.slug !== myTrade.slug)] : TRADES
-  const VISIBLE_PILLS = 6
+  const VISIBLE_PILLS = 4
   const inlinePills = orderedPills.slice(0, VISIBLE_PILLS)
   const morePills = orderedPills.slice(VISIBLE_PILLS)
   const pillOn = { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', borderColor: 'transparent', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
@@ -1190,10 +1207,10 @@ function GuildPageInner() {
                 {/* Trade cover + identity */}
                 <div className="h-16" style={{ background: 'linear-gradient(120deg, #0B5D4E 0%, #0F766E 55%, #0D9488 100%)' }} />
                 <div className="px-4 pb-4">
-                  <div className="-mt-11 mb-2.5">
-                    {/* Larger DP with a solid white ring so the photo actually reads */}
-                    <span style={{ display: 'inline-flex', borderRadius: '50%', padding: 4, background: '#fff', boxShadow: '0 3px 10px -3px rgba(10,22,40,0.25)' }}>
-                      <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={18} />
+                  <div className="-mt-14 mb-3">
+                    {/* Enlarged DP — 88px with thick white ring, reads clearly against cover */}
+                    <span style={{ display: 'inline-flex', borderRadius: '50%', padding: 5, background: '#fff', boxShadow: '0 4px 16px -4px rgba(10,22,40,0.32)' }}>
+                      <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={22} />
                     </span>
                   </div>
                   <div className="text-[16px] font-extrabold text-gray-900 leading-tight truncate">{session.name}</div>
@@ -1300,9 +1317,10 @@ function GuildPageInner() {
           <div className="min-w-0">
 
             {/* Contextual trade filter — one row: All Trades + the pro's trade (pinned)
-                + key trades, with the rest under a "More" menu so it never wraps. */}
+                + key trades, with the rest under a "More" menu so it never wraps.
+                min-w-0 + overflow-hidden keeps pills from bleeding into the right rail. */}
             {(feedFilter === 'all' || feedFilter === 'questions' || feedFilter === 'projects') && (
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 min-w-0 overflow-hidden">
                 <button onClick={() => setTradeFilter('')}
                   className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
                   style={tradeFilter === '' ? pillOn : pillOff}>
@@ -1408,8 +1426,10 @@ function GuildPageInner() {
           {/* ── RIGHT SIDEBAR ── */}
           <aside className="hidden lg:block space-y-3" style={{ position: 'sticky', top: STICKY_TOP }}>
 
-            {/* Top Pros — personalised to the pro's own trade */}
-            <div className="bg-white rounded-2xl border border-gray-200/70 p-4 shadow-sm">
+            {/* Top Pros — personalised to the pro's own trade.
+                Hidden when the feed is empty: the FollowStrip in the center column
+                already shows the same people, so surfacing them twice is redundant. */}
+            {postsWithLikes.length > 0 && <div className="bg-white rounded-2xl border border-gray-200/70 p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: '#3B4452' }}>
                   {myTradeLabel ? `Top ${myTradeLabel} Pros` : 'Top Pros'}
@@ -1435,11 +1455,14 @@ function GuildPageInner() {
                     <div className="text-[11px] text-gray-500 truncate">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
                   </div>
                   {session && session.id !== pro.id && (
-                    <FollowButton proId={pro.id} followerId={session.id} compact />
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <FollowButton proId={pro.id} followerId={session.id} compact />
+                      <MessageButton proId={pro.id} compact />
+                    </div>
                   )}
                 </div>
               ))}
-            </div>
+            </div>}
 
             {/* Trending Q&A — scoped to the pro's trade */}
             {trendingQuestions.length > 0 && (
