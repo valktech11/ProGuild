@@ -11,6 +11,7 @@ export type NotificationType =
   | 'estimate_approved'
   | 'new_lead_created'
   | 'trial_expiry_reminder'
+  | 'follow'
 
 interface NotifyParams {
   proId: string          // recipient

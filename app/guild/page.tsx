@@ -1210,12 +1210,26 @@ function NotificationBell({ proId }: { proId: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+  // All notification API calls need a Bearer token — get it from Supabase client
+  async function authHeaders(): Promise<Record<string, string>> {
+    try {
+      const { getSupabaseBrowser } = await import('@/lib/supabase-browser')
+      const { data } = await getSupabaseBrowser().auth.getSession()
+      const token = data.session?.access_token
+      if (token) return { 'Authorization': `Bearer ${token}` }
+    } catch {}
+    return {}
+  }
+
   const fetchNotifs = useCallback(async () => {
-    const r = await fetch('/api/notifications')
-    if (r.ok) {
-      const d = await r.json()
-      setNotifs(d.notifications || [])
-    }
+    try {
+      const headers = await authHeaders()
+      const r = await fetch('/api/notifications', { headers })
+      if (r.ok) {
+        const d = await r.json()
+        setNotifs(d.notifications || [])
+      }
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -1236,8 +1250,9 @@ function NotificationBell({ proId }: { proId: string }) {
   async function markRead() {
     const unreadIds = notifs.filter(n => !n.read_at).map(n => n.id)
     if (!unreadIds.length) return
+    const headers = await authHeaders()
     await fetch('/api/notifications/read', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({ ids: unreadIds }),
     })
     setNotifs(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })))
