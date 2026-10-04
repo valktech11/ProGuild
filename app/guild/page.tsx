@@ -454,11 +454,12 @@ function MessageButton({ proId, compact }: { proId: string; compact?: boolean })
 // Post Card
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PostCard({ post, session, onLike, onDelete, liking }: {
+function PostCard({ post, session, onLike, onDelete, onEdit, liking }: {
   post: Post & { liked_by_me: boolean }
   session: Session | null
   onLike: (id: string) => void
   onDelete: (id: string) => void
+  onEdit: (id: string, content: string) => void
   liking: boolean
 }) {
   const [showComments, setShowComments] = useState(false)
@@ -467,6 +468,28 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
   const [loadingComments, setLoadingComments] = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
   const [lightbox, setLightbox] = useState<{ imgs: string[]; idx: number } | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editContent, setEditContent] = useState(post.content || '')
+  const [saving, setSaving] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onDoc(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  async function saveEdit() {
+    if (!editContent.trim()) return
+    setSaving(true)
+    const r = await fetch('/api/posts', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: post.id, pro_id: session!.id, content: editContent }),
+    })
+    if (r.ok) { onEdit(post.id, editContent); setEditing(false) }
+    setSaving(false)
+  }
 
   const pro = post.pro as any
   const isOwn = session?.id === post.pro_id
@@ -532,9 +555,28 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
               </span>
             )}
             {isOwn && (
-              <button onClick={() => {
-                if (window.confirm('Delete this post? This cannot be undone.')) onDelete(post.id)
-              }} className="ml-auto text-gray-400 hover:text-red-500 transition-colors text-xs px-1" title="Delete post">✕</button>
+              <div className="ml-auto relative" ref={menuRef}>
+                <button onClick={() => setMenuOpen(o => !o)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  title="Post options">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl border border-gray-200 py-1 z-50"
+                    style={{ boxShadow: '0 8px 24px rgba(15,23,22,0.14)' }}>
+                    <button onClick={() => { setMenuOpen(false); setEditContent(post.content || ''); setEditing(true) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <button onClick={() => { setMenuOpen(false); setShowDeleteModal(true) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-red-600 hover:bg-red-50 transition-colors">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -548,14 +590,61 @@ function PostCard({ post, session, onLike, onDelete, liking }: {
         </div>
       </div>
 
-      {/* Content */}
-      {post.content && (
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              </div>
+              <div>
+                <div className="text-[15px] font-bold text-gray-900">Delete post?</div>
+                <div className="text-[12px] text-gray-500">This cannot be undone.</div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-2 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => { setShowDeleteModal(false); onDelete(post.id) }}
+                className="flex-1 py-2 rounded-xl bg-red-600 text-white text-[13px] font-bold hover:bg-red-700 transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content — editable inline when editing */}
+      {editing ? (
+        <div className="px-4 pb-3">
+          <textarea
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            rows={4}
+            autoFocus
+            className="w-full text-[15px] text-gray-900 border border-teal-300 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-teal-300 leading-relaxed"
+          />
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => setEditing(false)}
+              className="px-3 py-1.5 text-[13px] text-gray-500 hover:text-gray-700 transition-colors">
+              Cancel
+            </button>
+            <button onClick={saveEdit} disabled={saving || !editContent.trim()}
+              className="px-5 py-1.5 rounded-full text-[13px] font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-40 transition-colors">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : post.content ? (
         <div className="px-4 pb-3">
           <p className={`text-[15px] leading-relaxed whitespace-pre-wrap ${isQuestion ? 'font-medium text-violet-900' : 'text-gray-700'}`}>
             {post.content}
           </p>
         </div>
-      )}
+      ) : null}
 
       {/* Lightbox */}
       {lightbox && <Lightbox imgs={lightbox.imgs} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}
@@ -905,7 +994,7 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose,
   // The big welcome hero is onboarding — it disappears once the pro has posted.
   const showWelcome = mode === 'following' || mode === 'mine' || !hasPosted
   const hero = mode === 'following'
-    ? { title: 'Build your Following feed', sub: `Follow ${tradeLabel ? tradeLabel.toLowerCase() : 'the'} pros below — their projects and answers land here.` }
+    ? { title: "You're not following anyone yet", sub: 'Follow pros below to build your Guild feed. Their projects and answers will appear here.' }
     : mode === 'mine'
       ? { title: 'Your posts live here', sub: 'Share a project, ask a question, or post a milestone to get started.' }
       : { title: 'Start your Guild presence', sub: 'Share a project, ask a question, or introduce yourself.' }
@@ -938,6 +1027,9 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose,
                       </button>
                     )}
                   </>
+                )}
+                {session && mode === 'following' && (
+                  <span className="text-[12.5px] text-white/80">Find pros to follow in the "People to follow" section below.</span>
                 )}
                 {!session && (
                   <Link href="/login?tab=signup"
@@ -995,6 +1087,7 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, onCompose,
 // ─────────────────────────────────────────────────────────────────────────────
 
 type FeedFilter = 'all' | 'following' | 'questions' | 'projects' | 'mine'
+type MineTypeFilter = '' | 'work' | 'tip' | 'update' | 'milestone'
 
 function GuildPageInner() {
   const { session: _real, loading: authLoading, signOut } = useProSession()
@@ -1009,6 +1102,7 @@ function GuildPageInner() {
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
   const [hasPosted, setHasPosted] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [mineTypeFilter, setMineTypeFilter] = useState<MineTypeFilter>('')
   const moreRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     function onDoc(e: MouseEvent) { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false) }
@@ -1023,15 +1117,23 @@ function GuildPageInner() {
   const tabParam = searchParams.get('tab') as FeedFilter | null
   const feedFilter: FeedFilter = tabParam && ['all','following','questions','projects','mine'].includes(tabParam) ? tabParam : 'all'
 
+  // Reset mineTypeFilter when leaving Mine view
+  useEffect(() => {
+    if (feedFilter !== 'mine') setMineTypeFilter('')
+  }, [feedFilter])
+
   // Seed the trade filter once auth resolves: a pro lands on their own trade.
   useEffect(() => {
     if (authLoading || tradeFilter !== null) return
     setTradeFilter(_real?.trade_slug || '')
   }, [authLoading, _real?.id, _real?.trade_slug, tradeFilter])
 
-  function buildUrl(s: Session | null, ff: FeedFilter, trade: string) {
+  function buildUrl(s: Session | null, ff: FeedFilter, trade: string, mineType: MineTypeFilter = '') {
     // My Posts — only this pro's own posts, no trade/feed filter
-    if (ff === 'mine' && s) return `/api/posts?pro_id=${s.id}&limit=30`
+    if (ff === 'mine' && s) {
+      const base = `/api/posts?pro_id=${s.id}&limit=30`
+      return mineType ? `${base}&post_type=${mineType}` : base
+    }
     const base = s ? `/api/posts?feed_for=${s.id}&limit=30` : `/api/posts?limit=30`
     const p = new URLSearchParams()
     // Following shows everyone you follow, across trades — so no trade filter there.
@@ -1053,13 +1155,13 @@ function GuildPageInner() {
     if (tradeFilter === null) return // wait for trade seed
     const s = _real
     setLoading(true)
-    safe(fetch(buildUrl(s, feedFilter, tradeFilter)))
+    safe(fetch(buildUrl(s, feedFilter, tradeFilter, mineTypeFilter)))
       .then(d => { setPosts(d.posts || []); setLoading(false) })
       .catch(() => setLoading(false))
     // Keyed on _real?.id (not the object) so a silent re-resolve on tab refocus
     // doesn't retrigger a refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tradeFilter, feedFilter, _real?.id])
+  }, [tradeFilter, feedFilter, mineTypeFilter, _real?.id])
 
   // Rail widgets + likes — loaded once per identity, personalised to the pro's trade
   useEffect(() => {
@@ -1112,6 +1214,10 @@ function GuildPageInner() {
     if (!session) return
     await fetch(`/api/posts?id=${postId}&pro_id=${session.id}`, { method: 'DELETE' })
     setPosts(prev => prev.filter(p => p.id !== postId))
+  }
+
+  function handleEdit(postId: string, content: string) {
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, content } : p))
   }
 
   // Single white app bar is 56px tall; sticky rails + pill strip sit just under it
@@ -1419,7 +1525,29 @@ function GuildPageInner() {
               </div>
             )}
 
-            {session && <PostComposer session={session} onPost={post => setPosts(p => [post as Post, ...p])} />}
+            {/* My Posts sub-tabs — shown only in Mine view */}
+            {feedFilter === 'mine' && session && (
+              <div className="flex items-center gap-1.5 mb-3 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                {([
+                  { key: '' as MineTypeFilter,           label: 'All' },
+                  { key: 'work' as MineTypeFilter,       label: 'Projects' },
+                  { key: 'tip' as MineTypeFilter,        label: 'Questions' },
+                  { key: 'update' as MineTypeFilter,     label: 'Posts' },
+                  { key: 'milestone' as MineTypeFilter,  label: 'Milestones' },
+                ]).map(t => {
+                  const on = mineTypeFilter === t.key
+                  return (
+                    <button key={t.key} onClick={() => setMineTypeFilter(t.key)}
+                      className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12.5px] font-semibold transition-all whitespace-nowrap border"
+                      style={on ? pillOn : pillOff}>
+                      {t.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {session && feedFilter !== 'following' && <PostComposer session={session} onPost={post => { setPosts(p => [post as Post, ...p]); setHasPosted(true) }} />}
 
             {!session && (
               <div className="bg-white rounded-2xl border border-gray-200/60 p-4 mb-3 shadow-sm flex items-center gap-4">
@@ -1471,6 +1599,7 @@ function GuildPageInner() {
                     session={session}
                     onLike={handleLike}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                     liking={likingIds.has(post.id)}
                   />
                 ))}
