@@ -181,6 +181,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
   const [beforePhoto, setBeforePhoto] = useState<string>('')
   const [isBeforeAfter, setIsBeforeAfter] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadingSlot, setUploadingSlot] = useState<'before' | 'after' | null>(null)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -204,7 +205,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
     const files = Array.from(e.target.files || []) as File[]
     if (!files.length) return
     if (photos.length + files.length > 5) { setError('Maximum 5 photos.'); return }
-    setUploading(true)
+    setUploading(true); setUploadingSlot('after')
     const uploaded: string[] = []
     for (const file of files) {
       const form = new FormData()
@@ -215,20 +216,20 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
       if (r.ok) uploaded.push(d.url)
     }
     setPhotos(prev => [...prev, ...uploaded])
-    setUploading(false)
+    setUploading(false); setUploadingSlot(null)
     if (fileRef.current) fileRef.current.value = ''
   }
 
   async function handleBeforePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
-    setUploading(true)
+    setUploading(true); setUploadingSlot('before')
     const form = new FormData()
     form.append('file', file); form.append('pro_id', session.id)
     form.append('bucket', 'portfolio'); form.append('folder', `posts/${session.id}`)
     const r = await fetch('/api/upload', { method: 'POST', body: form })
     const d = await r.json()
     if (r.ok) setBeforePhoto(d.url)
-    setUploading(false)
+    setUploading(false); setUploadingSlot(null)
     if (beforeRef.current) beforeRef.current.value = ''
   }
 
@@ -310,7 +311,12 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
               <div className="flex gap-2 mb-3">
                 {/* Before slot */}
                 <div className="flex-1 relative">
-                  {beforePhoto ? (
+                  {uploadingSlot === 'before' ? (
+                    <div className="w-full rounded-lg border-2 border-teal-200 bg-teal-50 flex flex-col items-center justify-center gap-2" style={{ aspectRatio: '4/3' }}>
+                      <svg className="animate-spin w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeDasharray="28 8" strokeLinecap="round"/></svg>
+                      <span className="text-[11px] font-semibold text-teal-600">Uploading…</span>
+                    </div>
+                  ) : beforePhoto ? (
                     <div className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
                       <img src={beforePhoto} alt="Before" className="w-full h-full object-cover" />
                       <div className="absolute bottom-0 left-0 right-0 py-1 text-center text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.45)' }}>BEFORE</div>
@@ -319,7 +325,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                     </div>
                   ) : (
                     <button onClick={() => beforeRef.current?.click()} disabled={uploading}
-                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors"
+                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors disabled:opacity-50"
                       style={{ aspectRatio: '4/3' }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       <span className="text-[11px] font-semibold">Before</span>
@@ -328,7 +334,12 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                 </div>
                 {/* After slot */}
                 <div className="flex-1 relative">
-                  {photos[0] ? (
+                  {uploadingSlot === 'after' ? (
+                    <div className="w-full rounded-lg border-2 border-teal-200 bg-teal-50 flex flex-col items-center justify-center gap-2" style={{ aspectRatio: '4/3' }}>
+                      <svg className="animate-spin w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeDasharray="28 8" strokeLinecap="round"/></svg>
+                      <span className="text-[11px] font-semibold text-teal-600">Uploading…</span>
+                    </div>
+                  ) : photos[0] ? (
                     <div className="relative rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
                       <img src={photos[0]} alt="After" className="w-full h-full object-cover" />
                       <div className="absolute bottom-0 left-0 right-0 py-1 text-center text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.45)' }}>AFTER</div>
@@ -337,7 +348,7 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                     </div>
                   ) : (
                     <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors"
+                      className="w-full rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-400 hover:text-teal-500 transition-colors disabled:opacity-50"
                       style={{ aspectRatio: '4/3' }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       <span className="text-[11px] font-semibold">After</span>
