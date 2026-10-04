@@ -249,22 +249,31 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
       {/* Expanded composer */}
       {expanded && (
         <div>
-          {/* Type tabs */}
-          <div className="flex border-b border-gray-100">
-            {(Object.entries(POST_TYPES) as [PostType, typeof POST_TYPES[PostType]][]).map(([type, c]) => (
-              <button key={type} onClick={() => setPostType(type)}
-                className={`flex-1 py-2.5 text-[12px] font-semibold transition-colors ${postType === type ? `${c.color} border-b-2 border-current bg-white` : 'text-gray-400 hover:text-gray-600'}`}>
-                {c.label}
-              </button>
-            ))}
+          {/* Type selector — filled pills in each type's color */}
+          <div className="flex items-center gap-1.5 px-4 pt-3.5 pb-3 overflow-x-auto border-b border-gray-100"
+            style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+            {(Object.entries(POST_TYPES) as [PostType, typeof POST_TYPES[PostType]][]).map(([type, c]) => {
+              const on = postType === type
+              return (
+                <button key={type} onClick={() => setPostType(type)}
+                  className="flex-shrink-0 text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full border transition-all"
+                  style={on
+                    ? { background: c.dot, color: '#fff', borderColor: c.dot, boxShadow: `0 2px 8px -3px ${c.dot}` }
+                    : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                  {c.label}
+                </button>
+              )
+            })}
           </div>
 
           <div className="p-4">
             {/* Author row */}
-            <div className="flex items-start gap-3 mb-3">
-              <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
+            <div className="flex items-center gap-3 mb-3">
+              <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex', flexShrink: 0 }}>
+                <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={10} />
+              </span>
               <div>
-                <div className="text-[14px] font-semibold text-gray-900">{session.name}</div>
+                <div className="text-[14px] font-bold text-gray-900 leading-tight">{session.name}</div>
                 <div className="text-[12px] text-gray-400">{session.trade}{session.city ? ` · ${session.city}` : ''}</div>
               </div>
             </div>
@@ -274,9 +283,9 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder={cfg.placeholder}
-              rows={4}
+              rows={3}
               autoFocus
-              className="w-full text-[14px] text-gray-900 bg-transparent border-none outline-none resize-none placeholder-gray-400 leading-relaxed mb-3"
+              className="w-full text-[15px] text-gray-900 bg-transparent border-none outline-none resize-none placeholder-gray-400 leading-relaxed mb-3"
             />
 
             {/* Photo previews */}
@@ -321,13 +330,9 @@ function PostComposer({ session, onPost }: { session: Session; onPost: (post: Po
                   Cancel
                 </button>
                 <button onClick={handlePost} disabled={posting || (!content.trim() && photos.length === 0)}
-                  className={`px-5 py-1.5 text-[13px] font-semibold rounded-lg text-white transition-colors disabled:opacity-40 ${cfg.bg.replace('bg-', 'bg-')} ${
-                    postType === 'work' ? 'bg-teal-600 hover:bg-teal-700' :
-                    postType === 'tip' ? 'bg-violet-600 hover:bg-violet-700' :
-                    postType === 'milestone' ? 'bg-amber-500 hover:bg-amber-600' :
-                    'bg-gray-700 hover:bg-gray-800'
-                  }`}>
-                  {posting ? 'Posting...' : postType === 'tip' ? 'Ask' : 'Post'}
+                  className="px-6 py-2 text-[13px] font-bold rounded-full text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:hover:opacity-40"
+                  style={{ background: `linear-gradient(135deg, ${cfg.dot}, ${cfg.dot}dd)`, boxShadow: `0 2px 10px -3px ${cfg.dot}` }}>
+                  {posting ? 'Posting…' : postType === 'tip' ? 'Ask the Guild' : 'Post'}
                 </button>
               </div>
             </div>
@@ -710,11 +715,11 @@ function UserMenu({ session, onSignOut }: { session: Session; onSignOut?: () => 
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(o => !o)} aria-label="Account menu" aria-expanded={open}
-        className="flex items-center gap-1 rounded-full p-0.5 sm:pr-1.5 hover:bg-gray-100 transition-colors">
-        <span style={{ borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #5EEAD4, #0F766E)', display: 'inline-flex' }}>
-          <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={8} />
-        </span>
-        <svg className="hidden sm:block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        className="flex items-center gap-2 pl-1 pr-2 sm:pr-2.5 py-1 rounded-full border transition-colors"
+        style={{ borderColor: open ? '#5DCAA5' : '#E5E7EB' }}>
+        <Avatar pro={{ full_name: session.name, profile_photo_url: session.photo_url }} size={7} />
+        <span className="hidden sm:block text-[13px] font-semibold text-gray-700 max-w-[88px] truncate">{session.name?.split(' ')[0] || 'Account'}</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 py-1.5 z-50"
@@ -840,83 +845,87 @@ function GuildPageInner() {
     { key: 'questions', label: 'Q&A',       desc: 'Questions answered by licensed pros' },
     ...(session ? [{ key: 'following' as FeedFilter, label: 'Following', desc: 'Posts from pros you follow' }] : []),
   ]
+  const isStaging = process.env.NEXT_PUBLIC_ENV === 'staging'
+
+  // Shared segmented feed-tab control (matches homepage nav language)
+  const TabPills = ({ size = 'md' }: { size?: 'md' | 'sm' }) => (
+    <div className="inline-flex items-center rounded-full p-1"
+      style={{ background: '#EFEAE1', boxShadow: 'inset 0 0 0 1px rgba(10,22,40,0.06)' }}>
+      {TABS.map(tab => {
+        const active = feedFilter === tab.key
+        return (
+          <Link key={tab.key} href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`} title={tab.desc}
+            className={`relative font-semibold rounded-full transition-colors whitespace-nowrap ${size === 'sm' ? 'text-[12.5px] px-3.5 py-1' : 'text-[13px] px-4 py-1.5'}`}
+            style={active
+              ? { background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }
+              : { color: '#5B6472' }}>
+            {tab.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
 
   return (
     <DashboardShell session={session} newLeads={0} noSidebar>
-      <div className="min-h-screen" style={{ backgroundColor: '#F1F4F3' }}>
+      <div className="min-h-screen" style={{ backgroundColor: '#F4F2EC' }}>
 
         {/* ════════════════════════════════════════════════════════════════
-            APP BAR — one slim white bar. Teal is an accent, not the canvas.
-            [ logo ] ·· [ Feed / Q&A / Following ] ·· [ Post · account ]
+            APP BAR — floating pill nav, matched to the ProGuild homepage:
+            real logo + serif wordmark, warm-sand segmented tabs, deep-green
+            gradient accents, bordered account chip.
         ════════════════════════════════════════════════════════════════ */}
-        <header className="sticky top-0 z-40 bg-white" style={{ borderBottom: '1px solid #E4E8E6' }}>
-          <div className="max-w-[1128px] mx-auto flex items-center gap-4 px-4" style={{ height: HEADER_H }}>
+        <header className="sticky top-0 z-40">
+          <div className="max-w-[1128px] mx-auto px-4 pt-3">
+            <div className="h-12 flex items-center gap-3 rounded-full bg-white/95 backdrop-blur pl-3 pr-2"
+              style={{ boxShadow: '0 10px 30px -14px rgba(10,22,40,0.30), 0 0 0 1px rgba(10,22,40,0.05)' }}>
 
-            {/* Brand — solid teal tile with a verification check (not an outline shield) */}
-            <Link href="/guild" className="flex items-center gap-2.5 flex-shrink-0 group">
-              <span style={{ width: 32, height: 32, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg, #14B8A6 0%, #0F766E 100%)', boxShadow: '0 2px 7px rgba(15,118,110,0.35)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <span className="text-[16px] tracking-tight leading-none">
-                <span className="font-medium text-gray-400">The</span>{' '}
-                <span className="font-extrabold text-gray-900">Guild</span>
-              </span>
-            </Link>
+              {/* Brand — real ProGuild mark + serif wordmark (matches homepage) */}
+              <Link href="/guild" className="flex items-center gap-2 flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="ProGuild" className="w-7 h-7 rounded-lg flex-shrink-0" />
+                <span className="font-serif text-[18px] font-bold tracking-tight leading-none" style={{ color: '#0A1628' }}>The&nbsp;Guild</span>
+                {isStaging && (
+                  <span className="hidden sm:inline ml-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide"
+                    style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D' }}>STAGING</span>
+                )}
+              </Link>
 
-            {/* Center — feed context tabs (desktop). These change what the feed shows. */}
-            <nav className="hidden md:flex flex-1 items-center justify-center gap-1">
-              {TABS.map(tab => {
-                const active = feedFilter === tab.key
-                return (
-                  <Link key={tab.key}
-                    href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
-                    title={tab.desc}
-                    className={`relative flex items-center px-3.5 text-[13.5px] font-semibold transition-colors ${active ? 'text-teal-700' : 'text-gray-500 hover:text-gray-900'}`}
-                    style={{ height: HEADER_H }}>
-                    {tab.label}
-                    {active && <span className="absolute left-2 right-2 bottom-0 h-[3px] rounded-t-full bg-teal-600" />}
-                  </Link>
-                )
-              })}
-            </nav>
+              {/* Center — warm-sand segmented feed tabs */}
+              <div className="hidden md:flex mx-auto flex-shrink-0">
+                <TabPills />
+              </div>
 
-            {/* Right — compose + account, or auth CTAs */}
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto md:ml-0">
-              {session ? (
-                <>
-                  <button onClick={() => window.dispatchEvent(new Event('guild:compose'))}
-                    className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-bold text-white bg-teal-600 hover:bg-teal-700 active:bg-teal-800 transition-colors">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Post
-                  </button>
-                  <UserMenu session={session} onSignOut={signOut} />
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="text-gray-600 text-[13.5px] font-semibold hover:text-gray-900 transition-colors px-2 whitespace-nowrap">Log in</Link>
-                  <Link href="/login?tab=signup"
-                    className="text-[13px] font-bold px-3.5 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors whitespace-nowrap">
-                    Join Free
-                  </Link>
-                </>
-              )}
+              {/* Right — compose + account chip, or auth CTAs */}
+              <div className="flex items-center gap-2 flex-shrink-0 ml-auto md:ml-0">
+                {session ? (
+                  <>
+                    <button onClick={() => window.dispatchEvent(new Event('guild:compose'))}
+                      className="hidden sm:flex items-center gap-1.5 text-[13px] font-bold text-white px-4 py-1.5 rounded-full transition-all hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 10px -3px rgba(15,118,110,0.6)' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      Post
+                    </button>
+                    <UserMenu session={session} onSignOut={signOut} />
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="text-[13px] font-semibold px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors whitespace-nowrap" style={{ color: '#5B6472' }}>Log in</Link>
+                    <Link href="/login?tab=signup"
+                      className="text-[13px] font-bold text-white px-4 py-1.5 rounded-full transition-all hover:opacity-90 whitespace-nowrap"
+                      style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', boxShadow: '0 2px 10px -3px rgba(15,118,110,0.6)' }}>
+                      Join Free
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile segmented tabs — centered under the pill */}
+            <div className="md:hidden flex justify-center mt-2">
+              <TabPills size="sm" />
             </div>
           </div>
-
-          {/* Mobile tab strip — tabs don't fit the bar on small screens */}
-          <nav className="md:hidden flex px-1" style={{ borderTop: '1px solid #EEF1F0' }}>
-            {TABS.map(tab => {
-              const active = feedFilter === tab.key
-              return (
-                <Link key={tab.key}
-                  href={tab.key === 'all' ? '/guild' : `/guild?tab=${tab.key}`}
-                  className={`relative flex-1 flex items-center justify-center py-2.5 text-[13px] font-semibold transition-colors ${active ? 'text-teal-700' : 'text-gray-500'}`}>
-                  {tab.label}
-                  {active && <span className="absolute left-4 right-4 bottom-0 h-[2.5px] rounded-t-full bg-teal-600" />}
-                </Link>
-              )
-            })}
-          </nav>
         </header>
 
         {/* ════════════════════════════════════════════════════════════════
@@ -995,10 +1004,9 @@ function GuildPageInner() {
               <div className="bg-white rounded-2xl border border-gray-200/60 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center gap-2 mb-2">
-                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'linear-gradient(140deg, #14B8A6 0%, #0F766E 100%)' }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    </span>
-                    <div className="text-[14px] font-bold text-gray-900">The Guild</div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="ProGuild" className="w-6 h-6 rounded-md flex-shrink-0" />
+                    <div className="font-serif text-[15px] font-bold" style={{ color: '#0A1628' }}>The Guild</div>
                   </div>
                   <p className="text-[12px] text-gray-500 mb-3 leading-relaxed">Connect with licensed tradespeople, share your work, and build your reputation.</p>
                   <Link href="/login?tab=signup" className="block w-full py-2 text-center text-[12px] font-bold bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors mb-2">
@@ -1205,15 +1213,15 @@ function GuildPageInner() {
               </div>
             )}
 
-            {/* Footer links */}
-            <div className="text-[11px] text-gray-400 px-1">
-              <div className="flex flex-wrap gap-x-2 gap-y-1 mb-1.5">
-                <Link href="/guides" className="hover:text-teal-600">Guides</Link>
-                <Link href="/verify-license" className="hover:text-teal-600">License Lookup</Link>
-                <Link href="/fl" className="hover:text-teal-600">Find Pros</Link>
-                <Link href="/post-job" className="hover:text-teal-600">Post a Project</Link>
+            {/* Footer links — readable, not faded */}
+            <div className="px-1 pt-1">
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] font-medium" style={{ color: '#5B6472' }}>
+                <Link href="/guides" className="hover:text-teal-700 transition-colors">Guides</Link>
+                <Link href="/verify-license" className="hover:text-teal-700 transition-colors">License Lookup</Link>
+                <Link href="/fl" className="hover:text-teal-700 transition-colors">Find Pros</Link>
+                <Link href="/post-job" className="hover:text-teal-700 transition-colors">Post a Project</Link>
               </div>
-              <div className="text-[10px] text-gray-300">© 2026 ProGuild.ai</div>
+              <div className="mt-2.5 text-[11px] font-medium text-gray-400">© 2026 ProGuild.ai</div>
             </div>
           </aside>
         </div>
