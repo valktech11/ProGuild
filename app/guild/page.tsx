@@ -429,27 +429,327 @@ function FollowButton({ proId, followerId, compact, onToggle }: { proId: string;
     setToggling(false)
   }
 
+  const [hovered, setHovered] = useState(false)
   const isLoading = following === null || toggling
   return (
     <button onClick={toggle} disabled={isLoading}
-      className={`font-semibold transition-all border rounded-lg ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} ${
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`inline-flex items-center gap-1.5 font-semibold transition-all border rounded-lg ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} ${
         following
-          ? 'border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-500'
+          ? hovered ? 'border-red-200 text-red-500 bg-red-50' : 'border-gray-200 text-gray-500'
           : 'border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100'
       }`}>
-      {isLoading ? '…' : following ? 'Following' : '+ Follow'}
+      {isLoading ? (
+        <svg width={compact ? 9 : 11} height={compact ? 9 : 11} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-spin"><circle cx="9" cy="9" r="7" strokeDasharray="20 24"/></svg>
+      ) : following ? (
+        hovered ? (
+          /* Unfollow — person with X */
+          <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            <line x1="20" y1="14" x2="24" y2="18"/>
+            <line x1="24" y1="14" x2="20" y2="18"/>
+          </svg>
+        ) : (
+          /* Following — person with check */
+          <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            <polyline points="17 13 19.5 15.5 24 11"/>
+          </svg>
+        )
+      ) : (
+        /* Follow — person with + */
+        <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          <line x1="20" y1="8" x2="20" y2="14"/>
+          <line x1="17" y1="11" x2="23" y2="11"/>
+        </svg>
+      )}
+      {isLoading ? '…' : following ? (hovered ? 'Unfollow' : 'Following') : 'Follow'}
     </button>
   )
 }
 
-// Message button — links to /messages?to=<proId> (v1: link, not modal)
+// Message button — fires guild:dm event to open the in-page slide-over panel
 function MessageButton({ proId, compact }: { proId: string; compact?: boolean }) {
   return (
-    <Link href={`/messages?to=${proId}`}
-      className={`inline-flex items-center gap-1 font-semibold border rounded-lg transition-colors hover:bg-gray-50 ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} border-gray-200 text-gray-600`}>
-      <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent('guild:dm', { detail: { proId } }))}
+      className={`inline-flex items-center gap-1.5 font-semibold border rounded-lg transition-colors hover:bg-gray-50 ${compact ? 'text-[11px] px-2.5 py-1' : 'text-[12px] px-3 py-1.5'} border-gray-200 text-gray-600`}>
+      {/* Speech bubble icon */}
+      <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
       Message
-    </Link>
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guild DM Panel — slide-over for pro-to-pro messaging
+// Stays inside the Guild shell; /messages remains for CRM lead conversations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: string | null; onClose: () => void }) {
+  const [view, setView] = useState<'threads' | 'convo'>(withId ? 'convo' : 'threads')
+  const [threads, setThreads] = useState<any[]>([])
+  const [activeWithId, setActiveWithId] = useState<string | null>(withId)
+  const [activeWith, setActiveWith] = useState<any>(null)
+  const [messages, setMessages] = useState<any[]>([])
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loadingThreads, setLoadingThreads] = useState(true)
+  const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Lock body scroll while panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  // Load thread list on mount
+  useEffect(() => {
+    fetch(`/api/messages?pro_id=${session.id}`)
+      .then(r => r.ok ? r.json() : {} as any)
+      .then((d: any) => { setThreads(d.threads || []); setLoadingThreads(false) })
+      .catch(() => setLoadingThreads(false))
+  }, [session.id])
+
+  // Load conversation when activeWithId changes
+  useEffect(() => {
+    if (!activeWithId) return
+    setLoadingMsgs(true)
+    fetch(`/api/messages?pro_id=${session.id}&with_id=${activeWithId}`)
+      .then(r => r.ok ? r.json() : {} as any)
+      .then((d: any) => {
+        setMessages(d.messages || [])
+        setLoadingMsgs(false)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+      })
+      .catch(() => setLoadingMsgs(false))
+    // Fetch pro profile for header
+    fetch(`/api/pros/${activeWithId}`)
+      .then(r => r.ok ? r.json() : {} as any)
+      .then((d: any) => { if (d.pro) setActiveWith(d.pro) })
+  }, [activeWithId, session.id])
+
+  // When a thread is tapped
+  function openThread(id: string) {
+    setActiveWithId(id)
+    setView('convo')
+    setMessages([])
+    setActiveWith(null)
+  }
+
+  async function sendMessage() {
+    if (!text.trim() || !activeWithId || sending) return
+    setSending(true)
+    const r = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender_id: session.id, receiver_id: activeWithId, content: text.trim() }),
+    })
+    const d = await r.json()
+    setSending(false)
+    if (r.ok) {
+      setMessages(prev => [...prev, d.message])
+      setText('')
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 40)
+    }
+  }
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
+  const panelW = 380
+
+  return createPortal(
+    <>
+      {/* Backdrop — only on mobile */}
+      <div
+        className="fixed inset-0 z-[998] bg-black/40 sm:hidden"
+        onClick={onClose}
+      />
+      {/* Panel */}
+      <div
+        className="fixed z-[999] bg-white flex flex-col"
+        style={{
+          // Mobile: full screen; Desktop: anchored bottom-right
+          bottom: 0,
+          right: 0,
+          width: '100%',
+          height: '100%',
+          boxShadow: '0 0 0 1px rgba(10,22,40,0.08), -6px 0 30px -6px rgba(10,22,40,0.2)',
+          borderTopLeftRadius: 16,
+          borderBottomLeftRadius: 0,
+          // Desktop override via inline style tag below
+        }}
+      >
+        <style>{`@media(min-width:640px){[data-pg-dm]{width:${panelW}px!important;height:580px!important;bottom:0!important;right:0!important;border-radius:16px 16px 0 0!important;}}`}</style>
+        <div data-pg-dm className="fixed z-[999] bg-white flex flex-col w-full h-full sm:w-[380px] sm:h-[580px] sm:bottom-0 sm:right-0 sm:rounded-tl-2xl"
+          style={{ boxShadow: '0 0 0 1px rgba(10,22,40,0.08), -6px 0 30px -6px rgba(10,22,40,0.2)' }}>
+
+          {/* Header */}
+          <div className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0 border-b border-gray-100">
+            {view === 'convo' && (
+              <button onClick={() => { setView('threads'); setActiveWithId(null); setActiveWith(null) }}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+            )}
+            {view === 'convo' && activeWith ? (
+              <>
+                <div className="w-8 h-8 flex-shrink-0">
+                  <Avatar pro={activeWith} size={8} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-bold text-gray-900 truncate">{activeWith.full_name}</div>
+                  <div className="text-[11px] text-gray-500 truncate">{activeWith.trade_category?.category_name || activeWith.city || ''}</div>
+                </div>
+                <Link href={`/pro/${activeWith.slug || activeWithId}`} onClick={onClose}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 transition-colors hover:bg-teal-50"
+                  style={{ color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
+                  Profile →
+                </Link>
+              </>
+            ) : (
+              <div className="flex-1">
+                <div className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'DM Serif Display', serif" }}>Messages</div>
+              </div>
+            )}
+            <button onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors ml-auto">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+
+            {/* Thread list */}
+            {view === 'threads' && (
+              <div className="flex-1 overflow-y-auto">
+                {loadingThreads ? (
+                  <div className="p-4 space-y-3">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="flex gap-3 animate-pulse">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0" />
+                        <div className="flex-1 space-y-2 pt-1">
+                          <div className="h-3 w-2/3 rounded bg-gray-100" />
+                          <div className="h-2.5 w-1/2 rounded bg-gray-100" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : threads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
+                    <div className="text-4xl mb-3 opacity-20">💬</div>
+                    <div className="text-[14px] font-semibold text-gray-800 mb-1">No messages yet</div>
+                    <div className="text-[12.5px] text-gray-500">Start a conversation from a pro's profile.</div>
+                    <Link href="/search" onClick={onClose} className="mt-4 text-[12.5px] font-bold" style={{ color: '#0F766E' }}>Find a pro →</Link>
+                  </div>
+                ) : threads.map(thread => {
+                  const name = thread.otherName || thread.lastMsg?.sender?.full_name || 'Pro'
+                  const photo = thread.otherPhoto || thread.lastMsg?.sender?.profile_photo_url || null
+                  const otherId = thread.otherId
+                  return (
+                    <button key={otherId} onClick={() => openThread(otherId)}
+                      className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-50 text-left hover:bg-gray-50 transition-colors"
+                      style={{ background: activeWithId === otherId ? 'rgba(13,148,136,0.04)' : undefined }}>
+                      <div className="w-10 h-10 flex-shrink-0">
+                        <Avatar pro={{ full_name: name, profile_photo_url: photo }} size={10} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-gray-900 truncate">{name}</div>
+                        <div className="text-[12px] text-gray-500 truncate mt-0.5">{thread.lastMsg?.content}</div>
+                      </div>
+                      {thread.unread > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          {thread.unread > 9 ? '9+' : thread.unread}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Conversation */}
+            {view === 'convo' && (
+              <>
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ background: '#FAF9F6' }}>
+                  {loadingMsgs ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-6 h-6 rounded-full border-2 border-teal-200 border-t-teal-600 animate-spin" />
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center py-10 text-[12.5px] text-gray-400">Say hello — start the conversation.</div>
+                  ) : messages.map(msg => {
+                    const isMe = msg.sender_id === session.id
+                    return (
+                      <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
+                        <div className="w-7 h-7 flex-shrink-0">
+                          <Avatar
+                            pro={isMe
+                              ? { full_name: session.name, profile_photo_url: session.photo_url }
+                              : { full_name: activeWith?.full_name || 'Pro', profile_photo_url: activeWith?.profile_photo_url }
+                            }
+                            size={7}
+                          />
+                        </div>
+                        <div className={`max-w-[72%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                          <div className="px-3 py-2 text-[13px] leading-relaxed"
+                            style={isMe
+                              ? { background: '#0F766E', color: '#fff', borderRadius: '16px 16px 4px 16px' }
+                              : { background: '#fff', color: '#1C1917', border: '1px solid #E5E0D8', borderRadius: '16px 16px 16px 4px' }
+                            }>
+                            {msg.content}
+                          </div>
+                          <div className="text-[10px] text-gray-400">{timeAgo(msg.created_at)}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+
+                {/* Input */}
+                <div className="flex-shrink-0 px-3 py-3 border-t border-gray-100 bg-white">
+                  <div className="flex gap-2 items-end">
+                    <textarea
+                      ref={inputRef}
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                      placeholder="Write a message…"
+                      rows={1}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl text-[13px] resize-none outline-none leading-snug"
+                      style={{ border: '1.5px solid #E5E0D8', minHeight: 44, maxHeight: 100, background: '#FAFAF8' }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#0F766E')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#E5E0D8')}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={sending || !text.trim()}
+                      className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-40"
+                      style={{ background: 'linear-gradient(135deg, #0F766E, #0C5F57)', boxShadow: '0 2px 8px -2px rgba(15,118,110,0.5)' }}>
+                      {sending
+                        ? <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="animate-spin"><circle cx="9" cy="9" r="7" strokeDasharray="20 24"/></svg>
+                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>,
+    document.body
   )
 }
 
@@ -1163,11 +1463,23 @@ function GuildPageInner() {
   const [moreOpen, setMoreOpen] = useState(false)
   const [mineTypeFilter, setMineTypeFilter] = useState<MineTypeFilter>('')
   const moreRef = useRef<HTMLDivElement>(null)
+  const [dmOpen, setDmOpen] = useState(false)
+  const [dmWithId, setDmWithId] = useState<string | null>(null)
   useEffect(() => {
     function onDoc(e: MouseEvent) { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false) }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
+  // Listen for DM open requests from MessageButton components
+  useEffect(() => {
+    function onDM(e: Event) {
+      if (!session) { window.location.href = '/login'; return }
+      const proId = (e as CustomEvent).detail?.proId as string | undefined
+      if (proId) { setDmWithId(proId); setDmOpen(true) }
+    }
+    window.addEventListener('guild:dm', onDM)
+    return () => window.removeEventListener('guild:dm', onDM)
+  }, [session])
   // null = not yet initialised; '' = All trades (explicit); slug = a trade.
   // A logged-in pro's feed DEFAULTS to their own trade.
   const [tradeFilter, setTradeFilter] = useState<string | null>(null)
@@ -1799,6 +2111,15 @@ function GuildPageInner() {
             </div>
           </aside>
         </div>
+
+        {/* DM slide-over panel */}
+        {dmOpen && session && (
+          <GuildDMPanel
+            session={session}
+            withId={dmWithId}
+            onClose={() => { setDmOpen(false); setDmWithId(null) }}
+          />
+        )}
 
         {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200"
