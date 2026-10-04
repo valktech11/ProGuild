@@ -106,6 +106,20 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ post: data }, { status: 201 })
 }
 
+export async function PATCH(req: NextRequest) {
+  const { id, pro_id, content } = await req.json()
+  if (!id || !pro_id || !content?.trim()) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const { data, error } = await getSupabaseAdmin()
+    .from('posts')
+    .update({ content })
+    .eq('id', id)
+    .eq('pro_id', pro_id)
+    .select()
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ post: data })
+}
+
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
