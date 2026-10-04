@@ -1054,22 +1054,97 @@ function PostCard({ post, session, onLike, onDelete, onEdit, liking }: {
 
       {/* Action bar */}
       <div className="flex items-center gap-0.5 px-3 py-2 border-t border-gray-100">
-        {/* Helpful */}
-        <button
-          onClick={() => session ? onLike(post.id) : (window.location.href = '/login')}
-          disabled={isOwn || liking}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors ${
-            isOwn ? 'text-gray-200 cursor-default' :
-            post.liked_by_me ? 'text-teal-600 font-semibold' :
-            'text-gray-500 hover:text-gray-600 hover:bg-gray-50'
-          }`}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill={post.liked_by_me ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-            <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-          </svg>
-          <span>Helpful</span>
-          {post.like_count > 0 && <span className="text-[11px] font-semibold tabular-nums">{post.like_count}</span>}
-        </button>
+        {/* Contextual reaction: label + icon + color keyed to post_type */}
+        {(() => {
+          // Per post_type: label, icon SVG path(s), active color classes
+          const isWork = post.post_type === 'work'
+          const isTip2 = post.post_type === 'tip'
+          const isMilestone2 = post.post_type === 'milestone'
+          // update / default → Useful (blue)
+
+          const reactionCfg = isWork
+            ? {
+                label: 'Respect',
+                activeColor: '#0F766E',
+                activeBg: 'rgba(14,122,110,0.08)',
+                activeBorder: '1px solid rgba(14,122,110,0.3)',
+                hoverCls: 'hover:text-teal-700 hover:bg-teal-50',
+                activeCls: 'text-teal-700 bg-teal-50 font-semibold',
+                icon: (active: boolean) => (
+                  <svg width="15" height="15" viewBox="0 0 16 16"
+                    fill={active ? '#0F766E' : 'none'}
+                    stroke={active ? 'none' : 'currentColor'}
+                    strokeWidth="1.3">
+                    <path d="M8 0.5 C8 0.5 9.4 6.2 9.4 6.2 C9.4 6.2 15.5 8 15.5 8 C15.5 8 9.4 9.8 9.4 9.8 C9.4 9.8 8 15.5 8 15.5 C8 15.5 6.6 9.8 6.6 9.8 C6.6 9.8 0.5 8 0.5 8 C0.5 8 6.6 6.2 6.6 6.2 Z"/>
+                  </svg>
+                ),
+              }
+            : isTip2
+            ? {
+                label: 'Helpful',
+                activeColor: '#7C3AED',
+                activeBg: 'rgba(124,58,237,0.08)',
+                activeBorder: '1px solid rgba(124,58,237,0.3)',
+                hoverCls: 'hover:text-violet-700 hover:bg-violet-50',
+                activeCls: 'text-violet-700 bg-violet-50 font-semibold',
+                icon: (active: boolean) => (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke={active ? '#7C3AED' : 'currentColor'} strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21h6M12 3a6 6 0 00-4 10.38V17a1 1 0 001 1h6a1 1 0 001-1v-3.62A6 6 0 0012 3z"/>
+                  </svg>
+                ),
+              }
+            : isMilestone2
+            ? {
+                label: 'Congrats',
+                activeColor: '#D97706',
+                activeBg: 'rgba(217,119,6,0.08)',
+                activeBorder: '1px solid rgba(217,119,6,0.3)',
+                hoverCls: 'hover:text-amber-700 hover:bg-amber-50',
+                activeCls: 'text-amber-700 bg-amber-50 font-semibold',
+                icon: (active: boolean) => (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke={active ? '#D97706' : 'currentColor'} strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4M12 17v4M8 21h8M7 9a5 5 0 005 5 5 5 0 005-5V5H7v4z"/>
+                  </svg>
+                ),
+              }
+            : {
+                label: 'Useful',
+                activeColor: '#0369A1',
+                activeBg: 'rgba(3,105,161,0.08)',
+                activeBorder: '1px solid rgba(3,105,161,0.3)',
+                hoverCls: 'hover:text-sky-700 hover:bg-sky-50',
+                activeCls: 'text-sky-700 bg-sky-50 font-semibold',
+                icon: (active: boolean) => (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke={active ? '#0369A1' : 'currentColor'} strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
+                    <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
+                  </svg>
+                ),
+              }
+
+          const active = post.liked_by_me
+          return (
+            <button
+              onClick={() => session ? onLike(post.id) : (window.location.href = '/login')}
+              disabled={isOwn || liking}
+              style={active ? { background: reactionCfg.activeBg, border: reactionCfg.activeBorder, borderRadius: 8, color: reactionCfg.activeColor } : {}}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors border border-transparent ${
+                isOwn ? 'text-gray-200 cursor-default' :
+                active ? reactionCfg.activeCls :
+                `text-gray-500 ${reactionCfg.hoverCls}`
+              }`}>
+              {reactionCfg.icon(active)}
+              <span>{reactionCfg.label}</span>
+              {post.like_count > 0 && <span className="text-[11px] font-semibold tabular-nums">{post.like_count}</span>}
+            </button>
+          )
+        })()}
 
         {/* Comment / Answer */}
         <button onClick={loadComments}
@@ -1276,7 +1351,7 @@ function NotificationBell({ proId }: { proId: string }) {
         </svg>
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 flex items-center justify-center text-[10px] font-bold text-white rounded-full"
-            style={{ background: '#0F766E' }}>
+            style={{ background: '#EF4444' }}>
             {unread > 9 ? '9+' : unread}
           </span>
         )}
