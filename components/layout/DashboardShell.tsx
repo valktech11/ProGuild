@@ -195,7 +195,7 @@ function buildNav(nl: number, tradeSlug?: string | null, _tradeName?: string | n
   groups.push({ title: 'THE GUILD', items: [
     { label: 'Learn',       href: '/dashboard/learn', icon: icon.learn,     soon: true },
     { label: 'Local Deals', href: '/dashboard/deals', icon: icon.deals,     soon: true },
-    { label: 'Community',   href: '/community',       icon: icon.community },
+    { label: 'The Guild',   href: '/guild',           icon: icon.community },
   ]})
 
   return groups

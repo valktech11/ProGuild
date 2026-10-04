@@ -27,13 +27,13 @@ function StagingBadge() {
 const HOMEOWNER_LINKS = [
   { href: '/search',     label: 'Find a Pro',      match: (p: string) => p.startsWith('/search') },
   { href: '/fl',         label: 'Browse Trades',   match: (p: string) => p === '/fl' },
-  { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
+  { href: '/guild',      label: 'The Guild',       match: (p: string) => p.startsWith('/guild') || p.startsWith('/community') },
   { href: '/contractors', label: 'For Pros', match: (p: string) => p.startsWith('/contractors') },
 ]
 
 const PRO_LINKS = [
   { href: '/jobs',       label: 'Find Work',       match: (p: string) => p.startsWith('/jobs') },
-  { href: '/community',  label: 'Community',       match: (p: string) => p.startsWith('/community') },
+  { href: '/guild',      label: 'The Guild',       match: (p: string) => p.startsWith('/guild') || p.startsWith('/community') },
   { href: '/contractors', label: 'For Pros', match: (p: string) => p.startsWith('/contractors') },
   { href: '/dashboard',  label: 'Dashboard',       match: (p: string) => p === '/dashboard' },
 ]
@@ -43,14 +43,14 @@ const PRO_LINKS = [
 const MOBILE_HOMEOWNER = [
   { href: '/',          label: 'Home',      icon: HomeIcon },
   { href: '/post-job',  label: 'Request',   icon: PlusIcon },
-  { href: '/community', label: 'Community', icon: UsersIcon },
+  { href: '/guild',    label: 'The Guild', icon: UsersIcon },
   { href: '/search',    label: 'Search',    icon: SearchIcon },
 ]
 
 const MOBILE_PRO = [
   { href: '/dashboard',  label: 'Home',      icon: HomeIcon },
   { href: '/jobs',       label: 'Find Work', icon: BriefcaseIcon },
-  { href: '/community',  label: 'Community', icon: UsersIcon },
+  { href: '/guild',      label: 'The Guild', icon: UsersIcon },
   { href: '/messages',   label: 'Messages',  icon: MessageIcon },
 ]
 
@@ -352,7 +352,7 @@ export default function Navbar({ hideJoinCta = false }: { hideJoinCta?: boolean 
                       {[
                         { href: '/dashboard',         label: '📊 Dashboard' },
                         { href: `/pro/${session.id}`, label: '👤 My profile' },
-                        { href: '/community',          label: '🌐 Community' },
+                        { href: '/guild',              label: '🌐 The Guild' },
                         { href: '/messages',           label: '💬 Messages' },
                         { href: '/edit-profile',       label: '✏️ Edit profile' },
                         { href: '/apprenticeship',     label: '🎓 Apprenticeship' },
