@@ -984,13 +984,14 @@ function FollowStrip({ pros, session, tradeLabel, onFollowToggle }: { pros: Pro[
   )
 }
 
-function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingCount, onCompose, onAsk, onShowAll, onFollowToggle }: {
+function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingCount, followingPros, onCompose, onAsk, onShowAll, onFollowToggle }: {
   mode: 'following' | 'trade' | 'all' | 'mine'
   tradeLabel: string | null
   suggested: Pro[]
   session: Session | null
   hasPosted: boolean
   followingCount: number | null
+  followingPros: Pro[]
   onCompose: () => void
   onAsk: () => void
   onShowAll: () => void
@@ -1103,6 +1104,34 @@ function EmptyFeed({ mode, tradeLabel, suggested, session, hasPosted, followingC
         </div>
       )}
 
+      {/* When network is quiet: show who the user follows so they can visit profiles */}
+      {followingHasNetwork && followingPros.length > 0 && session && (
+        <div className="bg-white rounded-2xl border shadow-sm" style={{ borderColor: '#E4E8E6' }}>
+          <div className="px-4 pt-4 pb-2 flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <span className="text-[13px] font-bold text-gray-800">People you follow</span>
+          </div>
+          <div className="divide-y" style={{ borderColor: '#F0F2F1' }}>
+            {followingPros.map(pro => (
+              <div key={pro.id} className="flex items-center gap-3 px-4 py-3">
+                <Link href={`/pro/${(pro as any).slug || pro.id}`} className="flex-shrink-0">
+                  <Avatar pro={pro} size={9} />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <Link href={`/pro/${(pro as any).slug || pro.id}`} className="text-[13px] font-bold text-gray-900 hover:text-teal-700 truncate">{pro.full_name}</Link>
+                    {pro.is_verified && <svg width="10" height="10" viewBox="0 0 24 24" fill="#0F766E" className="flex-shrink-0"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>}
+                  </div>
+                  <div className="text-[11.5px] text-gray-500 truncate">{pro.trade_category?.category_name}{pro.city ? ` · ${pro.city}` : ''}</div>
+                </div>
+                <FollowButton proId={pro.id} followerId={session.id} compact onToggle={onFollowToggle} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Discover strip — only when user follows nobody */}
       {session && suggested.length > 0 && !followingHasNetwork && (
         <FollowStrip pros={suggested} session={session} tradeLabel={tradeLabel} onFollowToggle={onFollowToggle} />
       )}
@@ -1124,6 +1153,7 @@ function GuildPageInner() {
   const [posts, setPosts] = useState<Post[]>([])
   const [suggested, setSuggested] = useState<Pro[]>([])
   const [followingCount, setFollowingCount] = useState<number | null>(null)
+  const [followingPros, setFollowingPros] = useState<Pro[]>([])
   const [trendingQuestions, setTrendingQuestions] = useState<Post[]>([])
   const [jobAlerts, setJobAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1191,9 +1221,13 @@ function GuildPageInner() {
     // empty-feed hero can distinguish "follows nobody" vs "follows people, no posts yet"
     if (feedFilter === 'following' && s?.id) {
       safe(fetch(`/api/follows?pro_id=${s.id}`))
-        .then(d => { setFollowingCount(typeof d.following_count === 'number' ? d.following_count : 0) })
+        .then(d => {
+          setFollowingCount(typeof d.following_count === 'number' ? d.following_count : 0)
+          setFollowingPros(Array.isArray(d.following) ? d.following.filter(Boolean) : [])
+        })
     } else if (feedFilter !== 'following') {
       setFollowingCount(null) // reset so it re-fetches next time Following tab is opened
+      setFollowingPros([])
     }
     // Keyed on _real?.id (not the object) so a silent re-resolve on tab refocus
     // doesn't retrigger a refetch.
@@ -1624,6 +1658,7 @@ function GuildPageInner() {
                 session={session}
                 hasPosted={hasPosted}
                 followingCount={followingCount}
+                followingPros={followingPros}
                 onCompose={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'work' } }))}
                 onAsk={() => window.dispatchEvent(new CustomEvent('guild:compose', { detail: { type: 'tip' } }))}
                 onShowAll={() => { window.location.href = '/guild' }}
