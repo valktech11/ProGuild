@@ -571,7 +571,7 @@ function MessagingFAB({ session, onClick }: { session: Session; onClick: () => v
     let cancelled = false
     const poll = async () => {
       const hdrs = await authHeaders()
-      fetch(`/api/messages?pro_id=${session.id}`, { headers: hdrs })
+      fetch(`/api/messages/unread-count?pro_id=${session.id}`, { headers: hdrs })
         .then(r => r.ok ? r.json() : {})
         .then((d: any) => { if (!cancelled) setUnread(d.unread || 0) })
         .catch(() => {})
