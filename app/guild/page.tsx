@@ -577,7 +577,7 @@ function MessagingFAB({ session, onClick }: { session: Session; onClick: () => v
         .catch(() => {})
     }
     poll()
-    const t = setInterval(poll, 30000)
+    const t = setInterval(poll, 10000)
     return () => { cancelled = true; clearInterval(t) }
   }, [session.id])
 
