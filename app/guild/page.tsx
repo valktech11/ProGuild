@@ -548,6 +548,74 @@ function MessageButton({ proId, followerId, compact }: { proId: string; follower
 // Stays inside the Guild shell; /messages remains for CRM lead conversations.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Messaging FAB — persistent bottom-right entry point, shows unread badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+function MessagingFAB({ session, onClick }: { session: Session; onClick: () => void }) {
+  const [unread, setUnread] = useState(0)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  async function authHeaders(): Promise<Record<string, string>> {
+    try {
+      const { getSupabaseBrowser } = await import('@/lib/supabase-browser')
+      const { data } = await getSupabaseBrowser().auth.getSession()
+      const token = data.session?.access_token
+      if (token) return { 'Authorization': `Bearer ${token}` }
+    } catch {}
+    return {}
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    const poll = async () => {
+      const hdrs = await authHeaders()
+      fetch(`/api/messages?pro_id=${session.id}`, { headers: hdrs })
+        .then(r => r.ok ? r.json() : {})
+        .then((d: any) => { if (!cancelled) setUnread(d.unread || 0) })
+        .catch(() => {})
+    }
+    poll()
+    const t = setInterval(poll, 30000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [session.id])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <button
+      onClick={onClick}
+      aria-label={`Messaging${unread > 0 ? `, ${unread} unread` : ''}`}
+      className="fixed z-[900] flex items-center gap-2 text-white font-semibold text-[13px] transition-all hover:scale-[1.03] active:scale-[0.98]"
+      style={{
+        bottom: 28, right: 28,
+        background: 'linear-gradient(135deg, #0F766E, #0C5F57)',
+        borderRadius: 28, padding: '11px 18px 11px 14px',
+        boxShadow: '0 4px 18px rgba(15,118,110,0.38)',
+        border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+      }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+        <path fillRule="evenodd" d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h.75l2.1 2.1a1.5 1.5 0 002.1 0L11.55 19.5H19.5a3 3 0 003-3v-9a3 3 0 00-3-3H4.5z" clipRule="evenodd"/>
+      </svg>
+      Messaging
+      {unread > 0 && (
+        <span style={{
+          position: 'absolute', top: -6, right: -6,
+          background: '#EF4444', color: '#fff',
+          fontSize: 10, fontWeight: 700,
+          minWidth: 18, height: 18, borderRadius: 9,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 5px', border: '2px solid white',
+        }}>
+          {unread > 9 ? '9+' : unread}
+        </span>
+      )}
+    </button>,
+    document.body
+  )
+}
+
 function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: string | null; onClose: () => void }) {
   const [view, setView] = useState<'threads' | 'convo'>(withId ? 'convo' : 'threads')
   const [threads, setThreads] = useState<any[]>([])
@@ -677,14 +745,12 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
                   <Avatar pro={activeWith} size={8} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-bold text-gray-900 truncate">{activeWith.full_name}</div>
+                  <Link href={`/pro/${activeWith.slug || activeWithId}`} onClick={onClose}
+                    className="text-[13.5px] font-bold text-gray-900 truncate hover:underline hover:text-teal-700 block transition-colors">
+                    {activeWith.full_name}
+                  </Link>
                   <div className="text-[11px] text-gray-500 truncate">{activeWith.trade_category?.category_name || activeWith.city || ''}</div>
                 </div>
-                <Link href={`/pro/${activeWith.slug || activeWithId}`} onClick={onClose}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0 transition-colors hover:bg-teal-50"
-                  style={{ color: '#0F766E', border: '1px solid rgba(15,118,110,0.2)' }}>
-                  Profile →
-                </Link>
               </>
             ) : (
               <div className="flex-1">
@@ -2514,6 +2580,14 @@ function GuildPageInner() {
             </div>
           </aside>
         </div>
+
+        {/* Persistent messaging FAB — visible when logged in and panel is closed */}
+        {session && !dmOpen && (
+          <MessagingFAB
+            session={session}
+            onClick={() => { setDmWithId(null); setDmOpen(true) }}
+          />
+        )}
 
         {/* DM slide-over panel */}
         {dmOpen && session && (
