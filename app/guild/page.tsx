@@ -653,24 +653,15 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
         className="fixed inset-0 z-[998] bg-black/40 sm:hidden"
         onClick={onClose}
       />
-      {/* Panel */}
-      <div
-        className="fixed z-[999] bg-white flex flex-col"
+      {/* Panel — mobile: full screen; desktop: 380×580 floating bottom-right */}
+      <div data-pg-dm className="fixed z-[999] bg-white flex flex-col"
         style={{
-          // Mobile: full screen; Desktop: anchored bottom-right
-          bottom: 0,
-          right: 0,
-          width: '100%',
-          height: '100%',
+          bottom: 0, right: 0,
+          width: '100%', height: '100%',
           boxShadow: '0 0 0 1px rgba(10,22,40,0.08), -6px 0 30px -6px rgba(10,22,40,0.2)',
-          borderTopLeftRadius: 16,
-          borderBottomLeftRadius: 0,
-          // Desktop override via inline style tag below
-        }}
-      >
-        <style>{`@media(min-width:640px){[data-pg-dm]{width:${panelW}px!important;height:580px!important;bottom:0!important;right:0!important;border-radius:16px 16px 0 0!important;}}`}</style>
-        <div data-pg-dm className="fixed z-[999] bg-white flex flex-col w-full h-full sm:w-[380px] sm:h-[580px] sm:bottom-0 sm:right-0 sm:rounded-tl-2xl"
-          style={{ boxShadow: '0 0 0 1px rgba(10,22,40,0.08), -6px 0 30px -6px rgba(10,22,40,0.2)' }}>
+          borderRadius: '16px 16px 0 0',
+        }}>
+        <style>{`@media(min-width:640px){[data-pg-dm]{width:${panelW}px!important;height:580px!important;border-radius:16px 16px 0 0!important;}}`}</style>
 
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0 border-b border-gray-100">
@@ -826,7 +817,6 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
               </>
             )}
           </div>
-        </div>
       </div>
     </>,
     document.body
