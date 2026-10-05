@@ -584,24 +584,34 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
     )
   }, [session.id])
 
-  // Load conversation when activeWithId changes
+  // Load + poll conversation when activeWithId changes
   useEffect(() => {
     if (!activeWithId) return
-    setLoadingMsgs(true)
-    authHeaders().then(hdrs => {
-      fetch(`/api/messages?pro_id=${session.id}&with_id=${activeWithId}`, { headers: hdrs })
-        .then(r => r.ok ? r.json() : {} as any)
-        .then((d: any) => {
-          setMessages(d.messages || [])
-          setLoadingMsgs(false)
-          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
-        })
-        .catch(() => setLoadingMsgs(false))
-    })
+    let cancelled = false
+    const load = (initial: boolean) => {
+      if (initial) setLoadingMsgs(true)
+      authHeaders().then(hdrs => {
+        fetch(`/api/messages?pro_id=${session.id}&with_id=${activeWithId}`, { headers: hdrs })
+          .then(r => r.ok ? r.json() : {} as any)
+          .then((d: any) => {
+            if (cancelled) return
+            setMessages(d.messages || [])
+            if (initial) {
+              setLoadingMsgs(false)
+              setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+            }
+          })
+          .catch(() => { if (initial && !cancelled) setLoadingMsgs(false) })
+      })
+    }
+    load(true)
+    // Poll every 5 s so the recipient sees new messages without reopening
+    const t = setInterval(() => load(false), 5000)
     // Fetch pro profile for header
     fetch(`/api/pros/${activeWithId}`)
       .then(r => r.ok ? r.json() : {} as any)
-      .then((d: any) => { if (d.pro) setActiveWith(d.pro) })
+      .then((d: any) => { if (!cancelled && d.pro) setActiveWith(d.pro) })
+    return () => { cancelled = true; clearInterval(t) }
   }, [activeWithId, session.id])
 
   // When a thread is tapped
@@ -616,7 +626,7 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
     if (!text.trim() || !activeWithId || sending) return
     setSending(true)
     const hdrs = await authHeaders()
-    const r = await fetch('/api/messages', {
+    const r = await fetch(`/api/messages?pro_id=${session.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...hdrs },
       body: JSON.stringify({ sender_id: session.id, receiver_id: activeWithId, content: text.trim() }),
