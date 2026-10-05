@@ -549,6 +549,147 @@ function MessageButton({ proId, followerId, compact }: { proId: string; follower
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProfileViewsWidget — right rail card showing who viewed your profile
+// ─────────────────────────────────────────────────────────────────────────────
+
+type ViewStats = {
+  total: number
+  unique: number
+  anon: number
+  by_type: Record<string, number>
+  sparkline: number[]
+  actions: { follows: number; messages: number }
+}
+
+function ProfileViewsWidget({ session }: { session: Session }) {
+  const [stats, setStats] = useState<ViewStats | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { getSupabaseBrowser } = await import('@/lib/supabase-browser')
+        const { data } = await getSupabaseBrowser().auth.getSession()
+        const token = data.session?.access_token
+        if (!token) return
+        const r = await fetch(`/api/profile-views?pro_id=${session.id}&days=7`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (r.ok) setStats(await r.json())
+      } catch { /* silent */ }
+    }
+    load()
+  }, [session.id])
+
+  if (!stats) return null
+
+  // Sparkline SVG — 7 bars, normalised to max height 24px
+  const max = Math.max(...stats.sparkline, 1)
+  const barW = 10
+  const gap = 3
+  const svgW = 7 * barW + 6 * gap
+  const svgH = 24
+
+  // Trend vs prior half (last 3 days vs first 4 days)
+  const recent = stats.sparkline.slice(4).reduce((a, b) => a + b, 0)
+  const prior  = stats.sparkline.slice(0, 4).reduce((a, b) => a + b, 0) || 1
+  const pct    = Math.round(((recent - (prior * 0.75)) / (prior * 0.75)) * 100)
+  const up     = pct > 0
+
+  // Top 2 non-anonymous trade types
+  const tradeBreakdown = Object.entries(stats.by_type)
+    .filter(([k]) => k !== 'Anonymous')
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200/70 p-4 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: '#3B4452' }}>
+          Profile Views
+        </span>
+        <Link href="/dashboard/profile-analytics"
+          className="text-[11px] font-semibold hover:underline" style={{ color: '#0F766E' }}>
+          View all
+        </Link>
+      </div>
+
+      {/* Count + trend */}
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <div className="text-[28px] font-extrabold leading-none" style={{ color: '#0A1628', letterSpacing: '-0.03em' }}>
+            {stats.total}
+          </div>
+          <div className="text-[11.5px] text-gray-500 mt-0.5">
+            {stats.total === 1 ? 'view' : 'views'} this week
+            {stats.total > 0 && (
+              <span className="ml-1.5 font-semibold" style={{ color: up ? '#16a34a' : '#DC2626' }}>
+                {up ? '↑' : '↓'} {Math.abs(pct)}%
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Sparkline */}
+        <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ flexShrink: 0 }}>
+          {stats.sparkline.map((v, i) => {
+            const h = Math.max(2, Math.round((v / max) * svgH))
+            const x = i * (barW + gap)
+            const isToday = i === 6
+            return (
+              <rect key={i} x={x} y={svgH - h} width={barW} height={h} rx={2}
+                fill={isToday ? '#0F766E' : '#CCECE9'} />
+            )
+          })}
+        </svg>
+      </div>
+
+      {/* Breakdown */}
+      {stats.total > 0 && (
+        <div className="text-[11.5px] text-gray-600 mb-3 leading-relaxed">
+          {stats.unique > 0 && <span className="font-semibold text-gray-800">{stats.unique} pro{stats.unique !== 1 ? 's' : ''}</span>}
+          {stats.unique > 0 && stats.anon > 0 && <span> · </span>}
+          {stats.anon > 0 && <span>{stats.anon} visitor{stats.anon !== 1 ? 's' : ''}</span>}
+          {tradeBreakdown.length > 0 && (
+            <span className="text-gray-500"> · {tradeBreakdown.map(([k, n]) => `${n} ${k}`).join(', ')}</span>
+          )}
+        </div>
+      )}
+
+      {/* Action metrics */}
+      {(stats.actions.follows > 0 || stats.actions.messages > 0) && (
+        <div className="flex gap-3 mb-3 pt-2.5 border-t border-gray-100">
+          {stats.actions.follows > 0 && (
+            <div className="text-center">
+              <div className="text-[14px] font-bold" style={{ color: '#0F766E' }}>{stats.actions.follows}</div>
+              <div className="text-[10.5px] text-gray-500">followed you</div>
+            </div>
+          )}
+          {stats.actions.messages > 0 && (
+            <div className="text-center">
+              <div className="text-[14px] font-bold" style={{ color: '#0F766E' }}>{stats.actions.messages}</div>
+              <div className="text-[10.5px] text-gray-500">messaged you</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pro upsell CTA */}
+      <Link href="/dashboard/profile-analytics"
+        className="flex items-center justify-between w-full px-3 py-2 rounded-xl text-[12px] font-semibold transition-colors"
+        style={{ background: '#F0FDF9', color: '#0F766E', border: '1px solid #CCECE9' }}>
+        <span>
+          {stats.unique > 0
+            ? `See the ${stats.unique} pro${stats.unique !== 1 ? 's' : ''} behind your views`
+            : 'View profile analytics'}
+        </span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </Link>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Messaging FAB — persistent bottom-right entry point, shows unread badge
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -2469,6 +2610,9 @@ function GuildPageInner() {
 
           {/* ── RIGHT SIDEBAR ── */}
           <aside className="hidden lg:block space-y-3" style={{ position: 'sticky', top: STICKY_TOP }}>
+
+            {/* Profile Views widget — only for logged-in pros */}
+            {session && <ProfileViewsWidget session={session} />}
 
             {/* Top Pros — personalised to the pro's own trade.
                 Hidden when the feed is empty: the FollowStrip in the center column

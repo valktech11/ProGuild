@@ -461,6 +461,34 @@ export default function ProfileClient() {
     }).catch(() => { setError('Could not load profile'); setLoading(false) })
   }, [id, _real])
 
+  // ── Profile view tracking ────────────────────────────────────────────────
+  // Fire once per page load after the pro is resolved.
+  // Own-profile views are skipped server-side too, but we skip the fetch
+  // entirely for owners to avoid the round-trip.
+  useEffect(() => {
+    if (!pro?.id) return
+    if (session?.id === pro.id) return   // own profile — don't track
+
+    const fire = async () => {
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        // Attach bearer token when logged in (enables viewer attribution)
+        if (session) {
+          const { getSupabaseBrowser } = await import('@/lib/supabase-browser')
+          const { data } = await getSupabaseBrowser().auth.getSession()
+          const token = data.session?.access_token
+          if (token) headers['Authorization'] = `Bearer ${token}`
+        }
+        await fetch('/api/profile-views', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ pro_id: pro.id }),
+        })
+      } catch { /* fire-and-forget */ }
+    }
+    fire()
+  }, [pro?.id])   // eslint-disable-line react-hooks/exhaustive-deps
+
   async function toggleFollow() {
     if (!session) { router.push('/login'); return }
     const r = await fetch('/api/follows', {
