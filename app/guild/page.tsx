@@ -758,7 +758,7 @@ function MessagingFAB({ session, onClick }: { session: Session; onClick: () => v
 }
 
 function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: string | null; onClose: () => void }) {
-  const [view, setView] = useState<'threads' | 'convo'>(withId ? 'convo' : 'threads')
+  const [view, setView] = useState<'threads' | 'convo' | 'compose'>(withId ? 'convo' : 'threads')
   const [threads, setThreads] = useState<any[]>([])
   const [activeWithId, setActiveWithId] = useState<string | null>(withId)
   const [activeWith, setActiveWith] = useState<any>(null)
@@ -767,6 +767,9 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
   const [sending, setSending] = useState(false)
   const [loadingThreads, setLoadingThreads] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [follows, setFollows] = useState<any[]>([])
+  const [loadingFollows, setLoadingFollows] = useState(false)
+  const [composeSearch, setComposeSearch] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -829,6 +832,21 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
     setView('convo')
     setMessages([])
     setActiveWith(null)
+    setComposeSearch('')
+  }
+
+  // Open compose view — fetch follows on first open
+  function openCompose() {
+    setView('compose')
+    setComposeSearch('')
+    if (follows.length > 0) return
+    setLoadingFollows(true)
+    authHeaders().then(hdrs =>
+      fetch(`/api/follows?pro_id=${session.id}`, { headers: hdrs })
+        .then(r => r.ok ? r.json() : {} as any)
+        .then((d: any) => { setFollows(d.following || []); setLoadingFollows(false) })
+        .catch(() => setLoadingFollows(false))
+    )
   }
 
   async function sendMessage() {
@@ -874,8 +892,8 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
 
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 flex-shrink-0 border-b border-gray-100">
-            {view === 'convo' && (
-              <button onClick={() => { setView('threads'); setActiveWithId(null); setActiveWith(null) }}
+            {(view === 'convo' || view === 'compose') && (
+              <button onClick={() => { setView('threads'); setActiveWithId(null); setActiveWith(null); setComposeSearch('') }}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
               </button>
@@ -893,13 +911,28 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
                   <div className="text-[11px] text-gray-500 truncate">{activeWith.trade_category?.category_name || activeWith.city || ''}</div>
                 </div>
               </>
+            ) : view === 'compose' ? (
+              <div className="flex-1">
+                <div className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'DM Serif Display', serif" }}>New Message</div>
+              </div>
             ) : (
               <div className="flex-1">
                 <div className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'DM Serif Display', serif" }}>Messages</div>
               </div>
             )}
+            {/* Compose (pencil) icon — threads view only */}
+            {view === 'threads' && (
+              <button onClick={openCompose}
+                title="New message"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
             <button onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors ml-auto">
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -952,6 +985,87 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
                     </button>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Compose — search + follows list */}
+            {view === 'compose' && (
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Search input */}
+                <div className="px-3 py-2.5 border-b border-gray-100 flex-shrink-0">
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={composeSearch}
+                      onChange={e => setComposeSearch(e.target.value)}
+                      placeholder="Search connections…"
+                      className="w-full pl-8 pr-3 py-2 rounded-lg text-[13px] outline-none"
+                      style={{ border: '1.5px solid #E5E0D8', background: '#FAFAF8' }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#0F766E')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#E5E0D8')}
+                    />
+                  </div>
+                </div>
+                {/* Contact list */}
+                <div className="flex-1 overflow-y-auto">
+                  {loadingFollows ? (
+                    <div className="p-4 space-y-3">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="flex gap-3 animate-pulse">
+                          <div className="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0" />
+                          <div className="flex-1 space-y-2 pt-1">
+                            <div className="h-3 w-2/3 rounded bg-gray-100" />
+                            <div className="h-2.5 w-1/2 rounded bg-gray-100" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (() => {
+                    const q = composeSearch.toLowerCase().trim()
+                    const filtered = q
+                      ? follows.filter(f =>
+                          (f.full_name || '').toLowerCase().includes(q) ||
+                          (f.trade_category?.category_name || '').toLowerCase().includes(q) ||
+                          (f.city || '').toLowerCase().includes(q)
+                        )
+                      : follows
+                    return filtered.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
+                        <div className="text-3xl mb-3 opacity-20">🔍</div>
+                        <div className="text-[13px] font-semibold text-gray-700 mb-1">
+                          {q ? 'No matches' : 'No connections yet'}
+                        </div>
+                        <div className="text-[12px] text-gray-500">
+                          {q ? 'Try a different name or trade.' : 'Follow pros to message them here.'}
+                        </div>
+                        {!q && (
+                          <Link href="/search" onClick={onClose} className="mt-4 text-[12.5px] font-bold" style={{ color: '#0F766E' }}>Find pros →</Link>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {!q && <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Connections</div>}
+                        {filtered.map((pro: any) => (
+                          <button key={pro.id} onClick={() => openThread(pro.id)}
+                            className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-50 text-left hover:bg-gray-50 transition-colors">
+                            <div className="w-10 h-10 flex-shrink-0">
+                              <Avatar pro={pro} size={10} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-semibold text-gray-900 truncate">{pro.full_name}</div>
+                              <div className="text-[11.5px] text-gray-500 truncate">
+                                {[pro.trade_category?.category_name, pro.city].filter(Boolean).join(' · ')}
+                              </div>
+                            </div>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                          </button>
+                        ))}
+                      </>
+                    )
+                  })()}
+                </div>
               </div>
             )}
 
