@@ -757,6 +757,13 @@ function MessagingFAB({ session, onClick }: { session: Session; onClick: () => v
   )
 }
 
+function fmtMsgTime(iso: string): string {
+  const d = new Date(iso)
+  const date = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${date} · ${time}`
+}
+
 function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: string | null; onClose: () => void }) {
   const [view, setView] = useState<'threads' | 'convo' | 'compose'>(withId ? 'convo' : 'threads')
   const [threads, setThreads] = useState<any[]>([])
@@ -913,11 +920,11 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
               </>
             ) : view === 'compose' ? (
               <div className="flex-1">
-                <div className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'DM Serif Display', serif" }}>New Message</div>
+                <div className="text-[14px] font-bold text-gray-900">New Message</div>
               </div>
             ) : (
               <div className="flex-1">
-                <div className="text-[14px] font-bold text-gray-900" style={{ fontFamily: "'DM Serif Display', serif" }}>Messages</div>
+                <div className="text-[14px] font-bold text-gray-900">Messages</div>
               </div>
             )}
             {/* Compose (pencil) icon — threads view only */}
@@ -974,7 +981,12 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
                         <Avatar pro={{ full_name: name, profile_photo_url: photo }} size={10} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-semibold text-gray-900 truncate">{name}</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="text-[13px] font-semibold text-gray-900 truncate">{name}</div>
+                          {thread.lastMsg?.created_at && (
+                            <div className="text-[10px] text-gray-400 flex-shrink-0">{timeAgo(thread.lastMsg.created_at)}</div>
+                          )}
+                        </div>
                         <div className="text-[12px] text-gray-500 truncate mt-0.5">{thread.lastMsg?.content}</div>
                       </div>
                       {thread.unread > 0 && (
@@ -1100,7 +1112,7 @@ function GuildDMPanel({ session, withId, onClose }: { session: Session; withId: 
                             }>
                             {msg.content}
                           </div>
-                          <div className="text-[10px] text-gray-400">{timeAgo(msg.created_at)}</div>
+                          <div className="text-[10px] text-gray-400">{fmtMsgTime(msg.created_at)}</div>
                         </div>
                       </div>
                     )
