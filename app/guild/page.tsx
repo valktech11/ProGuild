@@ -2179,7 +2179,7 @@ function GuildPageInner() {
   const [followingCount, setFollowingCount] = useState<number | null>(null)
   const [followingPros, setFollowingPros] = useState<Pro[]>([])
   const [trendingQuestions, setTrendingQuestions] = useState<Post[]>([])
-  const [jobAlerts, setJobAlerts] = useState<any[]>([])
+
   const [loading, setLoading] = useState(true)
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
@@ -2278,10 +2278,9 @@ function GuildPageInner() {
     Promise.all([
       safe(fetch(`/api/pros?limit=8&sort=rating&status=all${trade}`)),
       s ? safe(fetch(`/api/posts/likes?pro_id=${s.id}`)) : Promise.resolve({ likes: [] }),
-      safe(fetch('/api/jobs?status=Open&limit=3')),
       safe(fetch(`/api/posts?limit=5&post_type=tip${trade}`)),
       s ? safe(fetch(`/api/posts?pro_id=${s.id}&limit=1`)) : Promise.resolve({ posts: [] }),
-    ]).then(([prosData, likesData, jobsData, qData, mineData]) => {
+    ]).then(([prosData, likesData, qData, mineData]) => {
       let pros = (prosData.pros || []).filter((p: Pro) => p.id !== s?.id)
       // If the pro's own trade is too thin, backfill with top pros from any trade
       if (s?.trade_slug && pros.length < 6) {
@@ -2293,7 +2292,6 @@ function GuildPageInner() {
         setSuggested(pros.slice(0, 6))
       }
       setLikedIds(new Set(likesData.likes || []))
-      setJobAlerts(jobsData.jobs || [])
       setTrendingQuestions(qData.posts || [])
       setHasPosted((mineData.posts || []).length > 0) // welcome card disappears after first post
     })
@@ -2566,7 +2564,6 @@ function GuildPageInner() {
                 <nav className="py-2">
                   {([
                     { href: '/guild',          label: 'The Guild',     icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
-                    { href: '/jobs',           label: 'Open Projects', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', active: false },
                     { href: '/verify-license', label: 'License Check', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', active: false },
                   ]).map(item => (
                     <Link key={item.href} href={item.href}
@@ -2790,31 +2787,6 @@ function GuildPageInner() {
               </div>
             )}
 
-            {/* Open Projects */}
-            {jobAlerts.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[12px] font-bold text-gray-700 uppercase tracking-wide">Open Projects</span>
-                  <Link href="/jobs" className="text-[11px] text-teal-600 hover:underline font-medium">Browse</Link>
-                </div>
-                <div className="space-y-1.5">
-                  {jobAlerts.map(job => (
-                    <Link key={job.id} href="/jobs"
-                      className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors -mx-1">
-                      <div className="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-gray-800 truncate">{job.title}</div>
-                        <div className="text-[11px] text-gray-500">
-                          {job.city || job.state || 'Florida'}{job.budget_range ? ` · ${job.budget_range}` : ''}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Resources — a small branded card, not loose vanilla links */}
             <div className="rounded-2xl border p-3.5 shadow-sm" style={{ borderColor: '#E4E8E6', background: 'linear-gradient(170deg, #FFFFFF 0%, #F6FBF9 100%)' }}>
@@ -2825,7 +2797,6 @@ function GuildPageInner() {
                 <span className="text-[11px] font-semibold text-gray-500">· Resources</span>
               </div>
               {([
-                { href: '/jobs',           label: 'Find Work' },
                 { href: '/guides',         label: 'Trade Guides' },
                 { href: '/verify-license', label: 'License Lookup' },
                 { href: '/search',         label: 'Find Pros' },
@@ -2867,11 +2838,9 @@ function GuildPageInner() {
           <div className="flex items-stretch h-14">
             {(session ? [
               { href: '/dashboard', label: 'Home',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', active: false },
-              { href: '/jobs',      label: 'Projects', icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', active: false },
               { href: '/guild',     label: 'The Guild',icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
             ] : [
               { href: '/',          label: 'Find Pros',icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z', active: false },
-              { href: '/post-job',  label: 'Post Job', icon: 'M12 4v16m8-8H4', active: false },
               { href: '/guild',     label: 'The Guild',icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', active: true },
               { href: '/login',     label: 'Log in',   icon: 'M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1', active: false },
             ]).map(item => (
