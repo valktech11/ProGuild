@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     mode:       'subscription',
     customer:    customerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    metadata:   { pro_id: proId, company_id: companyId },
+    metadata:   { pro_id: proId, company_id: companyId, plan_tier: 'Pro' },
     success_url: `${appUrl}/dashboard?subscribed=1`,
     cancel_url:  `${appUrl}/subscribe?cancelled=1`,
     allow_promotion_codes: true,

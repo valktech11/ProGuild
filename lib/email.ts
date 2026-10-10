@@ -481,3 +481,105 @@ export function unclaimedLeadEmail({ proName, proEmail, contactName, message, cl
 </body>
 </html>`
 }
+
+// ── Trial expiry notification ─────────────────────────────────────────────────
+// Sent to a pro when their 90-day trial has expired.
+// Called from /api/stripe/trial-expired (cron or webhook-triggered).
+
+export async function sendTrialExpiredEmail({
+  proName,
+  proEmail,
+  tradeLabel,
+}: {
+  proName:    string
+  proEmail:   string
+  tradeLabel: string
+}) {
+  const firstName   = proName.split(' ')[0] || proName
+  const subscribeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://proguild.ai'}/subscribe`
+
+  return getResend().emails.send({
+    from:    'ProGuild.ai <hello@proguild.ai>',
+    to:      proEmail,
+    subject: `${firstName}, your ProGuild trial has ended — keep your leads coming`,
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f4ef;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f4ef;padding:32px 16px;">
+  <tr><td align="center">
+  <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e1db;">
+
+    <tr><td style="background:#0F766E;padding:28px 32px 24px;">
+      <div style="font-size:20px;font-weight:600;color:#ffffff;">ProGuild.ai</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:4px;">Your trial has ended</div>
+    </td></tr>
+
+    <tr><td style="padding:28px 32px;">
+      <div style="font-size:22px;font-weight:700;color:#1a1a18;margin-bottom:12px;line-height:1.3;">
+        Hi ${firstName}, your 90-day trial is over
+      </div>
+      <div style="font-size:14px;color:#73726c;line-height:1.7;margin-bottom:24px;">
+        Your free trial on ProGuild.ai has ended. Your profile is still live — but you'll
+        need to subscribe to keep receiving leads and access your CRM, pipeline, and dashboard.
+      </div>
+
+      <!-- What you keep with Pro -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf9;border-radius:12px;margin-bottom:24px;">
+        <tr><td style="padding:20px 24px;">
+          <div style="font-size:12px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:12px;">What you keep with Pro</div>
+          ${[
+            'Direct leads — no per-lead fees, ever',
+            'Full CRM pipeline and client tracking',
+            'Verified contractor badge on your profile',
+            'Mobile app (iOS + Android)',
+            tradeLabel === 'Roofing' ? 'Roof Visualizer + satellite measurements' : 'Trade-specific tools and estimates',
+          ].map(item => `
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+            <span style="color:#0F766E;font-weight:700;font-size:14px;flex-shrink:0;">✓</span>
+            <span style="font-size:14px;color:#1a1a18;">${item}</span>
+          </div>`).join('')}
+        </td></tr>
+      </table>
+
+      <!-- Pricing -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e1db;border-radius:12px;margin-bottom:24px;">
+        <tr><td style="padding:20px 24px;text-align:center;">
+          <div style="font-size:13px;color:#9c9a92;margin-bottom:4px;">
+            ${tradeLabel === 'Roofing' ? 'Roofing Pro' : 'Trades Pro'}
+          </div>
+          <div style="font-size:36px;font-weight:800;color:#1a1a18;">
+            $${tradeLabel === 'Roofing' ? '49' : '29'}<span style="font-size:16px;font-weight:400;color:#73726c;">/mo</span>
+          </div>
+          <div style="font-size:13px;color:#9c9a92;">Cancel anytime</div>
+        </td></tr>
+      </table>
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+        <tr><td align="center">
+          <a href="${subscribeUrl}" style="display:inline-block;background:#0F766E;color:#ffffff;font-size:15px;font-weight:600;padding:14px 36px;border-radius:10px;text-decoration:none;">
+            Subscribe now →
+          </a>
+        </td></tr>
+      </table>
+
+      <div style="font-size:13px;color:#9c9a92;text-align:center;line-height:1.6;">
+        Questions? Reply to this email or reach us at
+        <a href="mailto:hello@proguild.ai" style="color:#0F766E;text-decoration:none;">hello@proguild.ai</a>
+      </div>
+    </td></tr>
+
+    <tr><td style="padding:16px 32px;border-top:1px solid #e2e1db;background:#fafaf8;">
+      <div style="font-size:11px;color:#b5b3ab;text-align:center;line-height:1.8;">
+        © 2026 <a href="https://proguild.ai" style="color:#0F766E;text-decoration:none;">ProGuild.ai</a> · ProGuild LLC · 30 N Gould St, Sheridan, WY 82801
+      </div>
+    </td></tr>
+
+  </table>
+  </td></tr>
+</table>
+</body>
+</html>`,
+  })
+}

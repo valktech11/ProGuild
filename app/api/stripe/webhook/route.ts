@@ -25,12 +25,20 @@ export async function POST(req: NextRequest) {
 
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
-      const pro_id   = session.metadata?.pro_id
-      const plan_tier = session.metadata?.plan_tier
+      const pro_id     = session.metadata?.pro_id
+      const company_id = session.metadata?.company_id
+      const plan_tier  = session.metadata?.plan_tier
       if (!pro_id || !plan_tier) break
 
-      // Update pro plan
-      await sb.from('pros').update({ plan_tier, stripe_customer_id: session.customer as string }).eq('id', pro_id)
+      const stripeCustomer = session.customer as string
+
+      // Update pros row
+      await sb.from('pros').update({ plan_tier, stripe_customer_id: stripeCustomer }).eq('id', pro_id)
+
+      // Update companies row (authoritative source for plan in auth/me)
+      if (company_id) {
+        await sb.from('companies').update({ plan_tier, stripe_customer_id: stripeCustomer }).eq('id', company_id)
+      }
 
       // Upsert subscription record
       if (session.subscription) {
@@ -51,8 +59,9 @@ export async function POST(req: NextRequest) {
     }
 
     case 'customer.subscription.updated': {
-      const sub    = event.data.object as Stripe.Subscription
-      const pro_id = sub.metadata?.pro_id
+      const sub        = event.data.object as Stripe.Subscription
+      const pro_id     = sub.metadata?.pro_id
+      const company_id = sub.metadata?.company_id
       if (!pro_id) break
 
       const plan_tier = sub.metadata?.plan_tier
@@ -62,7 +71,10 @@ export async function POST(req: NextRequest) {
         : sub.status === 'trialing'             ? 'Trialing'
         : 'Active'
 
-      if (plan_tier) await sb.from('pros').update({ plan_tier }).eq('id', pro_id)
+      if (plan_tier) {
+        await sb.from('pros').update({ plan_tier }).eq('id', pro_id)
+        if (company_id) await sb.from('companies').update({ plan_tier }).eq('id', company_id)
+      }
       const renewal = sub.billing_cycle_anchor
         ? new Date(sub.billing_cycle_anchor * 1000).toISOString().split('T')[0]
         : null
@@ -74,12 +86,16 @@ export async function POST(req: NextRequest) {
     }
 
     case 'customer.subscription.deleted': {
-      const sub    = event.data.object as Stripe.Subscription
-      const pro_id = sub.metadata?.pro_id
+      const sub        = event.data.object as Stripe.Subscription
+      const pro_id     = sub.metadata?.pro_id
+      const company_id = sub.metadata?.company_id
       if (!pro_id) break
 
-      // Downgrade to Free
+      // Downgrade to Free on both rows
       await sb.from('pros').update({ plan_tier: 'Free' }).eq('id', pro_id)
+      if (company_id) {
+        await sb.from('companies').update({ plan_tier: 'Free' }).eq('id', company_id)
+      }
       await sb.from('subscriptions').update({ sub_status: 'Cancelled' }).eq('stripe_sub_id', sub.id)
       break
     }

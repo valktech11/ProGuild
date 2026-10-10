@@ -252,3 +252,58 @@ export async function requirePro(
     authUserId,
   }
 }
+
+// ── requirePaidPro ───────────────────────────────────────────────────────────
+// Use on routes that should be gated to active paid or in-trial pros.
+// Returns a 402 if plan is Free (trial expired) or 401/403 for auth failures.
+//
+// Usage:
+//   const auth = await requirePaidPro(req, body.pro_id)
+//   if (auth.error) return auth.error
+//
+export async function requirePaidPro(
+  req: NextRequest,
+  claimedProId?: string | null,
+): Promise<ProAuthResult> {
+  const auth = await requirePro(req, claimedProId)
+  if (auth.error) return auth
+
+  const { proId, companyId } = auth
+  const admin = getSupabaseAdmin()
+
+  // Read plan from companies (authoritative) then fall back to pros
+  let plan: string = 'Free'
+  let trialEndsAt: string | null = null
+
+  if (companyId) {
+    const { data: co } = await admin
+      .from('companies')
+      .select('plan_tier, trial_ends_at')
+      .eq('id', companyId)
+      .maybeSingle()
+    plan        = co?.plan_tier    ?? 'Free'
+    trialEndsAt = co?.trial_ends_at ?? null
+  } else {
+    const { data: pr } = await admin
+      .from('pros')
+      .select('plan_tier, trial_ends_at')
+      .eq('id', proId)
+      .maybeSingle()
+    plan        = pr?.plan_tier    ?? 'Free'
+    trialEndsAt = pr?.trial_ends_at ?? null
+  }
+
+  const isPaid  = plan === 'Pro' || plan === 'Elite'
+  const inTrial = !isPaid && !!trialEndsAt && new Date(trialEndsAt) > new Date()
+
+  if (!isPaid && !inTrial) {
+    return {
+      error: NextResponse.json(
+        { error: 'Subscription required', code: 'PLAN_REQUIRED' },
+        { status: 402 },
+      ),
+    }
+  }
+
+  return auth
+}
