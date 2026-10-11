@@ -51,12 +51,15 @@ export async function POST(
     .eq('lead_id', leadId)
     .maybeSingle()
 
-  // Photos grouped by phase
+  // Photos grouped by phase.
+  // Lead ownership was already verified above — fetch all photos for this lead
+  // by lead_id only. lead_photos only carries the uploader's pro_id, not
+  // company_id/assigned_to_pro_id, so filtering by those columns returns 0 rows
+  // for team members and produces a blank PDF.
   const { data: photos } = await sb
     .from('lead_photos')
     .select('id, url, annotated_url, has_annotation, phase, caption, taken_at')
     .eq('lead_id', leadId)
-    .eq(_rptRole2 === 'member' ? 'assigned_to_pro_id' : (_rptCompanyId2 ? 'company_id' : 'pro_id'), _rptRole2 === 'member' ? auth.proId! : (_rptCompanyId2 ?? auth.proId!))
     .order('taken_at', { ascending: true })
 
   // Group by phase
