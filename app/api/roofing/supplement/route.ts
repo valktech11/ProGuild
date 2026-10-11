@@ -45,6 +45,8 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
 export async function POST(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
   if (__auth.error) return __auth.error
+  const _suppRole      = __auth.role
+  const _suppCompanyId = __auth.companyId
   let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
@@ -60,15 +62,26 @@ export async function POST(req: NextRequest) {
   const sb = getSupabaseAdmin()
 
   // ── Lead context ──────────────────────────────────────────────────────────
+  // Use role-aware ownership check (same pattern as photo report route).
+  // lead_photos only has pro_id (uploader) — team members and company-scoped
+  // pros must match via assigned_to_pro_id / company_id respectively.
   const { data: lead } = await sb
     .from('leads')
-    .select('id, pro_id, contact_state, property_address')
+    .select('id, contact_state, property_address')
     .eq('id', lead_id)
+    .eq(
+      _suppRole === 'member' ? 'assigned_to_pro_id' : (_suppCompanyId ? 'company_id' : 'pro_id'),
+      _suppRole === 'member' ? __auth.proId! : (_suppCompanyId ?? __auth.proId!),
+    )
     .maybeSingle()
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-  if (lead.pro_id !== pro_id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
-  if ((lead.contact_state ?? '').toUpperCase() !== 'FL') {
+
+  // FL check: contact_state may be blank if not filled in — also check address
+  // as a fallback so a missing field doesn't block a valid FL lead.
+  const stateField = (lead.contact_state ?? '').toUpperCase()
+  const addressHasFL = /\bFL\b/i.test(lead.property_address ?? '')
+  if (stateField !== 'FL' && !addressHasFL) {
     return NextResponse.json({ error: 'The Supplement Assistant is Florida-only.' }, { status: 422 })
   }
 
