@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import {
   CALCULATOR_LINE_NAMES,
   LABOUR_LINE_NAME,
@@ -52,22 +53,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'lead_id and pro_id are required' }, { status: 400 })
   }
 
+  // Auth: verify the bearer token — never trust client-supplied pro_id as identity.
+  const __auth = await requirePro(req, proId)
+  if (__auth.error) return __auth.error
+  const _csRole = __auth.role
+  const _csCompanyId = __auth.companyId
+
   const sb = getSupabaseAdmin()
 
   // Pro: state (for tax) + saved material prices (for the fresh branch).
   const { data: pro } = await sb
     .from('pros')
     .select('state, roofing_material_prices')
-    .eq('id', proId)
+    .eq('id', __auth.proId!)
     .maybeSingle()
   const proState = (pro?.state ?? '').toUpperCase()
 
   // Job-location state — the authoritative source for tax (pro state is fallback).
+  // Role-aware ownership gate so one pro can't read another's lead data by id,
+  // while company/team members can load their own leads.
   const { data: leadRow } = await sb
     .from('leads')
     .select('contact_state')
     .eq('id', leadId)
+    .eq(
+      _csRole === 'member' ? 'assigned_to_pro_id' : (_csCompanyId ? 'company_id' : 'pro_id'),
+      _csRole === 'member' ? __auth.proId! : (_csCompanyId ?? __auth.proId!),
+    )
     .maybeSingle()
+  if (!leadRow) {
+    return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+  }
   const leadState = (leadRow?.contact_state ?? '').toUpperCase()
 
   // Lead's roof-report data — the fresh source AND the per-field fallback.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export const runtime = 'nodejs'
 
@@ -14,10 +15,12 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 // risk of an automated flow accidentally destroying records that must be kept.
 export async function POST(req: NextRequest) {
   const { pro_id } = await req.json()
-  if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  // Auth: a pro may only request deletion of their own account.
+  const __auth = await requirePro(req, pro_id)
+  if (__auth.error) return __auth.error
 
   const { data: pro } = await getSupabaseAdmin()
-    .from('pros').select('id, full_name, email, phone, business_name').eq('id', pro_id).single()
+    .from('pros').select('id, full_name, email, phone, business_name').eq('id', __auth.proId!).single()
   if (!pro) return NextResponse.json({ error: 'Pro not found' }, { status: 404 })
 
   try {

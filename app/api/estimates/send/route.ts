@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     .from('estimates')
     .select(`
       id, estimate_number, total, status, contact_email, contact_phone, tax_rate,
-      lead_name, valid_until, pro_id, lead_id,
+      lead_name, valid_until, pro_id, company_id, assigned_to_pro_id, lead_id,
       pro:pros(full_name, phone_cell, city, state, trade_slug),
       roofing:roofing_estimate_data(property_address, estimate_type, tiered_data),
       items:estimate_items(amount)
@@ -30,8 +30,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
   }
 
-  // Ownership check
-  if (pro_id && est.pro_id !== pro_id) {
+  // Ownership: member → must be assigned; owner/company → company match or
+  // pro_id match (pre-migration null company_id). Role-aware so team can send.
+  const _estOwned = __auth.role === 'member'
+    ? (est as any).assigned_to_pro_id === __auth.proId
+    : ((__auth.companyId && (est as any).company_id === __auth.companyId) || est.pro_id === __auth.proId)
+  if (!_estOwned) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

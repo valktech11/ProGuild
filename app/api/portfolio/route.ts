@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { moderateContent } from '@/lib/moderation'
 
+// GET is a public profile read (any pro's portfolio is shown on their public
+// profile). Mutations (POST/DELETE/PATCH) are gated to the verified owner.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId = searchParams.get('pro_id')
@@ -17,10 +20,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, photo_url, title, description, trade, latitude, longitude, location_label, captured_at, is_job_site, is_before_after, before_photo_url } = body
+  const { photo_url, title, description, trade, latitude, longitude, location_label, captured_at, is_job_site, is_before_after, before_photo_url } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  const pro_id = __auth.proId!
 
-  if (!pro_id || !title?.trim()) {
-    return NextResponse.json({ error: 'pro_id, photo_url and title are required' }, { status: 400 })
+  if (!title?.trim()) {
+    return NextResponse.json({ error: 'title is required' }, { status: 400 })
   }
 
   // Moderate title and description
@@ -45,21 +51,25 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
-  const proId = searchParams.get('pro_id')
-  if (!id || !proId) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
+  const __auth = await requirePro(req, searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const { error } = await getSupabaseAdmin()
-    .from('portfolio_items').delete().eq('id', id).eq('pro_id', proId)
+    .from('portfolio_items').delete().eq('id', id).eq('pro_id', __auth.proId!)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, pro_id, latitude, longitude, location_label } = await req.json()
-  if (!id || !pro_id) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
+  const body = await req.json()
+  const { id, latitude, longitude, location_label } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const { data, error } = await getSupabaseAdmin()
     .from('portfolio_items')
     .update({ latitude: latitude || null, longitude: longitude || null, location_label: location_label || null })
-    .eq('id', id).eq('pro_id', pro_id).select().single()
+    .eq('id', id).eq('pro_id', __auth.proId!).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ item: data })
 }

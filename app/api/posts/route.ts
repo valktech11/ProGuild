@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { moderateContent } from '@/lib/moderation'
 
 export async function GET(req: NextRequest) {
@@ -64,7 +65,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { pro_id, content, photo_url, photo_urls, post_type, before_photo_url, is_before_after } = body
+  const { content, photo_url, photo_urls, post_type, before_photo_url, is_before_after } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  const pro_id = __auth.proId!
 
   // Normalise: merge photo_url + photo_urls into a single array (max 5)
   const allPhotos: string[] = []
@@ -74,8 +78,8 @@ export async function POST(req: NextRequest) {
 
   const hasContent = content?.trim()
   const hasPhoto   = photosToSave.length > 0
-  if (!pro_id || (!hasContent && !hasPhoto)) {
-    return NextResponse.json({ error: 'pro_id and content or photo are required' }, { status: 400 })
+  if (!hasContent && !hasPhoto) {
+    return NextResponse.json({ error: 'content or photo is required' }, { status: 400 })
   }
 
   // Moderate content before saving
@@ -107,13 +111,16 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, pro_id, content } = await req.json()
-  if (!id || !pro_id || !content?.trim()) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const body = await req.json()
+  const { id, content } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  if (!id || !content?.trim()) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   const { data, error } = await getSupabaseAdmin()
     .from('posts')
     .update({ content })
     .eq('id', id)
-    .eq('pro_id', pro_id)
+    .eq('pro_id', __auth.proId!)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -123,9 +130,10 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
-  const proId = searchParams.get('pro_id')
-  if (!id || !proId) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
-  const { error } = await getSupabaseAdmin().from('posts').delete().eq('id', id).eq('pro_id', proId)
+  const __auth = await requirePro(req, searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  const { error } = await getSupabaseAdmin().from('posts').delete().eq('id', id).eq('pro_id', __auth.proId!)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

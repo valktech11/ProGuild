@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
-// GET skills for a pro (with endorsement counts)
+// GET skills for a pro (with endorsement counts) — public profile read.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const proId     = searchParams.get('pro_id')
@@ -29,16 +30,19 @@ export async function GET(req: NextRequest) {
 
 // POST — add a skill (own profile only)
 export async function POST(req: NextRequest) {
-  const { pro_id, skill_name } = await req.json()
-  if (!pro_id || !skill_name?.trim()) {
-    return NextResponse.json({ error: 'pro_id and skill_name required' }, { status: 400 })
+  const body = await req.json()
+  const { skill_name } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  if (!skill_name?.trim()) {
+    return NextResponse.json({ error: 'skill_name required' }, { status: 400 })
   }
   if (skill_name.length > 60) {
     return NextResponse.json({ error: 'Skill name too long (max 60 chars)' }, { status: 400 })
   }
   const { data, error } = await getSupabaseAdmin()
     .from('pro_skills')
-    .insert({ pro_id, skill_name: skill_name.trim() })
+    .insert({ pro_id: __auth.proId!, skill_name: skill_name.trim() })
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -49,10 +53,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id    = searchParams.get('id')
-  const proId = searchParams.get('pro_id')
-  if (!id || !proId) return NextResponse.json({ error: 'id and pro_id required' }, { status: 400 })
+  const __auth = await requirePro(req, searchParams.get('pro_id'))
+  if (__auth.error) return __auth.error
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
   const { error } = await getSupabaseAdmin()
-    .from('pro_skills').delete().eq('id', id).eq('pro_id', proId)
+    .from('pro_skills').delete().eq('id', id).eq('pro_id', __auth.proId!)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

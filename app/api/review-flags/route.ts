@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function POST(req: NextRequest) {
   try {
-    const { review_id, pro_id, reason } = await req.json()
+    const { review_id, reason } = await req.json()
 
-    if (!review_id || !pro_id || !reason) {
+    // Auth: the flagging pro is the signed-in pro — never trust a client id.
+    const __auth = await requirePro(req, null)
+    if (__auth.error) return __auth.error
+    const pro_id = __auth.proId!
+
+    if (!review_id || !reason) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 

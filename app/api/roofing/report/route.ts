@@ -7,6 +7,7 @@ export const maxDuration = 60  // PDF generation + 7 API calls can take up to 30
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { renderToBuffer } from '@react-pdf/renderer'
 import { buildRoofReportPDF, ReportData, PitchRow } from '@/lib/roofing/reportPdf'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
@@ -566,14 +567,20 @@ async function checkHistoricDistrict(lat: number, lng: number, formattedAddress:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { address, pro_id, property_id } = body as {
+    const { address, property_id } = body as {
       address: string
       pro_id: string
       property_id?: string
     }
 
-    if (!address || !pro_id) {
-      return NextResponse.json({ error: 'address and pro_id required' }, { status: 400 })
+    // Auth: verify the bearer token — report generation calls the paid Google
+    // Solar API, so it must never run for an unauthenticated / spoofed pro_id.
+    const __auth = await requirePro(req, body?.pro_id)
+    if (__auth.error) return __auth.error
+    const pro_id = __auth.proId!
+
+    if (!address) {
+      return NextResponse.json({ error: 'address required' }, { status: 400 })
     }
     if (!GOOGLE_KEY) {
       return NextResponse.json({ error: 'GOOGLE_SOLAR_API_KEY not configured' }, { status: 500 })

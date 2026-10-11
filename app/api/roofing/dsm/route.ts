@@ -25,6 +25,7 @@ import {
 } from '@/lib/roofing/elevationRidge'
 import { fetchWingBoundaries } from '@/lib/roofing/osmBuilding'
 import { apiError, validateCoordinates, isValidUuid } from '@/lib/api/utils'
+import { requirePro } from '@/lib/pro-auth'
 
 const GOOGLE_KEY = process.env.GOOGLE_SOLAR_API_KEY || ''
 
@@ -43,17 +44,26 @@ export async function POST(req: NextRequest) {
 
   // 2. Validate IDs
   if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
-  if (!isValidUuid(pro_id))    return apiError('pro_id must be a valid UUID', 400)
+
+  // Auth: verify the bearer token — never trust client-supplied pro_id as identity.
+  const __auth = await requirePro(req, typeof pro_id === 'string' ? pro_id : null)
+  if (__auth.error) return __auth.error
+  const _dsmRole = __auth.role
+  const _dsmCompanyId = __auth.companyId
 
   const sb = getSupabaseAdmin()
 
-  // 3. Fetch report — verify ownership + pull solar_raw and perimeter footage
+  // 3. Fetch report — role-aware ownership (roof_reports has pro_id + company_id,
+  // no assigned_to_pro_id; members scope by pro_id).
   const { data: report, error: fetchErr } = await sb
     .from('roof_reports')
     .select('id, solar_raw, linear_footage, lat, lng')
     .eq('id', report_id)
-    .eq('pro_id', pro_id)
-    .single()
+    .eq(
+      _dsmRole === 'member' ? 'pro_id' : (_dsmCompanyId ? 'company_id' : 'pro_id'),
+      _dsmRole === 'member' ? __auth.proId! : (_dsmCompanyId ?? __auth.proId!),
+    )
+    .maybeSingle()
 
   if (fetchErr || !report) return apiError('Report not found or access denied', 403)
 
@@ -156,12 +166,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 7. Persist — double-confirm ownership on write
+  // 7. Persist — report row already verified owned above by role-aware fetch.
   const { error: updateErr } = await sb
     .from('roof_reports')
     .update({ linear_footage: linear })
     .eq('id', report_id)
-    .eq('pro_id', pro_id)
 
   if (updateErr) {
     console.error('[dsm] persist error:', updateErr.message)

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { notify } from '@/lib/notifications'
 
 // Toggle follow
 export async function POST(req: NextRequest) {
-  const { follower_id, following_id } = await req.json()
-  if (!follower_id || !following_id) {
-    return NextResponse.json({ error: 'follower_id and following_id required' }, { status: 400 })
+  const { following_id } = await req.json()
+  // Auth: the follower is always the signed-in pro — never trust a client id.
+  const __auth = await requirePro(req, null)
+  if (__auth.error) return __auth.error
+  const follower_id = __auth.proId!
+  if (!following_id) {
+    return NextResponse.json({ error: 'following_id required' }, { status: 400 })
   }
   if (follower_id === following_id) {
     return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })

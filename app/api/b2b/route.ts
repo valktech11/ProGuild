@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 // GET /api/b2b — list active B2B jobs
 export async function GET(req: NextRequest) {
@@ -35,10 +36,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const sb   = getSupabaseAdmin()
 
-  // Apply to a job
+  // Apply to a job — the applicant is the signed-in pro.
   if (body.action === 'apply') {
-    const { job_id, pro_id, message } = body
-    if (!job_id || !pro_id) return NextResponse.json({ error: 'job_id and pro_id required' }, { status: 400 })
+    const { job_id, message } = body
+    const __auth = await requirePro(req, body?.pro_id)
+    if (__auth.error) return __auth.error
+    const pro_id = __auth.proId!
+    if (!job_id) return NextResponse.json({ error: 'job_id required' }, { status: 400 })
 
     const { data, error } = await sb.from('b2b_applications')
       .insert({ job_id, pro_id, message: message || null })

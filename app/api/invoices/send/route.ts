@@ -19,10 +19,11 @@ export async function POST(req: NextRequest) {
 
   const sb = auditedAdmin(req, { actorId: __auth.proId!, actorType: 'pro' })
 
-  // Fetch invoice
+  // Fetch invoice, then check ownership in JS. Role-aware so company/team members
+  // can send; pro_id fallback covers pre-migration rows with null company_id.
   const { data: inv, error: invErr } = await sb
     .from('invoices')
-    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id, lead_id, estimate_id')
+    .select('id, invoice_number, total, balance_due, due_date, lead_name, contact_email, status, pro_id, company_id, assigned_to_pro_id, lead_id, estimate_id')
     .eq('id', invoice_id)
     .maybeSingle()
 
@@ -30,8 +31,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
   }
 
-  // Ownership check
-  if (inv.pro_id !== pro_id) {
+  // Ownership: member → must be assigned; owner/company → company match or
+  // pro_id match (pre-migration null company_id).
+  const _invOwned = __auth.role === 'member'
+    ? (inv as any).assigned_to_pro_id === __auth.proId
+    : ((__auth.companyId && (inv as any).company_id === __auth.companyId) || inv.pro_id === __auth.proId)
+  if (!_invOwned) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

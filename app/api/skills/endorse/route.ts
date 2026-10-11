@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 
 export async function POST(req: NextRequest) {
-  const { skill_id, endorsed_by } = await req.json()
-  if (!skill_id || !endorsed_by) {
-    return NextResponse.json({ error: 'skill_id and endorsed_by required' }, { status: 400 })
+  const { skill_id } = await req.json()
+  // Auth: the endorser is the signed-in pro — never trust a client-supplied id.
+  const __auth = await requirePro(req, null)
+  if (__auth.error) return __auth.error
+  const endorsed_by = __auth.proId!
+  if (!skill_id) {
+    return NextResponse.json({ error: 'skill_id required' }, { status: 400 })
   }
   const { data: existing } = await getSupabaseAdmin()
     .from('skill_endorsements').select('id')

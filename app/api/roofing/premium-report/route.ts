@@ -2,9 +2,9 @@
  * app/api/roofing/premium-report/route.ts
  * POST /api/roofing/premium-report
  *
- * Auth pattern matches report/route.ts and dsm/route.ts:
- * pro_id + report_id from request body, validated as UUIDs.
- * No Bearer token — consistent with existing codebase.
+ * Auth: requirePro (bearer token) — report ownership scoped role-aware.
+ * report_id comes from the body; pro identity is derived from the token,
+ * never trusted from a client-supplied pro_id.
  */
 
 export const runtime = 'nodejs'
@@ -12,6 +12,7 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { apiError, isValidUuid, getR2Client, getR2Bucket } from '@/lib/api/utils'
 import { buildPremiumReport, type PremiumReportData, type RoofSegment } from '@/lib/roofing/premiumReportPdf'
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
@@ -175,9 +176,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try { body = await req.json() }
   catch { return apiError('Invalid JSON body', 400) }
 
-  const { report_id, pro_id } = body
+  const { report_id } = body
   if (!isValidUuid(report_id)) return apiError('report_id must be a valid UUID', 400)
-  if (!isValidUuid(pro_id))    return apiError('pro_id must be a valid UUID', 400)
+
+  // Auth: verify the bearer token — never trust client-supplied pro_id as identity.
+  const __auth = await requirePro(req, typeof body?.pro_id === 'string' ? body.pro_id : null)
+  if (__auth.error) return __auth.error
+  const pro_id = __auth.proId!
+  const _prRole = __auth.role
+  const _prCompanyId = __auth.companyId
 
   const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production'
   if (isProduction) return apiError('Premium plan required', 403)
@@ -188,8 +195,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .from('roof_reports')
     .select('id, address, lat, lng, total_sqft, total_squares_order, dominant_pitch, facet_count, waste_factor, imagery_date, pitch_breakdown, linear_footage, solar_raw, premium_r2_key, pro_id')
     .eq('id', report_id)
-    .eq('pro_id', pro_id)
-    .single()
+    .eq(
+      _prRole === 'member' ? 'pro_id' : (_prCompanyId ? 'company_id' : 'pro_id'),
+      _prRole === 'member' ? pro_id : (_prCompanyId ?? pro_id),
+    )
+    .maybeSingle()
 
   if (dbErr || !report) {
     console.error('[premium-report] DB fetch error:', dbErr?.message)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { evaluateStagePlan } from '@/lib/trades/roofing/stage-rules'
 import { gatherRoofingStageContext } from '@/lib/trades/roofing/stage-context'
 import type { RoofingStage } from '@/lib/trades/roofing/types'
@@ -23,14 +24,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'lead_id and pro_id are required' }, { status: 400 })
   }
 
+  // Auth: verify the bearer token — never trust client-supplied pro_id as identity.
+  const __auth = await requirePro(req, proId)
+  if (__auth.error) return __auth.error
+  const _spRole = __auth.role
+  const _spCompanyId = __auth.companyId
+
   const sb = getSupabaseAdmin()
 
   // Lead — current stage + the fields the gates read + created_at for lead_in date.
+  // Role-aware ownership so company/team members can load the stage plan.
   const { data: lead } = await sb
     .from('leads')
     .select('lead_status, property_address, scheduled_date, inspection_date, created_at')
     .eq('id', leadId)
-    .eq('pro_id', proId)
+    .eq(
+      _spRole === 'member' ? 'assigned_to_pro_id' : (_spCompanyId ? 'company_id' : 'pro_id'),
+      _spRole === 'member' ? __auth.proId! : (_spCompanyId ?? __auth.proId!),
+    )
     .maybeSingle()
 
   if (!lead) {

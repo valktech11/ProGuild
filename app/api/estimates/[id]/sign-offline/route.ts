@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { uploadToR2 } from '@/lib/r2'
 import { applyEstimateSignedEffects } from '@/lib/trades/roofing/applySignedEffects'
 import crypto from 'crypto'
@@ -20,20 +21,32 @@ export async function POST(
   const body = await req.json()
   const { pro_id, signer_name, sig_data_url, selected_tier } = body
 
-  if (!pro_id) return NextResponse.json({ error: 'pro_id required' }, { status: 400 })
+  // Auth: verify the bearer token and derive the real pro — never trust the
+  // client-supplied pro_id as identity (would allow signature forgery).
+  const __auth = await requirePro(req, pro_id)
+  if (__auth.error) return __auth.error
+  const _soRole = __auth.role
+  const _soCompanyId = __auth.companyId
+
   if (!signer_name || !sig_data_url)
     return NextResponse.json({ error: 'signer_name and sig_data_url required' }, { status: 400 })
 
   const sb = getSupabaseAdmin()
 
+  // Fetch estimate, then check ownership in JS. Role-aware so owner/company pros
+  // and the assigned member may sign; pro_id fallback covers pre-migration rows
+  // with null company_id.
   const { data: est } = await sb
     .from('estimates')
-    .select('id, status, valid_until, pro_id, lead_id, tax_rate, revision_of, estimate_number')
-    .eq('id', id).single()
+    .select('id, status, valid_until, pro_id, company_id, assigned_to_pro_id, lead_id, tax_rate, revision_of, estimate_number')
+    .eq('id', id)
+    .maybeSingle()
 
   if (!est) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  // Ownership guard — a pro may only sign their own estimate.
-  if (est.pro_id !== pro_id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const _soOwned = _soRole === 'member'
+    ? (est as any).assigned_to_pro_id === __auth.proId
+    : ((_soCompanyId && (est as any).company_id === _soCompanyId) || est.pro_id === __auth.proId)
+  if (!_soOwned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   // In person the rep may also sign a freshly created draft, not only sent/viewed.
   if (!['draft', 'sent', 'viewed'].includes(est.status))
     return NextResponse.json({ error: 'Cannot sign in current state' }, { status: 400 })

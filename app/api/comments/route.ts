@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
+import { requirePro } from '@/lib/pro-auth'
 import { moderateContent } from '@/lib/moderation'
 
 export async function GET(req: NextRequest) {
@@ -16,9 +17,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { post_id, pro_id, content } = await req.json()
-  if (!post_id || !pro_id || !content?.trim()) {
-    return NextResponse.json({ error: 'post_id, pro_id and content required' }, { status: 400 })
+  const body = await req.json()
+  const { post_id, content } = body
+  const __auth = await requirePro(req, body?.pro_id)
+  if (__auth.error) return __auth.error
+  const pro_id = __auth.proId!
+  if (!post_id || !content?.trim()) {
+    return NextResponse.json({ error: 'post_id and content required' }, { status: 400 })
   }
 
   // Moderate comment
