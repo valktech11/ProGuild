@@ -1986,6 +1986,28 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               )
                             }
 
+                            // Supplement upcoming: the supplement is the JOIN of your
+                            // estimate and the carrier's scope — the dollar gap can't be
+                            // computed without your estimate total. Rather than a dead grey
+                            // row (which invites a dollarless, half-baked filing), say why it
+                            // waits and point straight at the estimate. Mirrors mobile, where
+                            // the Supplement Opportunity button stays closed until an estimate
+                            // exists (supplementGap != null).
+                            if (s.key === 'supp' && (Number(est?.total) || 0) <= 0) {
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
+                                  {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={isWide ? 18 : 15} stroke={tsu} sw={2}>{ICONS.supp}</Svg>, bdr)}
+                                  <div style={{ background: dk ? 'rgba(79,70,229,0.08)' : '#F5F6FF', border: `1px dashed ${dk ? 'rgba(129,140,248,0.35)' : '#C7D2FE'}`, borderRadius: T.radLg, padding: '12px 16px', display: 'flex', flexDirection: isWide ? 'row' : 'column', alignItems: isWide ? 'center' : 'stretch', gap: isWide ? 12 : 8 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ fontWeight: 700, fontSize: T.fontEmphasis, color: tp }}>Supplement</div>
+                                      <div style={{ fontSize: T.fontSub, color: tsu, marginTop: 2, lineHeight: 1.4 }}>Build your estimate first — the supplement compares your scope to the carrier&rsquo;s approved amount, so it opens once your estimate exists.</div>
+                                    </div>
+                                    <button onClick={goEstimate} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, padding: '0 15px', borderRadius: T.radSm, border: 'none', background: BRAND.teal, color: '#fff', fontSize: T.fontSub, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>Go to Estimate<Svg size={14} stroke="#fff" sw={2.5}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></Svg></button>
+                                  </div>
+                                </div>
+                              )
+                            }
+
                             // upcoming — calm, on the path, not blocked
                             return (
                               <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center', opacity: 0.82 }}>
