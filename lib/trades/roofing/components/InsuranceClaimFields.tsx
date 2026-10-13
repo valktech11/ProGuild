@@ -362,6 +362,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const net        = approved + supplement - deductible
   const isDenied     = fields.claim_status === 'Denied'
   const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
+  // Supplement is a downstream amount — only real once a supplement has actually
+  // been filed (status moves there via the spine supp-stage, which needs an
+  // estimate first). Hide the field on a plain Approved/Denied claim; keep it when
+  // a value already exists so data is never stranded.
+  const showSupplement = ['Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status) || supplement > 0
   const decisionLabel = fields.claim_status === 'Denied' ? 'Denied'
     : fields.claim_status === 'Supplement Filed' ? 'Supplement filed'
     : fields.claim_status === 'Supplement Approved' ? 'Supplement approved'
@@ -800,17 +805,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                     </div>
                   ) : (
                     <div>
-                      <div style={{ display:'grid', gridTemplateColumns:isWide?'1fr 1fr 1fr':'1fr', gap:12 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:isWide?(showSupplement?'1fr 1fr 1fr':'1fr 1fr'):'1fr', gap:12 }}>
                         <Field label="Approved amount">
                           <FInput value={fields.approved_amount} onChange={set('approved_amount')} disabled={locked} placeholder="$0.00"
                             icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
                           />
                         </Field>
+                        {showSupplement && (
                         <Field label="Supplement amount">
                           <FInput value={fields.supplement_amount} onChange={set('supplement_amount')} disabled={locked} placeholder="$0.00"
                             icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
                           />
                         </Field>
+                        )}
                         <Field label="Deductible (homeowner)">
                           <FInput value={fields.deductible} onChange={set('deductible')} disabled={locked} placeholder="$0.00"
                             icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
