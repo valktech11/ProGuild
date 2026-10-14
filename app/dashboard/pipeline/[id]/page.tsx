@@ -1613,14 +1613,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
                     const goSupplement = ()=>{
-                      console.log('[goSupplement] fired — tab:', tab, 'suppOpen:', suppOpen, 'nextKey:', nextKey)
                       setTab('details')
                       setSuppOpen(true)
-                      setTimeout(()=>{
+                      // Poll for the element — it mounts after React re-renders suppOpen=true
+                      let attempts = 0
+                      const poll = () => {
                         const el = document.getElementById('supplement-section')
-                        console.log('[goSupplement] scroll target:', el)
-                        el?.scrollIntoView({behavior:'smooth',block:'start'})
-                      }, 200)
+                        if (el) { el.scrollIntoView({behavior:'smooth',block:'start'}); return }
+                        if (++attempts < 20) setTimeout(poll, 100)
+                      }
+                      setTimeout(poll, 100)
                     }
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
