@@ -1836,7 +1836,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               if (cState === 'done' && !suppOpen) {
                                 const sLabel = rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'
                                 return (
-                                  <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center' }}>
+                                  <div key={s.key} id="supplement-section" style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center', scrollMarginTop: 16 }}>
                                     {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
