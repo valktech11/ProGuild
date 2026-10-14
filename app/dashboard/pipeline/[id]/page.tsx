@@ -1623,7 +1623,30 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       supp:     {title:'Review supplement gap', sub:'Carrier may have under-scoped — check the code items they missed', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min', icon:<><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8.5" x2="11" y2="13.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/></>},
                       send:     {title:'Send to homeowner', sub:'Open the estimate — send for instant approve & pay', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
                     }
-                    const na = nextKey ? NA[nextKey] : null
+                    let na = nextKey ? NA[nextKey] : null
+                    // Back half: once the front-half workflow (measure → estimate →
+                    // carrier → supp → send) is done, keep guiding the pro by stage —
+                    // mirrors mobile, so web no longer goes quiet after the estimate ships.
+                    if (!na) {
+                      const ls = (lead as any).lead_status as string
+                      const sd = (lead as any).scheduled_date as string | null
+                      const hasDate = !!(sd && String(sd).trim())
+                      const callHome = () => { const p = ((lead as any).contact_phone || '').replace(/\D/g,''); if (p) window.open(`tel:${p}`) }
+                      const iPhone = <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>
+                      const iCal = <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>
+                      const iPrep = <><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></>
+                      const iCam = <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>
+                      if (ls === 'proposal_sent')
+                        na = {title:'Follow up with homeowner', sub:'Most jobs are won on the follow-up', cta:'Call homeowner', onClick:callHome, mins:'1 min', icon:iPhone}
+                      else if (ls === 'proposal_signed')
+                        na = hasDate
+                          ? {title:'Confirm & prep for install', sub:`Install set for ${fmt(sd)} — review scope & crew`, cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep}
+                          : {title:'Schedule the install', sub:'Homeowner approved — set the install date', cta:'Schedule', onClick:()=>setShowScheduleModal(true), mins:'1 min', icon:iCal}
+                      else if (ls === 'scheduled')
+                        na = {title:'Confirm & prep for install', sub: hasDate ? `Install set for ${fmt(sd)} — review scope & crew` : 'Review scope, materials & crew before the date', cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep}
+                      else if (ls === 'in_progress')
+                        na = {title:'Take job-phase photos', sub:'Decking, install, completion — document as you go', cta:'Add Photos', onClick:()=>setTab('photos'), mins:'2 min', icon:iCam}
+                    }
                     const done = !na
                     const fieldBg = done
                       ? 'linear-gradient(135deg, #15803D 0%, #0F5C2E 100%)'
