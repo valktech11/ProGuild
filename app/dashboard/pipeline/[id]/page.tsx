@@ -1612,7 +1612,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     // the lead page can still offer a direct trace entry if needed.
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
-                    const goSupplement = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goSupplement = ()=>{ setTab('details'); setSuppOpen(true); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),120) }
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const carrierApproved = ['Approved','Supplement Filed','Supplement Approved','Closed'].includes((lead as any).roofing_job_data?.claim_status)
