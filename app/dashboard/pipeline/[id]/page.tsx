@@ -1612,18 +1612,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     // the lead page can still offer a direct trace entry if needed.
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
-                    const goSupplement = ()=>{
-                      setTab('details')
-                      setSuppOpen(true)
-                      // Poll for the element — it mounts after React re-renders suppOpen=true
-                      let attempts = 0
-                      const poll = () => {
-                        const el = document.getElementById('supplement-section')
-                        if (el) { el.scrollIntoView({behavior:'smooth',block:'start'}); return }
-                        if (++attempts < 20) setTimeout(poll, 100)
-                      }
-                      setTimeout(poll, 100)
-                    }
+                    const goSupplement = ()=>{ setSuppOpen(true); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80) }
                     const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const carrierApproved = ['Approved','Supplement Filed','Supplement Approved','Closed'].includes((lead as any).roofing_job_data?.claim_status)
@@ -1826,7 +1815,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               )
                             }
                             // Supplement stage owns the gap payoff + Supplement Assistant inline (Build B)
-                            if (s.key === 'supp' && (s.done || i === firstActive)) {
+                            if (s.key === 'supp') {
                               const cState = s.done ? 'done' : 'active'
                               const isFLLead = ((lead.contact_state ?? '').trim().toUpperCase() === 'FL')
                               const gapVal = wf.gap || 0
