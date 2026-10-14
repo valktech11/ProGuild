@@ -273,6 +273,24 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     finally { setDuplicating(false) }
   }
 
+  // Soft guardrail: warn before sending an insurance estimate that still has a
+  // positive supplement gap (your estimate exceeds the carrier total — money the
+  // carrier may owe). Returns true to proceed with the send. Mirrors mobile.
+  const supplementGapGate = (): boolean => {
+    const e: any = estimate
+    if (!e) return true
+    const appr = Number(e.approved_amount) || 0
+    const supp = Number(e.supplement_amount) || 0
+    const carrierTotal = appr + supp
+    const gap = (Number(e.total) || 0) - carrierTotal
+    if (!e.insurance_claim || appr <= 0 || gap <= 0) return true
+    return window.confirm(
+      `Supplement gap not filed.\n\n` +
+      `This estimate is $${(Number(e.total) || 0).toLocaleString()}, but the carrier approved $${carrierTotal.toLocaleString()} — a $${gap.toLocaleString()} gap the carrier may owe.\n\n` +
+      `Click Cancel to review the supplement first, or OK to send anyway.`
+    )
+  }
+
   const handleSave = async () => {
     if (!estimate) return
     // Don't save mock data
@@ -516,6 +534,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           }}
           onSend={async () => {
             if (isSending) return
+            if (!supplementGapGate()) return
             setIsSending(true)
             setSaveMsg('Sending…')
             try {
@@ -815,6 +834,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         <button onClick={async () => {
                           if (estimate.items.length === 0) { setSaveMsg('Add items before sending'); setTimeout(() => setSaveMsg(null), 3000); return }
                           if (estimate.total <= 0) { setSaveMsg('Total must be greater than $0'); setTimeout(() => setSaveMsg(null), 3000); return }
+                          if (!supplementGapGate()) return
                           // Email resolved server-side from lead — no client-side gate needed
 
                           const sentAt = new Date().toISOString()
@@ -1429,6 +1449,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               onClick={async () => {
                 // Email resolved server-side from lead — no client-side gate needed
                 if (!estimate.items?.length || estimate.total <= 0) { setSaveMsg('Add at least one item before sending'); setTimeout(() => setSaveMsg(null), 3000); return }
+                if (!supplementGapGate()) return
                 const sentAt = new Date().toISOString()
                 await handleSave()
                 const [, sendResult] = await Promise.all([
