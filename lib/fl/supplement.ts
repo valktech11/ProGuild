@@ -123,6 +123,43 @@ export interface SupplementResult {
   supplement_letter:        string;
 }
 
+// ── FL unit rate constants ────────────────────────────────────────────────────
+// Hardcoded FL market estimates validated against Xactimate FL ranges (2025–2026)
+// via cross-referencing ChatGPT and Gemini against public adjuster supplement data.
+// These are ESTIMATES — not verified Xactimate FL rates. Contractors should update
+// via the Rate Settings panel once they have accepted claim data.
+// Source references: Gemini FL range check Oct 2026; public adjuster forum benchmarks.
+export const FL_UNIT_RATES = {
+  valley_lining:   { rate: 9.00,  unit: 'LF',  label: 'Valley Lining (metal)',         xact: 'RFG VALM' },
+  starter_strip:   { rate: 3.00,  unit: 'LF',  label: 'Starter Strip',                 xact: 'RFG STRT' },
+  sa_underlayment: { rate: 120,   unit: 'SQ',  label: 'SA Underlayment (peel & stick)', xact: 'RFG SWB'  },
+  drip_edge:       { rate: 3.50,  unit: 'LF',  label: 'Drip Edge (aluminum)',           xact: 'RFG DRIP' },
+  hip_ridge_cap:   { rate: 8.00,  unit: 'LF',  label: 'Hip & Ridge Cap',               xact: 'RFG RIDGC'},
+  permit:          { rate: 350,   unit: 'EA',  label: 'Roofing Permit (FL avg)',        xact: 'N/A'      },
+  overhead:        { rate: 10,    unit: 'PCT', label: 'Overhead',                       xact: 'OVH'      },
+  profit:          { rate: 10,    unit: 'PCT', label: 'Profit',                         xact: 'PRF'      },
+} as const
+
+export type FLUnitRateKey = keyof typeof FL_UNIT_RATES
+
+// Shape for pro-customized rates (stored as fl_supplement_rates JSONB on pros table).
+// Each key maps to a numeric override — only the rate value, units are fixed.
+export type FLCustomRates = Partial<Record<FLUnitRateKey, number>>
+
+/** Merge custom rates over defaults — returns effective rates for a given pro. */
+export function resolveRates(custom: FLCustomRates | null | undefined): Record<FLUnitRateKey, number> {
+  const base = Object.fromEntries(
+    Object.entries(FL_UNIT_RATES).map(([k, v]) => [k, v.rate])
+  ) as Record<FLUnitRateKey, number>
+  if (!custom) return base
+  for (const [k, v] of Object.entries(custom)) {
+    if (k in base && typeof v === 'number' && v > 0) {
+      (base as any)[k] = v
+    }
+  }
+  return base
+}
+
 export const SUPPLEMENT_DISCLAIMER =
   'Informational only — not legal or public-adjuster advice. Suggested items and prices are AI-generated; verify line items, quantities, and pricing, and review with a licensed public adjuster or attorney before filing. Final scope is the carrier\u2019s determination.';
 

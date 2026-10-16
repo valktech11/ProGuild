@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { apiFetch } from '@/lib/api-fetch'
-import { SUPPLEMENT_DISCLAIMER, groundSupplementFlags, itemNameToCorpusKey, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag, type DBLineItem } from '@/lib/fl/supplement'
+import { SUPPLEMENT_DISCLAIMER, FL_UNIT_RATES, groundSupplementFlags, itemNameToCorpusKey, type SupplementResult, type SupplementItem, type MeasuredLinearFootage, type GroundedSupplementFlag, type DBLineItem, type FLUnitRateKey } from '@/lib/fl/supplement'
 import type { EvidenceMap } from '@/app/api/roofing/supplement/evidence/route'
 import { Card } from '@/components/ui/Card'
 
@@ -125,6 +125,130 @@ function SupplementChecklist({ items, dk }: { items: DBLineItem[]; dk: boolean }
   )
 }
 
+
+// ── Rate Settings panel ───────────────────────────────────────────────────────
+type RateMap = Record<string, number>
+
+function RateSettings({ proId, dk }: { proId: string; dk: boolean }) {
+  const border  = dk ? '#334155' : '#E2E8F0'
+  const text    = dk ? '#E2E8F0' : '#0F172A'
+  const sub     = dk ? '#94A3B8' : '#64748B'
+  const inputBg = dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC'
+
+  const [open,     setOpen]     = useState(false)
+  const [rates,    setRates]    = useState<RateMap>({})
+  const [defaults, setDefaults] = useState<RateMap>({})
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const [loadErr,  setLoadErr]  = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    apiFetch(`/api/user/supplement-rates?pro_id=${proId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.effective) setRates({ ...d.effective })
+        if (d.defaults)  setDefaults(d.defaults)
+      })
+      .catch(() => setLoadErr(true))
+  }, [open, proId])
+
+  const handleSave = async () => {
+    setSaving(true); setSaved(false)
+    try {
+      await apiFetch(`/api/user/supplement-rates?pro_id=${proId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rates }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch { /* non-fatal */ }
+    finally { setSaving(false) }
+  }
+
+  const handleReset = () => {
+    setRates({ ...defaults })
+  }
+
+  const rateKeys = Object.keys(FL_UNIT_RATES) as FLUnitRateKey[]
+
+  return (
+    <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '10px 14px', background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC',
+          border: 'none', cursor: 'pointer', textAlign: 'left',
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>⚙</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: text }}>Rate Settings</span>
+          <span style={{ fontSize: 11, color: sub }}>— customize FL unit prices</span>
+        </div>
+        <span style={{ fontSize: 12, color: sub }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: `1px solid ${border}`, padding: 14 }}>
+          <div style={{ fontSize: 11, color: sub, marginBottom: 12, lineHeight: 1.5 }}>
+            These are estimated FL market rates (2025–2026). Update with your actual accepted rates for more accurate supplements.
+            <span style={{ color: TEAL, fontWeight: 600 }}> Rates are estimates — verify against your adjuster's FL price list.</span>
+          </div>
+
+          {loadErr && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>Could not load rates. Try reopening.</div>}
+
+          <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {rateKeys.map(key => {
+              const meta = FL_UNIT_RATES[key]
+              const val  = rates[key] ?? meta.rate
+              const isCustom = defaults[key] !== undefined && val !== defaults[key]
+              return (
+                <div key={key} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: text }}>{meta.label}</span>
+                    {isCustom && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: TEAL, background: TEAL + '18', padding: '1px 5px', borderRadius: 4 }}>custom</span>}
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    step={meta.unit === 'PCT' ? 1 : 0.01}
+                    value={val}
+                    onChange={e => setRates(r => ({ ...r, [key]: parseFloat(e.target.value) || 0 }))}
+                    style={{
+                      width: 72, padding: '5px 8px', fontSize: 12, fontWeight: 600, textAlign: 'right',
+                      border: `1px solid ${isCustom ? TEAL : border}`, borderRadius: 6,
+                      background: inputBg, color: text,
+                    }}
+                  />
+                  <span style={{ fontSize: 11, color: sub, width: 30 }}>/{meta.unit}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+            <button
+              onClick={handleReset}
+              style={{ padding: '7px 12px', borderRadius: 7, border: `1px solid ${border}`, background: 'transparent', color: sub, fontSize: 12, cursor: 'pointer' }}>
+              Reset to defaults
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: saved ? '#10B981' : TEAL, color: '#fff', fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+              {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save rates'}
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: sub, marginTop: 8, lineHeight: 1.4 }}>
+            Saved rates apply to all future supplement analyses. Re-run Analyze Scope to use updated rates.
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems, onAnalyzingChange }: Props) {
   const [scope,   setScope]   = useState('')
@@ -394,8 +518,11 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
           </div>
         )}
 
+        {/* Rate settings */}
+        <RateSettings proId={proId} dk={dk} />
+
         {/* Disclaimer */}
-        <div style={{ marginTop: 16, padding: '11px 13px', borderRadius: 9, background: dk ? 'rgba(148,163,184,0.10)' : '#F1F5F9', border: `1px solid ${border}` }}>
+        <div style={{ marginTop: 14, padding: '11px 13px', borderRadius: 9, background: dk ? 'rgba(148,163,184,0.10)' : '#F1F5F9', border: `1px solid ${border}` }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: sub, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Disclaimer</div>
           <div style={{ fontSize: 12, color: dk ? '#94A3B8' : '#475569', lineHeight: 1.5 }}>{SUPPLEMENT_DISCLAIMER}</div>
         </div>

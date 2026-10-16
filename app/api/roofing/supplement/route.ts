@@ -6,10 +6,13 @@ import {
   buildLetterPrompt,
   assembleLetter,
   parseSupplementResponse,
+  resolveRates,
+  FL_UNIT_RATES,
   type SupplementInput,
   type SupplementItem,
   type DBLineItem,
   type SupplementPricing,
+  type FLCustomRates,
 } from '@/lib/fl/supplement'
 
 export const runtime = 'nodejs'
@@ -93,7 +96,7 @@ export async function POST(req: NextRequest) {
 
   const { data: pro } = await sb
     .from('pros')
-    .select('business_name, full_name')
+    .select('business_name, full_name, fl_supplement_rates')
     .eq('id', pro_id)
     .maybeSingle()
 
@@ -123,29 +126,35 @@ export async function POST(req: NextRequest) {
   const model = process.env.AI_PROVIDER_MODEL || 'gemini-2.5-flash'
 
   // ── Field-bound unit rates (deterministic post-fill; removes Gemini from numeric path) ──
+  // Priority: pro's saved custom rates → supplement_xactimate_codes DB → FL_UNIT_RATES constants.
+  const customRates = (pro?.fl_supplement_rates ?? null) as FLCustomRates | null
+  const effectiveRates = resolveRates(customRates)
+
   const pricing: SupplementPricing = {
     roofSquares: toNum(rjd?.square_count),
     valleyLF:    (input.measuredLF?.valley_ft ?? null),
     perimeterLF: input.perimeterLF ?? null,
+    swbRate:     effectiveRates.sa_underlayment,
+    valleyRate:  effectiveRates.valley_lining,
+    dripRate:    effectiveRates.drip_edge,
+    starterRate: effectiveRates.starter_strip,
   }
+  // Override with DB Xactimate codes if available (takes precedence over constants,
+  // but custom pro rates above already override both — applied last below).
   try {
     const { data: rateRows } = await sb
       .from('supplement_xactimate_codes')
       .select('code, default_unit_price')
       .in('code', ['RFG SWB', 'RFG VALM', 'RFG DRIP', 'RFG STRT'])
     for (const r of (rateRows ?? []) as any[]) {
-      if (r.code === 'RFG SWB'  && r.default_unit_price != null) pricing.swbRate    = Number(r.default_unit_price)
-      if (r.code === 'RFG VALM' && r.default_unit_price != null) pricing.valleyRate = Number(r.default_unit_price)
-      if (r.code === 'RFG DRIP' && r.default_unit_price != null) pricing.dripRate   = Number(r.default_unit_price)
-      if (r.code === 'RFG STRT' && r.default_unit_price != null) pricing.starterRate = Number(r.default_unit_price)
+      if (r.code === 'RFG SWB'  && r.default_unit_price != null && !customRates?.sa_underlayment) pricing.swbRate    = Number(r.default_unit_price)
+      if (r.code === 'RFG VALM' && r.default_unit_price != null && !customRates?.valley_lining)  pricing.valleyRate = Number(r.default_unit_price)
+      if (r.code === 'RFG DRIP' && r.default_unit_price != null && !customRates?.drip_edge)      pricing.dripRate   = Number(r.default_unit_price)
+      if (r.code === 'RFG STRT' && r.default_unit_price != null && !customRates?.starter_strip)  pricing.starterRate = Number(r.default_unit_price)
     }
   } catch (e) {
-    console.warn('[supplement] rate fetch failed, using hardcoded fallback:', e)
+    console.warn('[supplement] rate fetch failed, using FL_UNIT_RATES fallback:', e)
   }
-  if (!pricing.swbRate)    pricing.swbRate    = 120
-  if (!pricing.valleyRate) pricing.valleyRate = 12
-  if (!pricing.dripRate)   pricing.dripRate   = 3.50
-  if (!pricing.starterRate) pricing.starterRate = 3.00
 
   // ── Fetch DB checklist (falls back to hardcoded if unavailable) ──────────
   let dbItems: DBLineItem[] = []
