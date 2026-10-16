@@ -299,16 +299,26 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
     const pLF      = typeof pricing.perimeterLF === 'number' ? pricing.perimeterLF : 0
     const dripRate = typeof pricing.dripRate    === 'number' ? pricing.dripRate    : 0
     const strtRate = typeof pricing.starterRate === 'number' ? pricing.starterRate : 0
-    // Drip edge / starter strip — bind to perimeter LF when field-traced
-    if (pLF > 0 && nm.includes('drip')) {
-      const rate  = dripRate > 0 ? dripRate : 3.50
-      const total = Math.round(pLF * rate)
-      return { ...item, suggested_quantity: `${pLF} LF`, suggested_unit_price: rate, suggested_total: total }
+    // Drip edge / starter strip — field LF when traced, else fall back to parsing Gemini's LF string.
+    const parseGeminiLF = () => {
+      const m = item.suggested_quantity.match(/(\d+(?:\.\d+)?)\s*LF/i)
+      return m ? parseFloat(m[1]) : 0
     }
-    if (pLF > 0 && nm.includes('starter')) {
-      const rate  = strtRate > 0 ? strtRate : 3.00
-      const total = Math.round(pLF * rate)
-      return { ...item, suggested_quantity: `${pLF} LF`, suggested_unit_price: rate, suggested_total: total }
+    if (nm.includes('drip')) {
+      const lf   = pLF > 0 ? pLF : parseGeminiLF()
+      if (lf > 0) {
+        const rate  = dripRate > 0 ? dripRate : 3.50
+        const total = Math.round(lf * rate)
+        return { ...item, suggested_quantity: `${lf} LF`, suggested_unit_price: rate, suggested_total: total }
+      }
+    }
+    if (nm.includes('starter')) {
+      const lf   = pLF > 0 ? pLF : parseGeminiLF()
+      if (lf > 0) {
+        const rate  = strtRate > 0 ? strtRate : 3.00
+        const total = Math.round(lf * rate)
+        return { ...item, suggested_quantity: `${lf} LF`, suggested_unit_price: rate, suggested_total: total }
+      }
     }
     // SWB: self-adhered / secondary water barrier only — NOT synthetic/second-layer underlayment.
     // Must match 'self-adher' or 'secondary water' to avoid colliding with the synthetic layer item.
