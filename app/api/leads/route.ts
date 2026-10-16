@@ -9,6 +9,7 @@ const _resend = new Resend(process.env.RESEND_API_KEY)
 import { moderateContent } from '@/lib/moderation'
 import { getInitialStage } from '@/lib/trades/_registry'
 import { requirePro } from '@/lib/pro-auth'
+import { parseFormattedAddress } from '@/lib/address'
 
 export async function GET(req: NextRequest) {
   const __auth = await requirePro(req, new URL(req.url).searchParams.get('pro_id'))
@@ -248,14 +249,25 @@ export async function POST(req: NextRequest) {
   }
   console.log('[POST /api/leads] trade_slug resolution — pros:', proRecord?.trade_slug, 'client:', clientTradeSlug, 'final:', tradeSlug, 'initialStage:', initialStage)
 
-  // ── Normalise address ─────────────────────────────────────────────────────
-  // street_only = just the street portion (never the full "street, city, state, zip" string)
-  const streetOnly = property_address?.trim()
-    ? (contact_city || contact_state || contact_zip)
-      ? property_address.split(',')[0].trim()   // strip city/state if already separate
-      : property_address.trim()
-    : null
-
+  // ── Normalise address ───────────────────────────────────────────────
+  // When caller sends a full Google formatted_address with no separate city/state/zip,
+  // parse it into components. When city/state/zip are already provided, just strip street.
+  let streetOnly: string | null = null
+  let resolvedCity  = contact_city?.trim()  || null
+  let resolvedState = contact_state?.trim() || null
+  if (property_address?.trim()) {
+    if (contact_city || contact_state || contact_zip) {
+      // Caller already split — just take the street portion
+      streetOnly = property_address.split(',')[0].trim()
+    } else {
+      // Full formatted address (e.g. from Profile page contact modal) — parse it
+      const parsed = parseFormattedAddress(property_address)
+      streetOnly    = parsed.street || null
+      resolvedCity  = parsed.city   || null
+      resolvedState = parsed.state  || null
+      if (!resolvedZip) resolvedZip = parsed.zip || null
+    }
+  }
   // ── Pre-resolve client_id and property_id before INSERT ──────────────────
   // Resolving first guarantees the lead is created once with all FKs already
   // set — no follow-up leads UPDATEs for client_id/property_id (one audit row).
@@ -284,9 +296,9 @@ export async function POST(req: NextRequest) {
         phone:         contact_phone?.trim()               || null,
         email:         contact_email?.toLowerCase().trim() || null,
         address_line1: streetOnly                          || null,
-        city:          contact_city?.trim()                || null,
-        state:         contact_state?.trim()               || null,
-        zip_code:      resolvedZip || null,
+        city:          resolvedCity                        || null,
+        state:         resolvedState                       || null,
+        zip_code:      resolvedZip                          || null,
       }).select('id').single()
       if (clientErr) console.error('Client insert failed:', clientErr.message, clientErr.details)
       if (newClient) clientId = newClient.id
@@ -305,9 +317,9 @@ export async function POST(req: NextRequest) {
           company_id:    _manualCompanyId || null,
           address_line1: streetOnly,
           address:       streetOnly,            // legacy NOT NULL column in prod
-          city:          contact_city?.trim()  || null,
-          state:         contact_state?.trim() || null,
-          zip_code:      resolvedZip            || null,
+          city:          resolvedCity  || null,
+          state:         resolvedState || null,
+          zip_code:      resolvedZip   || null,
           client_id:     clientId              || null,
           property_type: 'residential',
         }).select('id').single()
@@ -336,9 +348,9 @@ export async function POST(req: NextRequest) {
       client_id:        clientId    || null,
       property_id:      propertyId  || null,
       property_address: streetOnly,
-      contact_city:     contact_city?.trim()  || null,
-      contact_state:    contact_state?.trim() || null,
-      contact_zip:      contact_zip?.trim()   || null,
+      contact_city:     resolvedCity  || null,
+      contact_state:    resolvedState || null,
+      contact_zip:      resolvedZip   || null,
     })
     .select()
     .single()
