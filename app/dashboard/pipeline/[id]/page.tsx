@@ -219,7 +219,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [isEditing,    setIsEditing]    = useState(false)
   const [contactOpen,  setContactOpen]  = useState(false)
   const [useSpine,     setUseSpine]     = useState(true)
-  const [suppOpen,     setSuppOpen]     = useState(false)  // expand the done Supplement stage back to the full assistant
+  const [suppOpen,      setSuppOpen]      = useState(false)  // expand the done Supplement stage back to the full assistant
+  const [suppAnalyzing, setSuppAnalyzing] = useState(false) // true while SupplementAssistant is running analysis
   const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
   // Step-completion pop: track which stage keys were done on the previous render
   // so we can detect the exact frame a key transitions done→newly-done.
@@ -1871,7 +1872,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
                                       </div>
                                     </div>}
-                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} />
                                     {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
                                     {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
                                       const advance = async (next:string, toast:string)=>{
@@ -1882,7 +1883,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       return (
                                         <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, marginTop:12 }}>
                                           {rjd2.claim_status === 'Approved' && (
-                                            <button onClick={()=>advance('Supplement Filed','Supplement filed')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement filed</button>
+                                            <button onClick={()=>advance('Supplement Filed','Supplement filed')} disabled={suppAnalyzing} style={{ fontSize:12, fontWeight:700, color: suppAnalyzing ? '#94A3B8' : BRAND.teal, background:'transparent', border:`1px solid ${suppAnalyzing ? '#CBD5E1' : BRAND.teal+'40'}`, borderRadius:7, padding:'6px 12px', cursor: suppAnalyzing ? 'default' : 'pointer', opacity: suppAnalyzing ? 0.6 : 1 }}>{suppAnalyzing ? 'Analyzing…' : 'Mark supplement filed'}</button>
                                           )}
                                           {rjd2.claim_status === 'Supplement Filed' && (
                                             <button onClick={()=>advance('Supplement Approved','Supplement approved')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
@@ -2182,7 +2183,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     )}
                                   </Card>
-                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null}/>
+                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing}/>
                                 </div>
                               )
                             })()}

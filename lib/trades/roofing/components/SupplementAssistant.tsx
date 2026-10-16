@@ -6,15 +6,16 @@ import type { EvidenceMap } from '@/app/api/roofing/supplement/evidence/route'
 import { Card } from '@/components/ui/Card'
 
 interface Props {
-  leadId:          string
-  proId:           string
-  propertyState?:  string | null
-  propertyAddress?: string | null  // fallback FL detection when contact_state is blank
-  hasClaim:        boolean   // roofing_job_data.insurance_claim
-  darkMode:        boolean
-  measuredLF?:     MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
-  groundedFlags?:  GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
-  checklistItems?: DBLineItem[] | null             // Phase A: DB-driven checklist (fetched by parent or page)
+  leadId:             string
+  proId:              string
+  propertyState?:     string | null
+  propertyAddress?:   string | null  // fallback FL detection when contact_state is blank
+  hasClaim:           boolean   // roofing_job_data.insurance_claim
+  darkMode:           boolean
+  measuredLF?:        MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
+  groundedFlags?:     GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
+  checklistItems?:    DBLineItem[] | null             // Phase A: DB-driven checklist (fetched by parent or page)
+  onAnalyzingChange?: (analyzing: boolean) => void   // lets parent disable "Mark supplement filed" during analysis
 }
 
 const TEAL = '#0F766E'
@@ -125,7 +126,7 @@ function SupplementChecklist({ items, dk }: { items: DBLineItem[]; dk: boolean }
 }
 
 
-export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems }: Props) {
+export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems, onAnalyzingChange }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -173,7 +174,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
 
   const analyze = useCallback(async () => {
     if (scope.trim().length < 20) { setError('Paste the adjuster\u2019s scope of loss first (a few lines).'); return }
-    setLoading(true); setError(null); setResult(null)
+    setLoading(true); setError(null); setResult(null); onAnalyzingChange?.(true)
     try {
       const res = await apiFetch('/api/roofing/supplement', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -191,8 +192,8 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
       setLastRun(new Date().toISOString())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
-    } finally { setLoading(false) }
-  }, [scope, leadId, proId])
+    } finally { setLoading(false); onAnalyzingChange?.(false) }
+  }, [scope, leadId, proId, onAnalyzingChange])
 
   const copyLetter = useCallback(() => {
     if (!result?.supplement_letter) return
@@ -342,6 +343,28 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
                 <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
+              </div>
+            )}
+
+            {/* Itemized summary table — mirrors mobile QTY/AMOUNT grid */}
+            {(result.missing_items.length > 0 || result.underpaid_items.length > 0) && (
+              <div style={{ borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '8px 14px', background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Item</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', paddingRight: 24 }}>Qty</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</span>
+                </div>
+                {[...result.missing_items, ...result.underpaid_items].map((it, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '9px 14px', borderBottom: i < result.missing_items.length + result.underpaid_items.length - 1 ? `1px solid ${border}` : 'none', background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA') }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: text, paddingRight: 12 }}>{it.item}</span>
+                    <span style={{ fontSize: 12, color: sub, textAlign: 'right', paddingRight: 24, whiteSpace: 'nowrap' }}>{it.suggested_quantity || '1 EA'}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: TEAL, textAlign: 'right', whiteSpace: 'nowrap' }}>{money(it.suggested_total)}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', borderTop: `1px solid ${TEAL}33` }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>Total Request</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>{money(result.total_supplement_estimate)}</span>
+                </div>
               </div>
             )}
 
