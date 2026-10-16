@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
   // Parse ZIP from property_address string if contact_zip not explicitly provided
   // Google Places autocomplete returns "123 Main St, Tampa, FL 33601" — extract ZIP
-  const resolvedZip = contact_zip?.trim() || (
+  let resolvedZip = contact_zip?.trim() || (
     property_address ? (property_address.match(/(\d{5})(?:-\d{4})?/) || [])[1] || null : null
   )
 
