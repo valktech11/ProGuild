@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { parseFormattedAddress } from '@/lib/address'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -100,12 +102,24 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
   const [name, setName]       = useState('')
   const [phone, setPhone]     = useState('')
   const [email, setEmail]     = useState('')
-  const [address, setAddress] = useState('')
+  const [street, setStreet]   = useState('')
+  const [city, setCity]       = useState('')
+  const [addrState, setAddrState] = useState('')
+  const [zip, setZip]         = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone]       = useState(false)
   const [err, setErr]         = useState('')
+  const streetRef = useRef<HTMLInputElement>(null)
   const firstName = proFirstName(pro.full_name)
+
+  usePlacesAutocomplete(streetRef, (formatted) => {
+    const a = parseFormattedAddress(formatted)
+    setStreet(a.street || formatted)
+    if (a.city)  setCity(a.city)
+    if (a.state) setAddrState(a.state)
+    if (a.zip)   setZip(a.zip)
+  })
 
   function formatPhone(v: string): string {
     const d = v.replace(/\D/g, '').slice(0, 10)
@@ -124,7 +138,10 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
         contact_name:     name,
         contact_email:    email || `${phone.replace(/\D/g,'')}@sms.placeholder`,
         contact_phone:    phone,
-        property_address: address || null,
+        property_address: street || null,
+        contact_city:     city   || null,
+        contact_state:    addrState || null,
+        contact_zip:      zip    || null,
         message:          message || 'Contact request',
         lead_source:      'Profile_Page',
       }),
@@ -162,28 +179,44 @@ function ContactModal({ pro, onClose }: { pro: any; onClose: () => void }) {
             <div className="px-5 py-4 space-y-3">
               {err && <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-xl">{err}</div>}
               {[
-                { lbl: 'Your name *',      val: name,    set: setName,    ph: 'James Smith',            type: 'text' },
-                { lbl: 'Phone *',          val: phone,   set: (v: string) => setPhone(formatPhone(v)),  ph: '(555) 000-0000',        type: 'tel' },
-                { lbl: 'Email',            val: email,   set: setEmail,   ph: 'you@email.com',          type: 'email' },
-                { lbl: 'Property address', val: address, set: setAddress, ph: '123 Main St, Tampa, FL',  type: 'text', isAddress: true },
+                { lbl: 'Your name *', val: name,  set: setName,                                        ph: 'James Smith',    type: 'text' },
+                { lbl: 'Phone *',     val: phone, set: (v: string) => setPhone(formatPhone(v)),        ph: '(555) 000-0000', type: 'tel'  },
+                { lbl: 'Email',       val: email, set: setEmail,                                       ph: 'you@email.com',  type: 'email'},
               ].map(f => (
                 <div key={f.lbl}>
                   <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>{f.lbl}</label>
-                  {f.isAddress ? (
-                    <AddressAutocomplete
-                      value={f.val}
-                      onChange={f.set}
-                      placeholder={f.ph}
-                      inputClassName="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
-                      inputStyle={{ borderColor: '#E8E2D9', background: '#FAF9F6' }}
-                    />
-                  ) : (
-                    <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-                      className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
-                      style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
-                  )}
+                  <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                    className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                    style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
                 </div>
               ))}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>Street address</label>
+                <input ref={streetRef} value={street} onChange={e => setStreet(e.target.value)}
+                  placeholder="123 Main St" autoComplete="off"
+                  className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                  style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>City</label>
+                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="Jacksonville"
+                    className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                    style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>State</label>
+                  <input value={addrState} onChange={e => setAddrState(e.target.value.toUpperCase().slice(0,2))} placeholder="FL" maxLength={2}
+                    className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                    style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>Zip</label>
+                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32256" inputMode="numeric"
+                    className="w-full px-3 py-2.5 border rounded-xl text-sm outline-none focus:border-teal-400 transition-colors"
+                    style={{ borderColor: '#E8E2D9', background: '#FAF9F6' }} />
+                </div>
+              </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-wide block mb-1" style={{ color: '#6E6456' }}>Job description</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}

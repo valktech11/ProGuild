@@ -1,5 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { usePlacesAutocomplete } from '@/lib/hooks/usePlacesAutocomplete'
+import { parseFormattedAddress } from '@/lib/address'
 import { useParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Link from 'next/link'
@@ -20,6 +22,19 @@ export default function ProIntakePage() {
   const [sending, setSending] = useState(false)
   const [sent, setSent]     = useState(false)
   const [err, setErr]       = useState('')
+  const [street, setStreet]   = useState('')
+  const [city, setCity]       = useState('')
+  const [addrState, setAddrState] = useState('')
+  const [zip, setZip]         = useState('')
+  const streetRef = useRef<HTMLInputElement>(null)
+
+  usePlacesAutocomplete(streetRef, (formatted) => {
+    const a = parseFormattedAddress(formatted)
+    setStreet(a.street || formatted)
+    if (a.city)  setCity(a.city)
+    if (a.state) setAddrState(a.state)
+    if (a.zip)   setZip(a.zip)
+  })
 
   useEffect(() => {
     if (!slug) return
@@ -58,6 +73,10 @@ export default function ProIntakePage() {
         contact_email: email.trim() || null,
         contact_phone: phone.trim() || null,
         message: need.trim(),
+        property_address: street.trim() || null,
+        contact_city:     city.trim()   || null,
+        contact_state:    addrState.trim() || null,
+        contact_zip:      zip.trim()    || null,
         lead_source: 'Website',
       }),
     })
@@ -182,6 +201,38 @@ export default function ProIntakePage() {
                   className="w-full px-4 py-3 text-sm border border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
                   onFocus={e => e.target.style.borderColor = '#0F766E'}
                   onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">Street address</label>
+                <input ref={streetRef} value={street} onChange={e => setStreet(e.target.value)}
+                  placeholder="123 Main St" autoComplete="off"
+                  className="w-full px-4 py-3 text-sm border border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
+                  onFocus={e => e.target.style.borderColor = '#0F766E'}
+                  onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">City</label>
+                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="Jacksonville"
+                    className="w-full px-4 py-3 text-sm border border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
+                    onFocus={e => e.target.style.borderColor = '#0F766E'}
+                    onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">State</label>
+                  <input value={addrState} onChange={e => setAddrState(e.target.value.toUpperCase().slice(0,2))} placeholder="FL" maxLength={2}
+                    className="w-full px-4 py-3 text-sm border border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
+                    onFocus={e => e.target.style.borderColor = '#0F766E'}
+                    onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-gray-400 block mb-1.5">Zip</label>
+                  <input value={zip} onChange={e => setZip(e.target.value.replace(/\D/g,'').slice(0,5))} placeholder="32256" inputMode="numeric"
+                    className="w-full px-4 py-3 text-sm border border-[#E8E2D9] rounded-xl outline-none text-[#0A1628]"
+                    onFocus={e => e.target.style.borderColor = '#0F766E'}
+                    onBlur={e => e.target.style.borderColor = '#E8E2D9'} />
+                </div>
               </div>
 
               <div>
