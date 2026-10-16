@@ -130,14 +130,15 @@ export interface SupplementResult {
 // via the Rate Settings panel once they have accepted claim data.
 // Source references: Gemini FL range check Oct 2026; public adjuster forum benchmarks.
 export const FL_UNIT_RATES = {
-  valley_lining:   { rate: 9.00,  unit: 'LF',  label: 'Valley Lining (metal)',         xact: 'RFG VALM' },
-  starter_strip:   { rate: 3.00,  unit: 'LF',  label: 'Starter Strip',                 xact: 'RFG STRT' },
-  sa_underlayment: { rate: 120,   unit: 'SQ',  label: 'SA Underlayment (peel & stick)', xact: 'RFG SWB'  },
-  drip_edge:       { rate: 3.50,  unit: 'LF',  label: 'Drip Edge (aluminum)',           xact: 'RFG DRIP' },
-  hip_ridge_cap:   { rate: 8.00,  unit: 'LF',  label: 'Hip & Ridge Cap',               xact: 'RFG RIDGC'},
-  permit:          { rate: 350,   unit: 'EA',  label: 'Roofing Permit (FL avg)',        xact: 'N/A'      },
-  overhead:        { rate: 10,    unit: 'PCT', label: 'Overhead',                       xact: 'OVH'      },
-  profit:          { rate: 10,    unit: 'PCT', label: 'Profit',                         xact: 'PRF'      },
+  valley_lining:          { rate: 9.00,  unit: 'LF',  label: 'Valley Lining (metal)',            xact: 'RFG VALM'  },
+  starter_strip:          { rate: 3.00,  unit: 'LF',  label: 'Starter Strip',                    xact: 'RFG STRT'  },
+  sa_underlayment:        { rate: 120,   unit: 'SQ',  label: 'SA Underlayment (peel & stick)',   xact: 'RFG SWB'   },
+  synthetic_underlayment: { rate: 65,    unit: 'SQ',  label: 'Synthetic Underlayment (2nd layer)', xact: 'RFG UND' },
+  drip_edge:              { rate: 3.50,  unit: 'LF',  label: 'Drip Edge (aluminum)',              xact: 'RFG DRIP'  },
+  hip_ridge_cap:          { rate: 8.00,  unit: 'LF',  label: 'Hip & Ridge Cap',                  xact: 'RFG RIDGC' },
+  permit:                 { rate: 350,   unit: 'EA',  label: 'Roofing Permit (FL avg)',           xact: 'N/A'       },
+  overhead:               { rate: 10,    unit: 'PCT', label: 'Overhead',                          xact: 'OVH'       },
+  profit:                 { rate: 10,    unit: 'PCT', label: 'Profit',                            xact: 'PRF'       },
 } as const
 
 export type FLUnitRateKey = keyof typeof FL_UNIT_RATES
@@ -244,14 +245,15 @@ function coerceItem(raw: any): SupplementItem {
  * @throws if no JSON object can be recovered at all.
  */
 export interface SupplementPricing {
-  roofSquares?:  number | null;
-  valleyLF?:     number | null;
-  perimeterLF?:  number | null;  // eave+rake LF — drip edge / starter strip
-  swbRate?:      number | null;  // $/SQ secondary water barrier
-  valleyRate?:   number | null;  // $/LF valley metal
-  dripRate?:     number | null;  // $/LF drip edge
-  starterRate?:  number | null;  // $/LF starter strip
-  ridgeRate?:    number | null;  // $/LF hip & ridge cap
+  roofSquares?:    number | null;
+  valleyLF?:       number | null;
+  perimeterLF?:    number | null;  // eave+rake LF — drip edge / starter strip
+  swbRate?:        number | null;  // $/SQ secondary water barrier (self-adhered)
+  syntheticRate?:  number | null;  // $/SQ synthetic / second-layer underlayment
+  valleyRate?:     number | null;  // $/LF valley metal
+  dripRate?:       number | null;  // $/LF drip edge
+  starterRate?:    number | null;  // $/LF starter strip
+  ridgeRate?:      number | null;  // $/LF hip & ridge cap
 }
 
 export function parseSupplementResponse(raw: string, pricing: SupplementPricing = {}): SupplementResult {
@@ -291,8 +293,9 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
     const nm = item.item.toLowerCase()
     const sq = typeof pricing.roofSquares === 'number' ? pricing.roofSquares : 0
     const vLF = typeof pricing.valleyLF === 'number' ? pricing.valleyLF : 0
-    const swbRate = typeof pricing.swbRate === 'number' ? pricing.swbRate : 0
-    const valleyRate = typeof pricing.valleyRate === 'number' ? pricing.valleyRate : 0
+    const swbRate       = typeof pricing.swbRate       === 'number' ? pricing.swbRate       : 0
+    const syntheticRate = typeof pricing.syntheticRate === 'number' ? pricing.syntheticRate : 0
+    const valleyRate    = typeof pricing.valleyRate    === 'number' ? pricing.valleyRate    : 0
     const pLF      = typeof pricing.perimeterLF === 'number' ? pricing.perimeterLF : 0
     const dripRate = typeof pricing.dripRate    === 'number' ? pricing.dripRate    : 0
     const strtRate = typeof pricing.starterRate === 'number' ? pricing.starterRate : 0
@@ -313,6 +316,14 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
     if (sq > 0 && swbRate > 0 && isSWB) {
       const total = Math.round(sq * swbRate)
       return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: swbRate, suggested_total: total }
+    }
+    // Synthetic / second-layer underlayment: bind to sq count at $65/SQ (RFG UND).
+    // Distinct from SWB (self-adhered). Match on 'synthetic' or 'second-layer' or 'second layer'.
+    const isSynthetic = nm.includes('synthetic') || nm.includes('second-layer') || nm.includes('second layer')
+    if (sq > 0 && isSynthetic) {
+      const rate  = syntheticRate > 0 ? syntheticRate : 65
+      const total = Math.round(sq * rate)
+      return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: rate, suggested_total: total }
     }
     // Valley lining: bind to field LF when available, else re-price Gemini's LF with our rate.
     if (valleyRate > 0 && nm.includes('valley')) {

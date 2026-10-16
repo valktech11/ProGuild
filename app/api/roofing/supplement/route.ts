@@ -131,14 +131,15 @@ export async function POST(req: NextRequest) {
   const effectiveRates = resolveRates(customRates)
 
   const pricing: SupplementPricing = {
-    roofSquares: toNum(rjd?.square_count),
-    valleyLF:    (input.measuredLF?.valley_ft ?? null),
-    perimeterLF: input.perimeterLF ?? null,
-    swbRate:     effectiveRates.sa_underlayment,
-    valleyRate:  effectiveRates.valley_lining,
-    dripRate:    effectiveRates.drip_edge,
-    starterRate: effectiveRates.starter_strip,
-    ridgeRate:   effectiveRates.hip_ridge_cap,
+    roofSquares:   toNum(rjd?.square_count),
+    valleyLF:      (input.measuredLF?.valley_ft ?? null),
+    perimeterLF:   input.perimeterLF ?? null,
+    swbRate:       effectiveRates.sa_underlayment,
+    syntheticRate: effectiveRates.synthetic_underlayment,
+    valleyRate:    effectiveRates.valley_lining,
+    dripRate:      effectiveRates.drip_edge,
+    starterRate:   effectiveRates.starter_strip,
+    ridgeRate:     effectiveRates.hip_ridge_cap,
   }
   // Override with DB Xactimate codes if available (takes precedence over constants,
   // but custom pro rates above already override both — applied last below).
