@@ -1871,7 +1871,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
                                       </div>
                                     </div>}
-                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} />
                                     {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
                                     {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
                                       const advance = async (next:string, toast:string)=>{
@@ -2182,7 +2182,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     )}
                                   </Card>
-                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null}/>
+                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null}/>
                                 </div>
                               )
                             })()}

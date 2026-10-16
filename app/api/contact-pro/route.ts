@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { Resend } from 'resend'
 import { getInitialStage } from '@/lib/trades/_registry'
 import { sendPushToFcmToken } from '@/lib/notifications'
+import { parseFormattedAddress } from '@/lib/address'
 
 // ── Feature flag — set true when ready for Phase 2 auto-send ─────────────────
 const AUTO_SEND_EMAIL = false
@@ -78,32 +79,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'pro_id, contact_name and message are required' }, { status: 400 })
     }
 
-    // Normalize address — homeowner may type full "123 Main St, Tampa, FL 33601"
-    // Split into street / city / state / zip so it's consistent with mobile modal leads.
+    // Normalize address — use canonical parser (same as AddLeadModal) so leads
+    // arriving from the directory card are stored identically to modal-created leads.
+    // Old hand-rolled split failed on ", USA" suffix (last segment = "USA" not "FL XXXXX").
     let streetOnly: string | null = null
     let contactCity: string | null = null
     let contactState: string | null = null
     let contactZip: string | null = null
     if (property_address?.trim()) {
-      const parts = property_address.split(',').map((p: string) => p.trim()).filter(Boolean)
-      streetOnly = parts[0] || null
-      if (parts.length >= 3) {
-        contactCity  = parts[1] || null
-        // Last part may be "FL 33601" or "FL" or "USA" — extract state + zip
-        const last = parts[parts.length - 1]
-        const stateZipMatch = last.match(/^([A-Z]{2})\s*(\d{5})?/)
-        if (stateZipMatch) {
-          contactState = stateZipMatch[1]
-          contactZip   = stateZipMatch[2] || null
-        }
-      } else if (parts.length === 2) {
-        contactCity = parts[1] || null
-      }
-      // Fallback: extract zip from anywhere in the address string
-      if (!contactZip) {
-        const zipMatch = property_address.match(/(\d{5})(?:-\d{4})?/)
-        contactZip = zipMatch ? zipMatch[1] : null
-      }
+      const parsed = parseFormattedAddress(property_address)
+      streetOnly   = parsed.street  || null
+      contactCity  = parsed.city    || null
+      contactState = parsed.state   || null
+      contactZip   = parsed.zip     || null
     }
 
     const sb = getSupabaseAdmin()

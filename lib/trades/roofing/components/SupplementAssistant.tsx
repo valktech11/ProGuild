@@ -6,13 +6,14 @@ import type { EvidenceMap } from '@/app/api/roofing/supplement/evidence/route'
 import { Card } from '@/components/ui/Card'
 
 interface Props {
-  leadId:         string
-  proId:          string
-  propertyState?: string | null
-  hasClaim:       boolean   // roofing_job_data.insurance_claim
-  darkMode:       boolean
-  measuredLF?:    MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
-  groundedFlags?: GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
+  leadId:          string
+  proId:           string
+  propertyState?:  string | null
+  propertyAddress?: string | null  // fallback FL detection when contact_state is blank
+  hasClaim:        boolean   // roofing_job_data.insurance_claim
+  darkMode:        boolean
+  measuredLF?:     MeasuredLinearFootage | null  // synthesized linear_footage from the lead (human ProMeasure LF)
+  groundedFlags?:  GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
   checklistItems?: DBLineItem[] | null             // Phase A: DB-driven checklist (fetched by parent or page)
 }
 
@@ -124,7 +125,7 @@ function SupplementChecklist({ items, dk }: { items: DBLineItem[]; dk: boolean }
 }
 
 
-export default function SupplementAssistant({ leadId, proId, propertyState, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems }: Props) {
+export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -135,7 +136,11 @@ export default function SupplementAssistant({ leadId, proId, propertyState, hasC
   const [dbChecklist, setDbChecklist] = useState<DBLineItem[]>([])
   const [evidence,    setEvidence]    = useState<EvidenceMap>({})
 
-  const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
+  // Mirror mobile FL detection: contact_state == 'FL' OR address contains 'FL'/'Florida'
+  // (contact_state is blank on some leads created via certain web paths)
+  const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL' ||
+    /\bFL\b/i.test(propertyAddress ?? '') ||
+    (propertyAddress ?? '').toLowerCase().includes('florida')
   // Bible §28: prefer the server-computed flags; local compute is a rollout fallback only.
   const grounded = groundedFlags ?? groundSupplementFlags(measuredLF)
 
