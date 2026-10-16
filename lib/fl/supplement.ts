@@ -251,6 +251,7 @@ export interface SupplementPricing {
   valleyRate?:   number | null;  // $/LF valley metal
   dripRate?:     number | null;  // $/LF drip edge
   starterRate?:  number | null;  // $/LF starter strip
+  ridgeRate?:    number | null;  // $/LF hip & ridge cap
 }
 
 export function parseSupplementResponse(raw: string, pricing: SupplementPricing = {}): SupplementResult {
@@ -306,14 +307,38 @@ export function parseSupplementResponse(raw: string, pricing: SupplementPricing 
       const total = Math.round(pLF * rate)
       return { ...item, suggested_quantity: `${pLF} LF`, suggested_unit_price: rate, suggested_total: total }
     }
-    // SWB: match on 'water barrier' OR 'underlayment' — broad to catch Gemini name variations
-    if (sq > 0 && swbRate > 0 && (nm.includes('water') || nm.includes('underlayment') || nm.includes('barrier'))) {
+    // SWB: self-adhered / secondary water barrier only — NOT synthetic/second-layer underlayment.
+    // Must match 'self-adher' or 'secondary water' to avoid colliding with the synthetic layer item.
+    const isSWB = nm.includes('self-adher') || nm.includes('secondary water') || (nm.includes('water barrier') && !nm.includes('synthetic') && !nm.includes('second'))
+    if (sq > 0 && swbRate > 0 && isSWB) {
       const total = Math.round(sq * swbRate)
       return { ...item, suggested_quantity: `${sq} SQ`, suggested_unit_price: swbRate, suggested_total: total }
     }
-    if (vLF > 0 && valleyRate > 0 && nm.includes('valley')) {
-      const total = Math.round(vLF * valleyRate)
-      return { ...item, suggested_quantity: `${vLF} LF`, suggested_unit_price: valleyRate, suggested_total: total }
+    // Valley lining: bind to field LF when available, else re-price Gemini's LF with our rate.
+    if (valleyRate > 0 && nm.includes('valley')) {
+      // Parse Gemini's quantity string (e.g. "115 LF") as fallback when field LF not traced.
+      const geminiLF = (() => {
+        const m = item.suggested_quantity.match(/(\d+(?:\.\d+)?)\s*LF/i)
+        return m ? parseFloat(m[1]) : 0
+      })()
+      const lf = vLF > 0 ? vLF : geminiLF
+      if (lf > 0) {
+        const total = Math.round(lf * valleyRate)
+        return { ...item, suggested_quantity: `${lf} LF`, suggested_unit_price: valleyRate, suggested_total: total }
+      }
+    }
+    // Hip & ridge cap: re-price with our rate even when field LF not available.
+    const isRidgeCap = nm.includes('ridge') || nm.includes('hip & ridge') || nm.includes('hip and ridge')
+    if (isRidgeCap) {
+      const ridgeRate = typeof pricing.ridgeRate === 'number' && pricing.ridgeRate > 0 ? pricing.ridgeRate : 8.00
+      const geminiLF = (() => {
+        const m = item.suggested_quantity.match(/(\d+(?:\.\d+)?)\s*LF/i)
+        return m ? parseFloat(m[1]) : 0
+      })()
+      if (geminiLF > 0) {
+        const total = Math.round(geminiLF * ridgeRate)
+        return { ...item, suggested_unit_price: ridgeRate, suggested_total: total }
+      }
     }
     return item
   }

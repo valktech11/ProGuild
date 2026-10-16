@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
     valleyRate:  effectiveRates.valley_lining,
     dripRate:    effectiveRates.drip_edge,
     starterRate: effectiveRates.starter_strip,
+    ridgeRate:   effectiveRates.hip_ridge_cap,
   }
   // Override with DB Xactimate codes if available (takes precedence over constants,
   // but custom pro rates above already override both — applied last below).
@@ -145,12 +146,13 @@ export async function POST(req: NextRequest) {
     const { data: rateRows } = await sb
       .from('supplement_xactimate_codes')
       .select('code, default_unit_price')
-      .in('code', ['RFG SWB', 'RFG VALM', 'RFG DRIP', 'RFG STRT'])
+      .in('code', ['RFG SWB', 'RFG VALM', 'RFG DRIP', 'RFG STRT', 'RFG RIDGC'])
     for (const r of (rateRows ?? []) as any[]) {
-      if (r.code === 'RFG SWB'  && r.default_unit_price != null && !customRates?.sa_underlayment) pricing.swbRate    = Number(r.default_unit_price)
-      if (r.code === 'RFG VALM' && r.default_unit_price != null && !customRates?.valley_lining)  pricing.valleyRate = Number(r.default_unit_price)
-      if (r.code === 'RFG DRIP' && r.default_unit_price != null && !customRates?.drip_edge)      pricing.dripRate   = Number(r.default_unit_price)
-      if (r.code === 'RFG STRT' && r.default_unit_price != null && !customRates?.starter_strip)  pricing.starterRate = Number(r.default_unit_price)
+      if (r.code === 'RFG SWB'   && r.default_unit_price != null && !customRates?.sa_underlayment) pricing.swbRate    = Number(r.default_unit_price)
+      if (r.code === 'RFG VALM'  && r.default_unit_price != null && !customRates?.valley_lining)  pricing.valleyRate = Number(r.default_unit_price)
+      if (r.code === 'RFG DRIP'  && r.default_unit_price != null && !customRates?.drip_edge)      pricing.dripRate   = Number(r.default_unit_price)
+      if (r.code === 'RFG STRT'  && r.default_unit_price != null && !customRates?.starter_strip)  pricing.starterRate = Number(r.default_unit_price)
+      if (r.code === 'RFG RIDGC' && r.default_unit_price != null && !customRates?.hip_ridge_cap)  pricing.ridgeRate   = Number(r.default_unit_price)
     }
   } catch (e) {
     console.warn('[supplement] rate fetch failed, using FL_UNIT_RATES fallback:', e)
