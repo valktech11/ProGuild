@@ -390,6 +390,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     && ['Approved'].includes(fields.claim_status)
     && gapInfo.has_gap
     && !!onReviewSupplement
+    && !approvePending   // hide until decision + amounts are saved together
   // Supplement is a downstream amount — only real once a supplement has actually
   // been filed (status moves there via the spine supp-stage, which needs an
   // estimate first). Hide the field on a plain Approved/Denied claim; keep it when
