@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { computeSB2ADeadlines, SB2A_DISCLAIMER } from '@/lib/fl/sb2a'
 import { FL_CARRIERS } from '@/lib/roofing/carriers'
 import { computeRoofRuleEligibility, ROOF_RULE_DISCLAIMER } from '@/lib/fl/roofAge'
+import { computeSupplementGap } from '@/lib/fl/supplement'
 import { apiFetch } from '@/lib/api-fetch'
 
 export interface InsuranceClaimData {
@@ -31,6 +32,8 @@ interface Props {
   propertyLon?: number | null
   locked?: boolean                // hard-disable the claim-type toggle (won/lost jobs)
   defaultOpen?: boolean           // force the panel open on first render (e.g. insurance_approved stage with no claim yet)
+  estimateTotal?: number          // pro's estimate total — drives the gap pointer (carrier approved < estimate → supplement opportunity)
+  onReviewSupplement?: () => void // called by the gap pointer's CTA; parent scrolls to / opens the supplement workflow
   onSaved:  (data: InsuranceClaimData) => void
 }
 
@@ -114,7 +117,7 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
   )
 }
 
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, propertyAddress, propertyLat, propertyLon, locked = false, defaultOpen = false, onSaved }: Props) {
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, propertyAddress, propertyLat, propertyLon, locked = false, defaultOpen = false, estimateTotal = 0, onReviewSupplement, onSaved }: Props) {
   // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   const [stormScanning, setStormScanning] = React.useState(false)
@@ -234,7 +237,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       onSaved(updated)
       return updated
     })
-    await fetch(`/api/leads/${leadId}`, {
+    await apiFetch(`/api/leads/${leadId}`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pro_id: proId, insurance_claim: next }),
     }).catch(() => {})
@@ -248,7 +251,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       setError('Adjuster phone must be 10 digits'); setSaving(false); return
     }
     try {
-      const res = await fetch(`/api/leads/${leadId}`, {
+      const res = await apiFetch(`/api/leads/${leadId}`, {
         method:'PATCH', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           pro_id:               proId,
@@ -277,11 +280,11 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       // AWAIT these so onSaved (and its activity refresh) runs after events are written.
       if (f.claim_status === 'Approved') {
         try {
-          await fetch(`/api/leads/${leadId}`, {
+          await apiFetch(`/api/leads/${leadId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, lead_status: 'insurance_approved' }),
           })
-          await fetch(`/api/leads/${leadId}/events`, {
+          await apiFetch(`/api/leads/${leadId}/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, event_type: 'insurance_auto_approved' }),
           })
@@ -291,13 +294,13 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       // ── Hook 2: Supplement Filed → log activity entry ─────────────────────
       if (f.claim_status === 'Supplement Filed') {
         try {
-          const sres = await fetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
+          const sres = await apiFetch(`/api/roofing/supplement?lead_id=${leadId}&pro_id=${proId}`)
           const d = await sres.json()
           const total = d.session?.result_json?.total_supplement_estimate ?? null
           const note  = total
             ? `Supplement filed — estimated additional: $${total.toLocaleString()}`
             : 'Supplement filed'
-          await fetch(`/api/leads/${leadId}/events`, {
+          await apiFetch(`/api/leads/${leadId}/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, event_type: 'supplement_filed', note }),
           })
@@ -307,7 +310,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
       // ── Hook 3: Supplement Approved → log activity entry ──────────────────
       if (f.claim_status === 'Supplement Approved') {
         try {
-          await fetch(`/api/leads/${leadId}/events`, {
+          await apiFetch(`/api/leads/${leadId}/events`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pro_id: proId, event_type: 'supplement_approved',
               note: parseCurrency(f.supplement_amount) > 0
@@ -363,6 +366,15 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const net        = approved + supplement - deductible
   const isDenied     = fields.claim_status === 'Denied'
   const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
+  // Supplement gap — reuses the canonical engine. Surfaces the moment both numbers
+  // exist and the carrier approved less than the pro's estimate. Hidden once the
+  // supplement has moved past the opportunity stage (filed/approved/closed) — those
+  // states have their own richer status cards in the supplement workflow.
+  const gapInfo      = computeSupplementGap(estimateTotal, approved, supplement)
+  const showGapPointer = !isDenied
+    && ['Approved'].includes(fields.claim_status)
+    && gapInfo.has_gap
+    && !!onReviewSupplement
   // Supplement is a downstream amount — only real once a supplement has actually
   // been filed (status moves there via the spine supp-stage, which needs an
   // estimate first). Hide the field on a plain Approved/Denied claim; keep it when
@@ -796,6 +808,26 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                 </div>
               ) : (
                 <>
+                  {/* Supplement gap pointer — auto-surfaces when carrier approved < your estimate.
+                      Compact by design: the full supplement tooling lives in the workflow below,
+                      this just flags the opportunity at the point of decision and routes there. */}
+                  {showGapPointer && (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, flexWrap:'wrap' as const,
+                      borderRadius:10, border:`1px solid ${dk?'rgba(129,140,248,0.30)':'#C7D2FE'}`, background:dk?'rgba(79,70,229,0.10)':'#EEF2FF', padding:'12px 16px' }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase' as const, color:dk?'#A5B4FC':'#4338CA' }}>Supplement opportunity</div>
+                        <div style={{ display:'flex', alignItems:'baseline', gap:8, marginTop:3, flexWrap:'wrap' as const }}>
+                          <span style={{ fontSize:22, fontWeight:900, letterSpacing:'-0.02em', color:dk?'#A5B4FC':'#4F46E5' }}>${Math.round(gapInfo.gap ?? 0).toLocaleString()} gap</span>
+                          <span style={{ fontSize:12, color:dk?'#CBD5E1':'#4338CA' }}>carrier approved ${approved.toLocaleString()} · your estimate ${estimateTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <button onClick={()=>onReviewSupplement?.()} style={{ display:'inline-flex', alignItems:'center', gap:6, flexShrink:0, fontSize:12.5, fontWeight:700, color:'#fff', background:dk?'#4F46E5':'#4338CA', border:'none', borderRadius:8, padding:'9px 15px', cursor:'pointer', boxShadow:'0 2px 8px rgba(67,56,202,0.25)' }}>
+                        File supplement
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Financials — collapse to a one-line record once amounts exist; no grey panel */}
                   {!finEdit ? (
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' as const, paddingTop:2 }}>

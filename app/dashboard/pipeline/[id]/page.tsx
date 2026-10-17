@@ -328,7 +328,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
-  console.log('[ProGuild Trade Debug]',{trade_slug:session?.trade_slug,tradePlugin_slug:(tradePlugin as any)?.slug,isRoofing})
   const refetchPhotos = useCallback(() => {
     if (!session || !lead || !isRoofing) return
     apiFetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
@@ -921,6 +920,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // Details tab on the flag-off page / for retail leads (so the insurance on/off toggle stays reachable).
   const claimFieldsEl = (isRoofing && lead && session) ? (
     <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} propertyAddress={([(lead as any).property_address, lead.contact_city, lead.contact_state, (lead as any).contact_zip].filter(Boolean).join(', '))} propertyLat={(lead as any).contact_lat ?? null} propertyLon={(lead as any).contact_lng ?? null} locked={stage==='job_won'||stage==='lost'} defaultOpen={stage==='insurance_approved'&&!isClaim}
+      estimateTotal={Number(est?.total)||0}
+      onReviewSupplement={()=>{ setSuppOpen(true); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'center'}),60) }}
       onSaved={(data)=>{
         setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
         setTimeout(()=>{
@@ -2310,8 +2311,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <>
                             {/* Insurance claim section — always anchor; show the form when spine isn't rendering it */}
                             <div id="insurance-claim-section" style={{position:'relative',top:-12}}/>
-                            {/* DEBUG: log insurance gate values so we can see why content may be hidden */}
-                            {(()=>{console.log('[ProGuild Insurance Debug]',{isRoofing,isClaim,useSpine,isWide,stage,trade_slug:session?.trade_slug,tradePlugin_slug:(tradePlugin as any)?.slug,insurance_claim_field:(lead as any)?.roofing_job_data?.insurance_claim,roofing_job_data:(lead as any)?.roofing_job_data,claimFieldsEl_defined:!!claimFieldsEl,gate_result:isRoofing&&(!useSpine||!isClaim||!isWide)});return null})()}
                             {/* Prominent banner: lead is at insurance_approved but claim not yet logged */}
                             {isRoofing&&stage==='insurance_approved'&&!isClaim&&(
                               <div style={{marginBottom:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(245,158,11,0.10)':'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:12}}>
