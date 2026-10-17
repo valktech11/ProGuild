@@ -29,9 +29,21 @@ export async function GET(req: NextRequest) {
     Object.entries(FL_UNIT_RATES).map(([k, v]) => [k, v.rate])
   ) as Record<string, number>
 
+  // Strip keys from custom where the stored value equals the default —
+  // guards against stale DB rows that saved all 9 keys before the diff-only fix.
+  const customFiltered: Record<string, number> = {}
+  if (custom) {
+    for (const [k, v] of Object.entries(custom as Record<string, number>)) {
+      const def = defaults[k]
+      if (def === undefined || Math.abs(v - def) >= 0.001) {
+        customFiltered[k] = v
+      }
+    }
+  }
+
   return NextResponse.json({
     effective,
-    custom: custom ?? {},
+    custom: customFiltered,
     defaults,
     meta: Object.fromEntries(
       Object.entries(FL_UNIT_RATES).map(([k, v]) => [k, { label: v.label, unit: v.unit, xact: v.xact }])
