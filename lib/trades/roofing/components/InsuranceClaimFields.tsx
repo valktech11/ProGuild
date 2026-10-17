@@ -225,7 +225,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     if (locked) return
     setSaved(false)
     setFields(f => ({ ...f, claim_status: v }))
-    void handleSave({ claim_status: v })
+    if (v === 'Approved') {
+      // Reveal the amount fields but DEFER the write. The decision, approved
+      // amount and deductible then commit together via the single Save button
+      // below (claim_status='Approved' in handleSave still triggers the stage
+      // auto-advance). This kills two long-standing traps: (1) the orphaned
+      // 'Approved' + null-amounts row, and (2) the green "Saved" indicator
+      // lingering over the still-empty amount fields right after this click,
+      // which read as a phantom save the instant the field was focused.
+      setDirty(true)
+      setFinEdit(true)
+    } else {
+      void handleSave({ claim_status: v })
+    }
   }
 
   const handleToggle = useCallback(async () => {
@@ -366,6 +378,9 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const net        = approved + supplement - deductible
   const isDenied     = fields.claim_status === 'Denied'
   const decided      = ['Approved','Denied','Supplement Filed','Supplement Approved','Closed'].includes(fields.claim_status)
+  // Approved locally but not yet persisted — "Carrier approved" was clicked,
+  // amounts are being entered, nothing written to the DB yet (see setStatus).
+  const approvePending = fields.claim_status === 'Approved' && initial.claim_status !== 'Approved'
   // Supplement gap — reuses the canonical engine. Surfaces the moment both numbers
   // exist and the carrier approved less than the pro's estimate. Hidden once the
   // supplement has moved past the opportunity stage (filed/approved/closed) — those
@@ -907,7 +922,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
                   ? <><div style={{ width:12, height:12, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.35)', borderTopColor:'#fff', animation:'pg-spin 0.7s linear infinite' }}/> Saving…</>
                   : saved
                   ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Saved</>
-                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> Save claim details</>
+                  : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg> {approvePending ? 'Save decision & amounts' : 'Save claim details'}</>
                 }
               </button>
           </div>
