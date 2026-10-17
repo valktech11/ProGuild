@@ -1740,6 +1740,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
                       summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
                     })
+                    // When no claim is logged yet but the lead stage implies an insurance track,
+                    // add a placeholder carrier step so the pro sees it in the spine workflow.
+                    if (!isClaim2 && ['insurance_approved','scheduled','in_progress','job_won'].includes(stage)) stages.push({
+                      key: 'carrier-prompt', label: 'Carrier Claim', done: false,
+                      summary: 'Log insurance claim details in the Details tab',
+                    })
                     if (isClaim2 && wf.decisionRecorded) stages.push({
                       key: 'supp', label: 'Supplement', done: dn('supp'),
                       summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
@@ -1800,6 +1806,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{ position: 'absolute', left: isWide ? 19 : 15, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
+                            // Carrier-prompt: claim not yet logged but lead is on insurance track
+                            if (s.key === 'carrier-prompt') {
+                              return (
+                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
+                                  {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={isWide ? 17 : 15} stroke={tsu} sw={2}>{ICONS.carrier}</Svg>, bdr, 'carrier')}
+                                  <div style={{ background: dk ? 'rgba(245,158,11,0.08)' : '#FFFBEB', border: `1px solid ${dk ? 'rgba(245,158,11,0.25)' : '#FDE68A'}`, borderRadius: T.radLg, padding: isWide ? '14px 18px' : '12px 14px' }}>
+                                    <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#FCD34D' : '#92400E', marginBottom: 4 }}>Log insurance claim details</div>
+                                    <div style={{ fontSize: T.fontSub, color: dk ? '#FDE68A' : '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
+                                      This lead is on the insurance track. Open the <strong>Details tab</strong> and enable the Insurance Claim toggle to log carrier info, adjuster appointment, and approved amount.
+                                    </div>
+                                    <button onClick={() => { setTab('details'); setTimeout(() => { document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 80) }}
+                                      style={{ fontSize: T.fontSub, fontWeight: 800, color: '#fff', background: BRAND.teal, border: 'none', borderRadius: T.radSm, padding: '8px 16px', cursor: 'pointer' }}>
+                                      Go to claim details →
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            }
                             // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
                             if (s.key === 'carrier') {
                               const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
@@ -2283,7 +2307,18 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       <div style={{padding:'18px 20px'}}>
                         {!isEditing&&(
                           <>
-                            {isRoofing&&(!useSpine||!isClaim||!isWide)&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
+                            {/* Insurance claim section — always anchor; show the form when spine isn't rendering it */}
+                            <div id="insurance-claim-section" style={{position:'relative',top:-12}}/>
+                            {/* Prominent banner: lead is at insurance_approved but claim not yet logged */}
+                            {isRoofing&&stage==='insurance_approved'&&!isClaim&&(
+                              <div style={{marginBottom:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(245,158,11,0.10)':'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:12}}>
+                                <div style={{fontSize:22,lineHeight:1,flexShrink:0}}>⚠️</div>
+                                <div>
+                                  <div style={{fontSize:13,fontWeight:800,color:dk?'#FCD34D':'#92400E',marginBottom:3}}>Insurance claim details needed</div>
+                                  <div style={{fontSize:12,color:dk?'#FDE68A':'#78350F',lineHeight:1.5}}>This lead is at Insurance Approved stage. Enable the Insurance Claim toggle below to log carrier name, claim number, adjuster appointment, and approved amount.</div>
+                                </div>
+                              </div>
+                            )}
                             {isRoofing&&(!useSpine||!isClaim||!isWide)&&claimFieldsEl}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
