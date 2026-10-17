@@ -2321,7 +2321,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               </div>
                             )}
-                            {isRoofing&&(isClaim||['insurance_approved','proposal_sent','proposal_signed','scheduled','in_progress','job_won'].includes(stage))&&claimFieldsEl}
+                            {isRoofing&&(!useSpine||!isClaim)&&claimFieldsEl}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>

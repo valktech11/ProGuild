@@ -331,7 +331,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
   const initialised = useRef(false)
   useEffect(() => {
     // Only sync if we have real data and haven't been edited by user yet
-    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount && !initial.date_of_loss && !initial.roof_install_date) return
+    if (!initial.claim_number && !initial.insurance_company && !initial.approved_amount && !initial.date_of_loss && !initial.roof_install_date && !initial.claim_status) return
     if (initialised.current) return  // user has started editing — don't overwrite
     initialised.current = true
     setOpen(initial.insurance_claim ?? false)
