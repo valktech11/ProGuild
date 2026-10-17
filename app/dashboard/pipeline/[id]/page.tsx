@@ -1608,9 +1608,11 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     </div>
                   </div>{/* end hero */}
 
-                  {/* ─── NEXT ACTION banner (wow redesign — dark teal hero) ─── */}
-                  {/* useSpine renders its own per-stage Next Action inline — skip this banner to avoid duplicate */}
-                  {isRoofing && !useSpine && (() => {
+                  {/* ─── Stage spine (per-stage workflow + inline Next Action) ─── */}
+                  {/* NOTE: this block renders the SPINE (stages.map), not just a banner.
+                      Do NOT gate it on !useSpine — doing so hid the entire spine for the
+                      default useSpine=true path (regression aeb63334, fixed here). */}
+                  {isRoofing && (() => {
                     const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
                     const nextKey = wf.nextKey
                     const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
@@ -2323,7 +2325,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               </div>
                             )}
-                            {isRoofing&&claimFieldsEl}
+                            {isRoofing&&<div style={{marginBottom:16}}>{claimFieldsEl}</div>}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
