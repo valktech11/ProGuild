@@ -30,6 +30,7 @@ interface Props {
   propertyLat?: number | null
   propertyLon?: number | null
   locked?: boolean                // hard-disable the claim-type toggle (won/lost jobs)
+  defaultOpen?: boolean           // force the panel open on first render (e.g. insurance_approved stage with no claim yet)
   onSaved:  (data: InsuranceClaimData) => void
 }
 
@@ -113,7 +114,7 @@ function FInput({ icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { 
   )
 }
 
-export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, propertyAddress, propertyLat, propertyLon, locked = false, onSaved }: Props) {
+export default function InsuranceClaimFields({ leadId, proId, initial, darkMode: dk, propertyState, propertyAddress, propertyLat, propertyLon, locked = false, defaultOpen = false, onSaved }: Props) {
   // FL claims-intelligence (SB 2-A, 25% rule) is Florida-specific by design — gate it.
   const isFL = (propertyState ?? '').trim().toUpperCase() === 'FL'
   const [stormScanning, setStormScanning] = React.useState(false)
@@ -172,7 +173,7 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-  const [open,   setOpen]   = useState(initial.insurance_claim ?? false)
+  const [open,   setOpen]   = useState(initial.insurance_claim ?? defaultOpen ?? false)
   const [detailsOpen, setDetailsOpen] = useState(() => !(initial.insurance_company || initial.claim_number))  // fresh claim opens expanded; existing collapses to summary
   const [finEdit, setFinEdit] = useState(() => !(parseCurrency(initial.approved_amount ?? '') || parseCurrency(initial.supplement_amount ?? '') || parseCurrency(initial.deductible ?? '')))  // first entry → open; amounts present → collapsed summary
   const [saving, setSaving] = useState(false)
