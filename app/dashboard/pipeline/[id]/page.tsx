@@ -415,7 +415,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   // gates read can change (stage / estimate / invoice / lead fields).
   const refreshPlan = useCallback(() => {
     if (!session || !lead || !isRoofing) return
-    fetch(`/api/roofing/stage-plan?lead_id=${lead.id}&pro_id=${session.id}`)
+    apiFetch(`/api/roofing/stage-plan?lead_id=${lead.id}&pro_id=${session.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.stages) setStagePlan(d.stages as StagePlanEntry[]) })
       .catch(() => {})
@@ -601,7 +601,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
       const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),90000)
       let res:Response
       try{
-        res=await fetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:(lead as any).property_id??null}),signal:ctrl.signal})
+        res=await apiFetch('/api/roofing/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:fullAddr,pro_id:session.id,property_id:(lead as any).property_id??null}),signal:ctrl.signal})
       }finally{clearTimeout(timer)}
       const d=await res.json().catch(()=>({}))
       if(!res.ok){setQbError((d as any).error||'Report failed');return}
