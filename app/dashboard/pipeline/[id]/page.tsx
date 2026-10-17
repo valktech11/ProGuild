@@ -89,8 +89,10 @@ function roofingWorkflow(
   const gap = _gap.gap
   const hasGap = _gap.has_gap
   const estDone = estCount > 0 || !!est
-  // Lifecycle status is the sole authority for supp-stage done-state; supplement_amount can be entered pre-filing (Approved) and must not force 'filed' label.
-  const supDone = ['Supplement','Supplement Filed','Supplement Approved','Closed'].includes(claimStatus)
+  // Lifecycle status is the sole authority for supp-stage done-state.
+  // 'Supplement Filed' = filed but awaiting carrier response — NOT done yet.
+  // supDone only when carrier has responded (approved or closed).
+  const supDone = ['Supplement Approved','Supplement Denied','Closed'].includes(claimStatus)
   const sentDone = !!(est && ((est.sent_at) || ['sent','viewed','approved'].includes(est.status || '')))
   // LF is captured inside the estimate calculator (with "needs LF" badges there),
   // never a forced pipeline step — mirrors mobile, which has no separate LF step.
@@ -221,6 +223,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [useSpine,     setUseSpine]     = useState(true)
   const [suppOpen,      setSuppOpen]      = useState(false)  // expand the done Supplement stage back to the full assistant
   const [suppAnalyzing, setSuppAnalyzing] = useState(false) // true while SupplementAssistant is running analysis
+  const [suppApproveInput, setSuppApproveInput] = useState(false)  // show inline approved-amount field
+  const [suppApproveAmt,   setSuppApproveAmt]   = useState('')     // value typed into that field
   const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
   // Step-completion pop: track which stage keys were done on the previous render
   // so we can detect the exact frame a key transitions done→newly-done.
@@ -1603,7 +1607,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                   </div>{/* end hero */}
 
                   {/* ─── NEXT ACTION banner (wow redesign — dark teal hero) ─── */}
-                  {isRoofing && (() => {
+                  {/* useSpine renders its own per-stage Next Action inline — skip this banner to avoid duplicate */}
+                  {isRoofing && !useSpine && (() => {
                     const wf = roofingWorkflow((lead as any).roofing_job_data || {}, est, estList.length)
                     const nextKey = wf.nextKey
                     const addr = ((lead as any).property_address||'').replace(/, USA$/,'').trim()
@@ -1821,17 +1826,26 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const isFLLead = ((lead.contact_state ?? '').trim().toUpperCase() === 'FL')
                               const gapVal = wf.gap || 0
                               const eTot = Number(est?.total) || 0
-                              const cTot = Math.max(eTot - gapVal, 0)
+                              const suppAmt = Number(rjd2.supplement_amount) || 0
+                              // Use actual approved+supplement for carrier total display, not back-derived
+                              const approvedAmt2 = Number(rjd2.approved_amount) || 0
+                              const cTot = approvedAmt2 + suppAmt
+                              const isFiledPending = rjd2.claim_status === 'Supplement Filed'
+                              const isApproved = rjd2.claim_status === 'Supplement Approved'
+                              const isDenied2 = rjd2.claim_status === 'Supplement Denied'
+
                               // Done + not expanded → one-line summary (like other done stages), re-openable
                               if (cState === 'done' && !suppOpen) {
-                                const sLabel = rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'
+                                const sLabel = isApproved ? 'approved' : isDenied2 ? 'denied' : 'closed'
+                                const sColor = isDenied2 ? '#DC2626' : '#15803D'
                                 return (
                                   <div key={s.key} id="supplement-section" style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'center', scrollMarginTop: 16 }}>
-                                    {gIcon('#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
+                                    {gIcon(isDenied2 ? '#DC2626' : '#15803D', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: card, border: `1px solid ${bdr}`, borderRadius: T.radLg, padding: isWide ? '13px 18px' : '11px 14px', flexWrap: 'wrap' as const }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
-                                        <span style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: tp, letterSpacing: '-0.01em' }}>Supplement {sLabel}</span>
-                                        {gapVal > 0 && <span style={{ fontSize: T.fontBody, color: tsu }}>· potential gap <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5' }}>{money(gapVal)}</span></span>}
+                                        <span style={{ fontSize: isWide ? T.fontHero : T.fontHeroMobile, fontWeight: 800, color: sColor, letterSpacing: '-0.01em' }}>Supplement {sLabel}</span>
+                                        {isApproved && suppAmt > 0 && <span style={{ fontSize: T.fontBody, color: tsu }}>· {money(suppAmt)} approved</span>}
+                                        {isDenied2 && gapVal > 0 && <span style={{ fontSize: T.fontBody, color: tsu }}>· gap {money(gapVal)} — action needed</span>}
                                       </div>
                                       <button onClick={() => setSuppOpen(true)} style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '5px 12px', cursor: 'pointer', flexShrink: 0 }}>Review</button>
                                     </div>
@@ -1840,58 +1854,221 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               }
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
-                                  {gIcon(cState === 'done' ? '#15803D' : 'linear-gradient(135deg,#0F766E,#0C5F59)', <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp')}
+                                  {gIcon(
+                                    cState === 'done' ? (isDenied2 ? '#DC2626' : '#15803D') : isFiledPending ? '#D97706' : 'linear-gradient(135deg,#0F766E,#0C5F59)',
+                                    <Svg size={isWide ? 17 : 15} stroke="#fff" sw={2}>{ICONS.supp}</Svg>, undefined, 'supp'
+                                  )}
                                   <div id="supplement-section" className={suppOpen ? 'pg-reveal' : undefined} style={{ scrollMarginTop: 16 }}>
-                                    {cState === 'done' && (
+                                    {/* Status header when expanded */}
+                                    {(cState === 'done' || isFiledPending) && (
                                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
-                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>Supplement {rjd2.claim_status === 'Supplement Approved' ? 'approved' : 'filed'}</span>
-                                        <button onClick={() => setSuppOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: tsu, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '4px 11px', cursor: 'pointer' }}>Collapse <Svg size={12} stroke={tsu} sw={2.5}><polyline points="18 15 12 9 6 15" /></Svg></button>
+                                        <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: isDenied2 ? '#DC2626' : isFiledPending ? '#D97706' : '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>
+                                          {isFiledPending ? '⏳ Awaiting carrier response' : isApproved ? 'Supplement approved' : isDenied2 ? 'Supplement denied' : 'Supplement closed'}
+                                        </span>
+                                        {cState === 'done' && <button onClick={() => setSuppOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: T.fontSub, fontWeight: 700, color: tsu, background: 'transparent', border: `1px solid ${bdr}`, borderRadius: T.radSm, padding: '4px 11px', cursor: 'pointer' }}>Collapse <Svg size={12} stroke={tsu} sw={2.5}><polyline points="18 15 12 9 6 15" /></Svg></button>}
                                       </div>
                                     )}
-                                    {/* Gap payoff hero — FL-only; non-FL falls through to assistant's single FL-gate message */}
-                                    {isFLLead && <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
-                                      <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
-                                        <div style={{ minWidth: 0 }}>
-                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>{eTot > 0 ? 'Potential supplement gap' : 'Supplement review'}</div>
-                                          {eTot > 0
-                                            ? <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
-                                            : <div style={{ fontSize: isWide ? 20 : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em', lineHeight: 1.2, marginTop: 2 }}>Scan carrier scope</div>}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 22 }}>
-                                          <div>
-                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Carrier total</div>
-                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>${cTot.toLocaleString()}</div>
+
+                                    {/* Gap payoff / status card — context-aware by claim status */}
+                                    {isFLLead && (() => {
+                                      // Filed & pending — neutral amber card, not scary orange
+                                      if (isFiledPending) return (
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
+                                          <div style={{ padding: isWide ? '14px 18px' : '13px 16px' }}>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Supplement filed — awaiting carrier</div>
+                                            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' as const, marginTop: 8 }}>
+                                              <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Approved so far</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(approvedAmt2)}</div>
+                                              </div>
+                                              {suppAmt > 0 && <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Supplement filed for</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#D97706' }}>{money(suppAmt)}</div>
+                                              </div>}
+                                              {eTot > 0 && <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Your estimate</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(eTot)}</div>
+                                              </div>}
+                                            </div>
                                           </div>
-                                          <div>
-                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Your estimate</div>
-                                            <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{eTot > 0 ? `$${eTot.toLocaleString()}` : '—'}</div>
+                                          <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(217,119,6,0.25)' : '#FDE68A'}`, fontSize: T.fontSub, color: '#92400E', lineHeight: 1.45 }}>
+                                            Once the adjuster responds, record their decision below — approved or denied.
                                           </div>
                                         </div>
-                                      </div>
-                                      <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
-                                        {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
-                                      </div>
-                                    </div>}
-                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} />
-                                    {/* Supplement lifecycle transitions — single source of truth (spine owns Supplement->Closed) */}
-                                    {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && (()=>{
-                                      const advance = async (next:string, toast:string)=>{
-                                        const ok = await patch({claim_status:next})
-                                        if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:next}} as any:l); setClaimRemountNonce(n=>n+1); addToast(toast,'success') }
-                                        else addToast('Update failed','error')
-                                      }
+                                      )
+                                      // Denied — red card with real gap and next steps
+                                      if (isDenied2) return (
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(220,38,38,0.35)' : '#FECACA'}`, background: dk ? 'rgba(220,38,38,0.08)' : '#FEF2F2', overflow: 'hidden', marginBottom: 12 }}>
+                                          <div style={{ padding: isWide ? '14px 18px' : '13px 16px' }}>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#DC2626', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Supplement denied</div>
+                                            {eTot > 0 && gapVal > 0 && (
+                                              <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' as const, marginTop: 8 }}>
+                                                <div>
+                                                  <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Confirmed gap</div>
+                                                  <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: '#DC2626', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
+                                                </div>
+                                                <div>
+                                                  <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Carrier paid</div>
+                                                  <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(approvedAmt2)}</div>
+                                                </div>
+                                                <div>
+                                                  <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Your estimate</div>
+                                                  <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(eTot)}</div>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(220,38,38,0.25)' : '#FECACA'}`, fontSize: T.fontSub, color: '#991B1B', lineHeight: 1.45 }}>
+                                            Options: request appraisal / re-inspection, reduce scope to match carrier, or have homeowner cover the gap.
+                                          </div>
+                                        </div>
+                                      )
+                                      // Approved — green card showing full payout
+                                      if (isApproved && suppAmt > 0) return (
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(21,128,61,0.35)' : '#BBF7D0'}`, background: dk ? 'rgba(21,128,61,0.10)' : '#F0FDF4', overflow: 'hidden', marginBottom: 12 }}>
+                                          <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+                                            <div>
+                                              <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#15803D', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Supplement approved</div>
+                                              <CountUpMoney value={suppAmt} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: '#15803D', letterSpacing: '-0.03em', lineHeight: 1.1 }} />
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 22 }}>
+                                              <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Total carrier</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(cTot)}</div>
+                                              </div>
+                                              {eTot > 0 && <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Your estimate</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(eTot)}</div>
+                                              </div>}
+                                            </div>
+                                          </div>
+                                          {cTot >= eTot && eTot > 0 && <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(21,128,61,0.25)' : '#BBF7D0'}`, fontSize: T.fontSub, color: '#15803D', fontWeight: 700, lineHeight: 1.45 }}>
+                                            ✓ Carrier covers your full estimate. Send the estimate to homeowner to collect.
+                                          </div>}
+                                        </div>
+                                      )
+                                      // Default: gap review card (pre-filing, status=Approved with no supplement yet)
                                       return (
-                                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, marginTop:12 }}>
-                                          {rjd2.claim_status === 'Approved' && (
-                                            <button onClick={()=>advance('Supplement Filed','Supplement filed')} disabled={suppAnalyzing} style={{ fontSize:12, fontWeight:700, color: suppAnalyzing ? '#94A3B8' : BRAND.teal, background:'transparent', border:`1px solid ${suppAnalyzing ? '#CBD5E1' : BRAND.teal+'40'}`, borderRadius:7, padding:'6px 12px', cursor: suppAnalyzing ? 'default' : 'pointer', opacity: suppAnalyzing ? 0.6 : 1 }}>{suppAnalyzing ? 'Analyzing…' : 'Mark supplement filed'}</button>
-                                          )}
-                                          {rjd2.claim_status === 'Supplement Filed' && (
-                                            <button onClick={()=>advance('Supplement Approved','Supplement approved')} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark supplement approved</button>
-                                          )}
-                                          <button onClick={()=>advance('Closed','Claim closed')} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>Mark closed</button>
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(129,140,248,0.28)' : '#C7D2FE'}`, background: dk ? 'rgba(79,70,229,0.10)' : '#EEF2FF', overflow: 'hidden', marginBottom: 12 }}>
+                                          <div style={{ padding: isWide ? '14px 18px' : '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' as const }}>
+                                            <div style={{ minWidth: 0 }}>
+                                              <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: dk ? '#A5B4FC' : '#4338CA', textTransform: 'uppercase' as const, letterSpacing: '0.1em' }}>{eTot > 0 ? 'Potential supplement gap' : 'Supplement review'}</div>
+                                              {eTot > 0
+                                                ? <CountUpMoney value={gapVal} fmt={money} style={{ display: 'block', fontSize: isWide ? T.fontStat : T.fontHeroMobile, fontWeight: 900, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.03em', lineHeight: 1.1, marginTop: 2 }} />
+                                                : <div style={{ fontSize: isWide ? 20 : T.fontHeroMobile, fontWeight: 800, color: dk ? '#A5B4FC' : '#4F46E5', letterSpacing: '-0.01em', lineHeight: 1.2, marginTop: 2 }}>Scan carrier scope</div>}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 22 }}>
+                                              <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Carrier total</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(approvedAmt2)}</div>
+                                              </div>
+                                              <div>
+                                                <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Your estimate</div>
+                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{eTot > 0 ? money(eTot) : '—'}</div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(129,140,248,0.22)' : '#C7D2FE'}`, fontSize: T.fontSub, color: dk ? '#C7D2FE' : '#4338CA', lineHeight: 1.45 }}>
+                                            {eTot > 0 ? 'The carrier may have under-scoped. Review the FL code-required items below and paste their scope to compare.' : 'Paste the carrier scope below to flag FL code-required items they missed — no estimate needed to start.'}
+                                          </div>
                                         </div>
                                       )
                                     })()}
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} />
+                                    {/* Supplement lifecycle transitions — single source of truth */}
+                                    {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && rjd2.claim_status !== 'Supplement Denied' && (()=>{
+                                      const advance = async (next:string, extraFields:Record<string,unknown>, toast:string)=>{
+                                        const ok = await patch({claim_status:next, ...extraFields})
+                                        if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:next,...extraFields}} as any:l); setClaimRemountNonce(n=>n+1); addToast(toast,'success') }
+                                        else addToast('Update failed','error')
+                                      }
+                                      const btnBase: React.CSSProperties = { fontSize:12, fontWeight:700, borderRadius:7, padding:'6px 14px', cursor:'pointer', border:'none' }
+                                      return (
+                                        <div style={{ marginTop:14 }}>
+                                          {/* Approved status: offer to file supplement */}
+                                          {rjd2.claim_status === 'Approved' && (
+                                            <button onClick={()=>advance('Supplement Filed',{},'Supplement filed')} disabled={suppAnalyzing}
+                                              style={{ ...btnBase, color: suppAnalyzing ? '#94A3B8' : '#fff', background: suppAnalyzing ? '#CBD5E1' : BRAND.teal, opacity: suppAnalyzing ? 0.7 : 1 }}>
+                                              {suppAnalyzing ? 'Analyzing…' : '📋 Mark supplement filed'}
+                                            </button>
+                                          )}
+
+                                          {/* Filed & pending: two-outcome buttons */}
+                                          {rjd2.claim_status === 'Supplement Filed' && !suppApproveInput && (
+                                            <div>
+                                              <div style={{ fontSize:11.5, fontWeight:700, color:tsu, marginBottom:8 }}>Carrier responded?</div>
+                                              <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
+                                                <button onClick={()=>setSuppApproveInput(true)}
+                                                  style={{ ...btnBase, color:'#fff', background:'#15803D' }}>
+                                                  ✅ Supplement approved
+                                                </button>
+                                                <button onClick={()=>advance('Supplement Denied',{},'Supplement denied')}
+                                                  style={{ ...btnBase, color:'#fff', background:'#DC2626' }}>
+                                                  ❌ Supplement denied
+                                                </button>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Approved amount entry */}
+                                          {rjd2.claim_status === 'Supplement Filed' && suppApproveInput && (
+                                            <div style={{ background: dk ? 'rgba(21,128,61,0.10)' : '#F0FDF4', border:`1px solid ${dk?'rgba(21,128,61,0.3)':'#BBF7D0'}`, borderRadius:10, padding:'12px 14px' }}>
+                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom:8 }}>Enter amount carrier approved for supplement</div>
+                                              <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' as const }}>
+                                                <div style={{ position:'relative' as const, display:'inline-flex', alignItems:'center' }}>
+                                                  <span style={{ position:'absolute' as const, left:10, fontSize:14, fontWeight:700, color:'#64748B' }}>$</span>
+                                                  <input
+                                                    type="number" min="0" placeholder="0"
+                                                    value={suppApproveAmt}
+                                                    onChange={e=>setSuppApproveAmt(e.target.value)}
+                                                    style={{ paddingLeft:22, height:36, width:140, borderRadius:7, border:`1px solid ${dk?'#334155':'#CBD5E1'}`, background: dk?'#1E293B':'#fff', color:tp, fontSize:14, fontWeight:700 }}
+                                                  />
+                                                </div>
+                                                <button
+                                                  onClick={async()=>{
+                                                    const amt = parseFloat(suppApproveAmt)
+                                                    if (!amt || amt <= 0) { addToast('Enter a valid amount','error'); return }
+                                                    await advance('Supplement Approved',{supplement_amount:amt},`Supplement approved — ${money(amt)}`)
+                                                    setSuppApproveInput(false); setSuppApproveAmt('')
+                                                  }}
+                                                  style={{ ...btnBase, color:'#fff', background:'#15803D', height:36, padding:'0 16px' }}>
+                                                  Save & mark approved
+                                                </button>
+                                                <button onClick={()=>{setSuppApproveInput(false);setSuppApproveAmt('')}}
+                                                  style={{ ...btnBase, color:tsu, background:'transparent', border:`1px solid ${bdr}`, height:36, padding:'0 12px' }}>
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Always show close option (except when amount input is open) */}
+                                          {!suppApproveInput && (
+                                            <button onClick={()=>advance('Closed',{},'Claim closed')}
+                                              style={{ ...btnBase, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, marginTop:8, display:'block' }}>
+                                              Mark claim closed
+                                            </button>
+                                          )}
+                                        </div>
+                                      )
+                                    })()}
+                                    {/* Denied — show re-open option */}
+                                    {rjd2.claim_status === 'Supplement Denied' && !(stage==='job_won'||stage==='lost') && (
+                                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const, marginTop:12 }}>
+                                        <button onClick={async()=>{
+                                          const ok = await patch({claim_status:'Supplement Filed'})
+                                          if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:'Supplement Filed'}} as any:l); setClaimRemountNonce(n=>n+1); addToast('Reopened for re-filing','success') }
+                                        }} style={{ fontSize:12, fontWeight:700, color:BRAND.teal, background:'transparent', border:`1px solid ${BRAND.teal}40`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>
+                                          Re-file supplement
+                                        </button>
+                                        <button onClick={async()=>{
+                                          const ok = await patch({claim_status:'Closed'})
+                                          if (ok) { setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),claim_status:'Closed'}} as any:l); setClaimRemountNonce(n=>n+1); addToast('Claim closed','success') }
+                                        }} style={{ fontSize:12, fontWeight:700, color: dk?'#CBD5E1':'#64748B', background:'transparent', border:`1px solid ${dk?'#475569':'#E2E8F0'}`, borderRadius:7, padding:'6px 12px', cursor:'pointer' }}>
+                                          Mark closed
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               )
@@ -2145,9 +2322,83 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
                               if (useSpine) return null  // spine renders the supplement payoff inline in its own stage
 
-                              return (
-                                <div id="supplement-section" style={{marginTop:16}}>
-                                  {/* Gap summary — what the carrier paid vs the roofer's estimate */}
+                              // Context-aware gap card — 4 states mirroring the spine supp block
+                              const isFiledPending2 = claimStatus === 'Supplement Filed'
+                              const isSuppApproved2 = claimStatus === 'Supplement Approved'
+                              const isSuppDenied2 = claimStatus === 'Supplement Denied'
+
+                              const gapCardEl = (() => {
+                                // State 1: Supplement filed, awaiting carrier response → amber
+                                if (isFiledPending2) return (
+                                  <Card dk={dk} variant="warning" pad="none" style={{marginBottom:14}}>
+                                    <div style={{padding:'14px 16px'}}>
+                                      <div style={{fontWeight:800,fontSize:13,color:'#92400E',marginBottom:6}}>⏳ Supplement filed — awaiting carrier</div>
+                                      <div style={{display:'flex',gap:22,flexWrap:'wrap' as const,marginBottom:8}}>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Approved so far</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{approvedAmt > 0 ? `$${approvedAmt.toLocaleString()}` : '—'}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Supplement filed for</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{supplementAmt > 0 ? `$${supplementAmt.toLocaleString()}` : 'Pending'}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
+                                        </div>
+                                      </div>
+                                      <div style={{fontSize:11.5,color:'#92400E',lineHeight:1.45}}>Once the adjuster responds, record their decision in the workflow above — approved or denied.</div>
+                                    </div>
+                                  </Card>
+                                )
+
+                                // State 2: Supplement denied → red
+                                if (isSuppDenied2) {
+                                  const confirmedGap = gap ?? 0
+                                  return (
+                                    <Card dk={dk} variant="danger" pad="none" style={{marginBottom:14}}>
+                                      <div style={{padding:'14px 16px'}}>
+                                        <div style={{fontWeight:800,fontSize:13,color:'#DC2626',marginBottom:6}}>❌ Supplement denied</div>
+                                        {confirmedGap > 0 && (
+                                          <div style={{marginBottom:8}}>
+                                            <div style={{fontSize:10.5,fontWeight:800,color:'#B91C1C',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Confirmed gap</div>
+                                            <div style={{fontSize:22,fontWeight:900,color:'#DC2626',letterSpacing:'-0.03em'}}>${confirmedGap.toLocaleString()}</div>
+                                          </div>
+                                        )}
+                                        <div style={{fontSize:11.5,color:'#991B1B',lineHeight:1.45}}>Options: request appraisal / re-inspection, reduce scope to match carrier, or have homeowner cover the gap.</div>
+                                      </div>
+                                    </Card>
+                                  )
+                                }
+
+                                // State 3: Supplement approved → green
+                                if (isSuppApproved2 && supplementAmt > 0) return (
+                                  <Card dk={dk} variant="success" pad="none" style={{marginBottom:14}}>
+                                    <div style={{padding:'14px 16px'}}>
+                                      <div style={{fontWeight:800,fontSize:13,color:'#15803D',marginBottom:6}}>✅ Supplement approved</div>
+                                      <div style={{display:'flex',gap:22,flexWrap:'wrap' as const,marginBottom:8}}>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#166534',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Supplement approved</div>
+                                          <div style={{fontSize:22,fontWeight:900,color:'#15803D',letterSpacing:'-0.03em'}}>${supplementAmt.toLocaleString()}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#166534',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Total carrier</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#15803D'}}>${carrierTotal.toLocaleString()}</div>
+                                        </div>
+                                        <div>
+                                          <div style={{fontSize:10.5,fontWeight:800,color:'#166534',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:17,fontWeight:800,color:'#15803D'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
+                                        </div>
+                                      </div>
+                                      {carrierTotal >= estTotal && estTotal > 0 && (
+                                        <div style={{fontSize:11.5,color:'#166534',lineHeight:1.45}}>✓ Carrier covers your full estimate. Send the estimate to homeowner to collect.</div>
+                                      )}
+                                    </div>
+                                  </Card>
+                                )
+
+                                // State 4: Default — pre-supplement, show gap vs estimate
+                                return (
                                   <Card dk={false} variant={gap && gap > 0 ? 'warning' : 'success'} pad="none" style={{marginBottom:14}}>
                                     <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap' as const}}>
                                       <div style={{display:'flex',gap:22}}>
@@ -2164,7 +2415,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {gap === null ? (
                                           <div style={{fontSize:12,fontWeight:600,color:'#92400E',maxWidth:210,lineHeight:1.4}}>
                                             {carrierTotal === 0
-                                              ? 'Enter the carrier\u2019s approved amount above to see your gap'
+                                              ? 'Enter the approved amount above to see your gap'
                                               : 'Price this job to see your gap'}
                                           </div>
                                         ) : gap > 0 ? (
@@ -2183,6 +2434,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       </div>
                                     )}
                                   </Card>
+                                )
+                              })()
+
+                              return (
+                                <div id="supplement-section" style={{marginTop:16}}>
+                                  {gapCardEl}
                                   <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing}/>
                                 </div>
                               )
