@@ -916,8 +916,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [avBg, avFg] = lead ? avatarColor(lead.contact_name) : ['#E1F5EE','#0F6E56']
 
   const isClaim = !!(lead as any)?.roofing_job_data?.insurance_claim
-  // Single source for the claim component — re-homed into the spine's carrier stage, or shown in the
-  // Details tab on the flag-off page / for retail leads (so the insurance on/off toggle stays reachable).
+  // Single source for the claim component — always rendered in the Details tab for all roofing leads.
+  // The spine carrier stage shows a summary + nav button only (no second mount = no double-render conflict).
   const claimFieldsEl = (isRoofing && lead && session) ? (
     <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} propertyAddress={([(lead as any).property_address, lead.contact_city, lead.contact_state, (lead as any).contact_zip].filter(Boolean).join(', '))} propertyLat={(lead as any).contact_lat ?? null} propertyLon={(lead as any).contact_lng ?? null} locked={stage==='job_won'||stage==='lost'} defaultOpen={stage==='insurance_approved'&&!isClaim}
       estimateTotal={Number(est?.total)||0}
@@ -1826,22 +1826,24 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               )
                             }
-                            // Carrier stage owns the claim form inline (re-homed InsuranceClaimFields, kept whole)
+                            // Carrier stage — summary + nav to Details tab where the full claim card lives
                             if (s.key === 'carrier') {
                               const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
+                              const rjdC = (lead as any).roofing_job_data || {}
                               return (
                                 <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
                                   {gIcon(cState === 'done' ? '#15803D' : cState === 'active' ? 'linear-gradient(135deg,#0F766E,#0C5F59)' : (dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9'), <Svg size={isWide ? 17 : 15} stroke={cState === 'upcoming' ? tsu : '#fff'} sw={2}>{ICONS.carrier}</Svg>, cState === 'upcoming' ? bdr : undefined, 'carrier')}
-                                  <div id="insurance-claim-section" style={{ scrollMarginTop: 16 }}>
-                                    {cState === 'active' && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '10px 16px', borderRadius: T.radSm, background: 'linear-gradient(135deg,#0F766E,#0C5F59)', flexWrap: 'wrap' as const }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5EEAD4', boxShadow: '0 0 6px #5EEAD4' }} />
-                                        <span style={{ fontSize: T.fontSub, fontWeight: 800, color: '#5EEAD4', textTransform: 'uppercase' as const, letterSpacing: '0.14em' }}>Next Action</span>
-                                        <span style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#fff' }}>{na?.title || 'Review carrier scope'}</span>
-                                        {na?.sub && <span style={{ fontSize: T.fontSub, color: 'rgba(255,255,255,0.8)' }}>· {na.sub}</span>}
-                                      </div>
+                                  <div style={{ paddingTop: 4 }}>
+                                    <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: tp, marginBottom: 2 }}>Carrier Claim</div>
+                                    <div style={{ fontSize: T.fontSub, color: tsu, marginBottom: cState !== 'upcoming' ? 10 : 0 }}>
+                                      {cState === 'done' ? `${rjdC.carrier_name || 'Carrier'} · decision recorded` : `${rjdC.carrier_name || 'Carrier'} · awaiting decision`}
+                                    </div>
+                                    {cState !== 'upcoming' && (
+                                      <button onClick={() => { setTab('details'); setTimeout(() => document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60) }}
+                                        style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${BRAND.teal}`, borderRadius: T.radSm, padding: '6px 14px', cursor: 'pointer' }}>
+                                        {cState === 'done' ? 'View claim details →' : 'Record decision →'}
+                                      </button>
                                     )}
-                                    {claimFieldsEl}
                                   </div>
                                 </div>
                               )
@@ -2321,7 +2323,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               </div>
                             )}
-                            {isRoofing&&(!useSpine||!isClaim)&&claimFieldsEl}
+                            {isRoofing&&claimFieldsEl}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
