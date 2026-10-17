@@ -328,6 +328,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
   const tradePlugin = getTradeConfig(session?.trade_slug)
   const isRoofing = isRoofing_guard(tradePlugin)
+  console.log('[ProGuild Trade Debug]',{trade_slug:session?.trade_slug,tradePlugin_slug:(tradePlugin as any)?.slug,isRoofing})
   const refetchPhotos = useCallback(() => {
     if (!session || !lead || !isRoofing) return
     apiFetch(`/api/leads/${lead.id}/photos?pro_id=${session.id}`).then(r=>r.json()).then(d => {
@@ -2309,6 +2310,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           <>
                             {/* Insurance claim section — always anchor; show the form when spine isn't rendering it */}
                             <div id="insurance-claim-section" style={{position:'relative',top:-12}}/>
+                            {/* DEBUG: log insurance gate values so we can see why content may be hidden */}
+                            {(()=>{console.log('[ProGuild Insurance Debug]',{isRoofing,isClaim,useSpine,isWide,stage,trade_slug:session?.trade_slug,tradePlugin_slug:(tradePlugin as any)?.slug,insurance_claim_field:(lead as any)?.roofing_job_data?.insurance_claim,roofing_job_data:(lead as any)?.roofing_job_data,claimFieldsEl_defined:!!claimFieldsEl,gate_result:isRoofing&&(!useSpine||!isClaim||!isWide)});return null})()}
                             {/* Prominent banner: lead is at insurance_approved but claim not yet logged */}
                             {isRoofing&&stage==='insurance_approved'&&!isClaim&&(
                               <div style={{marginBottom:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(245,158,11,0.10)':'#FFFBEB',border:'1px solid #FDE68A',display:'flex',alignItems:'flex-start',gap:12}}>
