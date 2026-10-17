@@ -2283,8 +2283,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       <div style={{padding:'18px 20px'}}>
                         {!isEditing&&(
                           <>
-                            {isRoofing&&(!useSpine||!isClaim)&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
-                            {isRoofing&&(!useSpine||!isClaim)&&claimFieldsEl}
+                            {isRoofing&&(!useSpine||!isClaim||!isWide)&&<div id="insurance-claim-section" style={{position:'relative',top:-12}}/>}
+                            {isRoofing&&(!useSpine||!isClaim||!isWide)&&claimFieldsEl}
 
                             {isRoofing&&(lead as any).roofing_job_data?.insurance_claim&&(lead as any).roofing_job_data?.claim_status==='Denied'&&(
                               <div style={{marginTop:12,padding:'14px 16px',borderRadius:12,background:dk?'rgba(220,38,38,0.10)':'#FEF2F2',border:'1px solid #FECACA'}}>
@@ -2320,7 +2320,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                               if (isDenied) return null  // denial has its own CTA above
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
-                              if (useSpine) return null  // spine renders the supplement payoff inline in its own stage
+                              if (useSpine && isWide) return null  // spine renders the supplement payoff inline in its own stage (wide only)
 
                               // Context-aware gap card — 4 states mirroring the spine supp block
                               const isFiledPending2 = claimStatus === 'Supplement Filed'
