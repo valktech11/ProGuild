@@ -1731,7 +1731,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const stages: SP[] = []
                     stages.push({
                       key: 'measure', label: 'Roof Measurements',
-                      done: dn('measure') && (isClaim2 ? dn('lf') : true),
+                      // NOTE: roofingWorkflow() has no 'lf' step — dn('lf') is always false,
+                      // so gating done on it here made Measure Roof permanently stuck as
+                      // not-done for every insurance-claim lead (bug since ec62198, Oct 1).
+                      // LF is captured in the estimate calculator, never a forced pipeline
+                      // step (see roofingWorkflow's own doc comment) — match that here.
+                      done: dn('measure'),
                       summary: dn('measure')
                         ? `${sqv} SQ · ${rjd2.pitch || '—'} · ${rjd2.waste_pct != null ? rjd2.waste_pct + '%' : '—'} waste${dn('lf') ? `   ·   Ridge ${Math.round(lfd2.ridge_ft || 0)} / Hip ${Math.round(lfd2.hip_ft || 0)} / Valley ${Math.round(lfd2.valley_ft || 0)} LF` : ''}`
                         : 'Not measured yet',
