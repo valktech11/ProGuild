@@ -911,6 +911,19 @@ export default function InsuranceClaimFields({ leadId, proId, initial, darkMode:
             </div>
           ) : (dirty || saved) ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:10, marginTop:12 }}>
+              {approvePending && !saving && (
+                <button onClick={() => {
+                  // Revert to whatever claim_status was before Carrier approved was clicked
+                  setFields(f => ({ ...f, claim_status: initial.claim_status ?? 'Filed' }))
+                  setDirty(false)
+                  setSaved(false)
+                  setFinEdit(false)
+                }} style={{
+                  padding:'9px 16px', borderRadius:9, border:`1px solid ${dk ? '#475569' : '#E2E8F0'}`,
+                  cursor:'pointer', background:'transparent',
+                  color: dk ? '#CBD5E1' : '#64748B', fontSize:13, fontWeight:600,
+                }}>Cancel</button>
+              )}
               <button onClick={()=>handleSave()} disabled={saving || !dirty} style={{
                 padding:'9px 22px', borderRadius:9, border:'none', cursor: saving ? 'wait' : (!dirty ? 'default' : 'pointer'),
                 background: saving ? '#94A3B8' : (saved ? '#059669' : TEAL),
