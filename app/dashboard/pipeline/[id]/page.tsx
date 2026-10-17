@@ -216,7 +216,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [saving,  setSaving]  = useState(false)
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  type Tab = 'details'|'photos'|'estimate'|'activity'
+  type Tab = 'details'|'claim'|'photos'|'estimate'|'activity'
   const [tab,          setTab]          = useState<Tab>('details')
   const [isEditing,    setIsEditing]    = useState(false)
   const [contactOpen,  setContactOpen]  = useState(false)
@@ -921,7 +921,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const claimFieldsEl = (isRoofing && lead && session) ? (
     <InsuranceClaimFields key={`${(lead as any).roofing_job_data?.claim_number ?? lead.id}-${claimRemountNonce}`} leadId={lead.id} proId={session.id} initial={(lead as any).roofing_job_data??{}} darkMode={dk} propertyState={lead.contact_state} propertyAddress={([(lead as any).property_address, lead.contact_city, lead.contact_state, (lead as any).contact_zip].filter(Boolean).join(', '))} propertyLat={(lead as any).contact_lat ?? null} propertyLon={(lead as any).contact_lng ?? null} locked={stage==='job_won'||stage==='lost'} defaultOpen={stage==='insurance_approved'&&!isClaim}
       estimateTotal={Number(est?.total)||0}
-      onReviewSupplement={()=>{ setSuppOpen(true); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'center'}),60) }}
       onSaved={(data)=>{
         setLead(l=>l?{...l,roofing_job_data:{...((l as any).roofing_job_data??{}),...data}} as any:l)
         setTimeout(()=>{
@@ -1210,6 +1209,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
           const tabs: {key:Tab;label:string;icon:React.ReactNode}[] = [
             {key:'details', label: useSpine ? 'Contact' : 'Job Details', icon:<><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>},
+            ...(isRoofing?[{key:'claim' as Tab, label:'Claim', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>}]:[]),
             ...((isRoofing && (!useSpine || !isWide))?[{key:'photos' as Tab, label:photoCount>0?`Photos (${photoCount})`:'Photos', icon:<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}]:[]),
             {key:'estimate' as Tab,label:estList.length>0?`Estimate (${estList.length})`:'Estimate',   icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></>},
             ...((!useSpine||!isWide)?[{key:'activity' as Tab,label:acts.length>0?`Activity (${acts.length})`:'Activity', icon:<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>}]:[]),
@@ -1623,7 +1623,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const goPromeasure = ()=>router.push(addr?`/dashboard/roofing/promeasure?lead_id=${lead.id}&address=${encodeURIComponent(addr)}&from=detail`:`/dashboard/roofing/promeasure?lead_id=${lead.id}&from=detail`)
                     const goSupplement = ()=>{ setSuppOpen(true); setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),80) }
-                    const goCarrier = ()=>{ setTab('details'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
+                    const goCarrier = ()=>{ setTab('claim'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const carrierApproved = ['Approved','Supplement Filed','Supplement Approved','Closed'].includes((lead as any).roofing_job_data?.claim_status)
                     const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
@@ -1771,8 +1771,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     prevDoneKeysRef.current = currentDoneKeys
                     const goStage = (k: string) => {
                       if (k === 'estimate') { goEstimate(); return }
-                      setTab('details')
                       const id = k === 'carrier' ? 'insurance-claim-section' : k === 'supp' ? 'supplement-section' : null
+                      setTab(id ? 'claim' : 'details')
                       if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
                     }
                     const ICONS: Record<string, React.ReactNode> = {
@@ -1825,7 +1825,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     <div style={{ fontSize: T.fontSub, color: dk ? '#FDE68A' : '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
                                       This lead is on the insurance track. Open the <strong>Details tab</strong> and enable the Insurance Claim toggle to log carrier info, adjuster appointment, and approved amount.
                                     </div>
-                                    <button onClick={() => { setTab('details'); setTimeout(() => { document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 80) }}
+                                    <button onClick={() => { setTab('claim'); setTimeout(() => { document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 80) }}
                                       style={{ fontSize: T.fontSub, fontWeight: 800, color: '#fff', background: BRAND.teal, border: 'none', borderRadius: T.radSm, padding: '8px 16px', cursor: 'pointer' }}>
                                       Go to claim details →
                                     </button>
@@ -1846,7 +1846,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                       {cState === 'done' ? `${rjdC.carrier_name || 'Carrier'} · decision recorded` : `${rjdC.carrier_name || 'Carrier'} · awaiting decision`}
                                     </div>
                                     {cState !== 'upcoming' && (
-                                      <button onClick={() => { setTab('details'); setTimeout(() => document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60) }}
+                                      <button onClick={() => { setTab('claim'); setTimeout(() => document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60) }}
                                         style={{ fontSize: T.fontSub, fontWeight: 700, color: BRAND.teal, background: 'transparent', border: `1px solid ${BRAND.teal}`, borderRadius: T.radSm, padding: '6px 14px', cursor: 'pointer' }}>
                                         {cState === 'done' ? 'View claim details →' : 'Record decision →'}
                                       </button>
@@ -2313,11 +2313,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       })}
                     </div>
 
-                    {/* ── Details tab ──────────────────────────────────── */}
-                    {tab==='details'&&(
+                    {/* ── Claim tab (roofing) — insurance record + supplement workflow ── */}
+                    {tab==='claim'&&isRoofing&&(
                       <div style={{padding:'18px 20px'}}>
-                        {!isEditing&&(
-                          <>
                             {/* Insurance claim section — always anchor; show the form when spine isn't rendering it */}
                             <div id="insurance-claim-section" style={{position:'relative',top:-12}}/>
                             {/* Prominent banner: lead is at insurance_approved but claim not yet logged */}
@@ -2366,7 +2364,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                               if (isDenied) return null  // denial has its own CTA above
                               if (!carrierResponded) return null  // pre-decision: the claim panel's decision buttons own this
-                              if (useSpine && isWide) return null  // spine renders the supplement payoff inline in its own stage (wide only)
+                              if (useSpine) return null  // spine (any width) owns the supplement workflow; this block is the no-spine fallback
 
                               // Context-aware gap card — 4 states mirroring the spine supp block
                               const isFiledPending2 = claimStatus === 'Supplement Filed'
@@ -2490,8 +2488,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </div>
                               )
                             })()}
+                      </div>
+                    )}
 
-
+                    {/* ── Details / Contact tab ──────────────────────────── */}
+                    {tab==='details'&&(
+                      <div style={{padding:'18px 20px'}}>
+                        {!isEditing&&(
+                          <>
                             {/* ── Homeowner Portal card ──────────────────── */}
                             {canViewContact && lead.contact_email && (
                               <HomeownerPortalCard
@@ -2885,7 +2889,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                             <div style={{fontSize:T.fontSub,color:tsu,lineHeight:1.45,marginTop:8}}>
                               Your estimate (${estTot.toLocaleString(undefined,{maximumFractionDigits:0})}) is above the carrier&apos;s current scope (${carrierTot.toLocaleString(undefined,{maximumFractionDigits:0})}). The carrier may have under-scoped — review the line items.
                             </div>
-                            <button onClick={()=>{setTab('details');setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}}
+                            <button onClick={()=>{setTab('claim');setTimeout(()=>document.getElementById('supplement-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}}
                               style={{marginTop:12,width:'100%',height:38,borderRadius:T.radSm,border:'none',background:'#B45309',color:'#fff',fontSize:T.fontSub,fontWeight:700,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6}}>
                               Open Supplement Assistant
                               <Svg size={14} stroke="#fff" sw={2.4}><polyline points="9 18 15 12 9 6"/></Svg>
