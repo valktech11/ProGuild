@@ -2102,7 +2102,7 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, le
           Surfaces the underpayment-recovery opportunity right where the roofer
           is reviewing the estimate, with a CTA back to the detail page's
           Supplement Assistant (?focus=supplement scrolls it into view). */}
-      {supplementGap > 0 && (
+      {supplementGap > 0 && cs !== 'Supplement Approved' && (
         <div style={{ borderRadius: 12, border: '1px solid #FED7AA', background: '#FFFBEB',
           overflow: 'hidden', marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
