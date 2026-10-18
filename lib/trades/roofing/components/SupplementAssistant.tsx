@@ -426,6 +426,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
           setScope(d.session.scope_text || '')
           const restoredResult = d.session.result_json as SupplementResult
           setResult(restoredResult)
+          if (restoredResult?.total_supplement_estimate) onResult?.(restoredResult.total_supplement_estimate)
           if (restoredResult) {
             const items = [...(restoredResult.missing_items||[]), ...(restoredResult.underpaid_items||[])]
             const keys = [...new Set(items.map((i: SupplementItem) => itemNameToCorpusKey(i.item)).filter(Boolean))] as string[]
