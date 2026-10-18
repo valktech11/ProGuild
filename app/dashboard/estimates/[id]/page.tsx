@@ -283,7 +283,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     const supp = Number(e.supplement_amount) || 0
     const carrierTotal = appr + supp
     const gap = (Number(e.total) || 0) - carrierTotal
-    if (!e.insurance_claim || appr <= 0 || gap <= 0) return true
+    const cs = e.claim_status ?? ''
+    if (!e.insurance_claim || appr <= 0 || gap <= 0 || cs === 'Supplement Approved' || cs === 'Approved') return true
     return window.confirm(
       `Supplement gap not filed.\n\n` +
       `This estimate is $${(Number(e.total) || 0).toLocaleString()}, but the carrier approved $${carrierTotal.toLocaleString()} — a $${gap.toLocaleString()} gap the carrier may owe.\n\n` +
