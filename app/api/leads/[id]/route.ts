@@ -5,6 +5,7 @@ import { apiError, isValidUuid } from '@/lib/api/utils'
 import { LeadStatus } from '@/types'
 import { getAllTradeStageKeys } from '@/lib/trades/_registry'
 import { groundSupplementFlags, computeSupplementGap } from '@/lib/fl/supplement'
+import { computeEstimateTotals } from '@/lib/estimates/totals'
 import { requirePro } from '@/lib/pro-auth'
 
 export const dynamic = 'force-dynamic'
@@ -164,16 +165,50 @@ export async function GET(
 
     // Supplement gap — derived once on the server (Bible §28). your_estimate =
     // newest estimate total for this lead; carrier_total = approved + supplement.
-    const { data: estRow } = await getSupabaseAdmin()
+    //
+    // Scope by lead_id (+ company_id when known), matching every other estimate
+    // read in the codebase (leads list, Estimate tab GET). pro_id here is the
+    // LEAD OWNER, not necessarily the estimate's creator — a company member can
+    // create the estimate on a lead assigned to them while the lead is owned by
+    // someone else, which the old pro_id filter silently missed (estRow = null
+    // → your_estimate = 0 → gate never opens even though an estimate exists and
+    // shows correctly everywhere else). Fixes mobile/web parity; nothing else
+    // reads supplement_gap, so no other surface is touched.
+    let estQuery = getSupabaseAdmin()
       .from('estimates')
-      .select('total')
+      .select('id, total, tax_rate')
       .eq('lead_id', id)
-      .eq('pro_id', data.pro_id)
+    estQuery = companyId ? estQuery.eq('company_id', companyId) : estQuery.eq('pro_id', data.pro_id)
+    const { data: estRow } = await estQuery
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    // estimate_type/tiered_data live on roofing_estimate_data (columns dropped
+    // from estimates in v95); items live on estimate_items. Same two-table shape
+    // as app/api/estimates/[id]/route.ts's GET — mirrored here, not duplicated
+    // formula-wise (computeEstimateTotals is still the one calculator).
+    let estTotals: { total: number } | null = null
+    if (estRow?.id) {
+      const [{ data: redRow }, { data: itemRows }] = await Promise.all([
+        getSupabaseAdmin()
+          .from('roofing_estimate_data')
+          .select('estimate_type, tiered_data')
+          .eq('estimate_id', estRow.id)
+          .maybeSingle(),
+        getSupabaseAdmin()
+          .from('estimate_items')
+          .select('amount, total')
+          .eq('estimate_id', estRow.id),
+      ])
+      estTotals = computeEstimateTotals({
+        estimate_type: redRow?.estimate_type,
+        tiered_data:   redRow?.tiered_data as any,
+        items: (itemRows ?? []).map((it: any) => ({ amount: it.amount ?? it.total ?? 0 })),
+        tax_rate: estRow.tax_rate,
+      })
+    }
     ;(roofingJobData as any).supplement_gap = computeSupplementGap(
-      (estRow?.total as number) ?? 0,
+      estTotals?.total ?? (estRow?.total as number) ?? 0,
       (roofingJobData as any).approved_amount   ?? 0,
       (roofingJobData as any).supplement_amount ?? 0,
     )
