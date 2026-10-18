@@ -1907,19 +1907,22 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                     {/* Gap payoff / status card — context-aware by claim status */}
                                     {isFLLead && (() => {
-                                      // Filed & pending — neutral amber card, not scary orange
+                                      // Filed & pending — white card, amber badge only
                                       if (isFiledPending) return (
-                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? '#334155' : '#E2E8F0'}`, background: dk ? '#1E293B' : '#FFFFFF', overflow: 'hidden', marginBottom: 12 }}>
                                           <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
-                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>⏳ Supplement filed — awaiting carrier</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                              <span style={{ fontSize: T.fontBody, fontWeight: 700, color: dk ? '#F1F5F9' : '#0F172A' }}>Supplement filed</span>
+                                              <span style={{ fontSize: 10, fontWeight: 800, background: dk ? 'rgba(217,119,6,0.15)' : '#FFFBEB', color: '#B45309', border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, borderRadius: 20, padding: '2px 8px', letterSpacing: '0.04em' }}>⏳ Awaiting carrier</span>
+                                            </div>
                                             <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                                              <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Approved <strong>{money(approvedAmt2)}</strong></span>
-                                              {suppAmt > 0 && <span style={{ fontSize: T.fontSub, color: '#D97706' }}>Filed <strong>{money(suppAmt)}</strong></span>}
-                                              {eTot > 0 && <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Estimate <strong>{money(eTot)}</strong></span>}
+                                              <span style={{ fontSize: T.fontSub, color: tsu }}>Approved <strong style={{ color: tp }}>{money(approvedAmt2)}</strong></span>
+                                              {suppAmt > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>Filed <strong style={{ color: tp }}>{money(suppAmt)}</strong></span>}
+                                              {eTot > 0 && <span style={{ fontSize: T.fontSub, color: tsu }}>Estimate <strong style={{ color: tp }}>{money(eTot)}</strong></span>}
                                             </div>
                                           </div>
-                                          <div style={{ padding: '7px 14px', borderTop: `1px solid ${dk ? 'rgba(217,119,6,0.25)' : '#FDE68A'}`, fontSize: T.fontSub, color: '#92400E' }}>
-                                            Once the adjuster responds, record their decision below — approved or denied.
+                                          <div style={{ padding: '7px 14px', borderTop: `1px solid ${dk ? '#334155' : '#F1F5F9'}`, fontSize: T.fontSub, color: tsu }}>
+                                            Record the carrier&rsquo;s decision when they respond — approved or denied.
                                           </div>
                                         </div>
                                       )
@@ -2046,10 +2049,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
 
                                           {/* Approved amount entry */}
                                           {rjd2.claim_status === 'Supplement Filed' && suppApproveInput && (
-                                            <div style={{ background: dk ? 'rgba(21,128,61,0.10)' : '#F0FDF4', border:`1px solid ${dk?'rgba(21,128,61,0.3)':'#BBF7D0'}`, borderRadius:10, padding:'12px 14px' }}>
+                                            <div style={{ background: dk ? '#1E293B' : '#FFFFFF', border:`1px solid ${dk?'#334155':'#E2E8F0'}`, borderRadius:10, padding:'12px 14px' }}>
                                               {(()=>{ const hintAmt = suppAmt > 0 ? suppAmt : suppRequestedAmt; return (<>
-                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom: hintAmt > 0 ? 4 : 8 }}>Enter amount carrier approved for supplement</div>
-                                              {hintAmt > 0 && <div style={{ fontSize:11.5, color:'#166534', marginBottom:8 }}>Supplement requested: <strong>{money(hintAmt)}</strong> — enter what the carrier actually approved</div>}
+                                              <div style={{ fontSize:12.5, fontWeight:700, color: tp, marginBottom: hintAmt > 0 ? 4 : 8 }}>Record approved supplement</div>
+                                              {hintAmt > 0 && <div style={{ fontSize:11.5, color:tsu, marginBottom:8 }}>Requested: <strong>{money(hintAmt)}</strong> — enter the amount the carrier actually approved</div>}
                                               </>)})()}
                                               <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' as const }}>
                                                 <div style={{ position:'relative' as const, display:'inline-flex', alignItems:'center' }}>
@@ -2068,8 +2071,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                                     await advance('Supplement Approved',{supplement_amount:amt},`Supplement approved — ${money(amt)}`)
                                                     setSuppApproveInput(false); setSuppApproveAmt('')
                                                   }}
-                                                  style={{ ...btnBase, color:'#fff', background:'#15803D', height:36, padding:'0 16px' }}>
-                                                  Save & mark approved
+                                                  style={{ ...btnBase, color:'#fff', background: BRAND.teal, height:36, padding:'0 16px' }}>
+                                                  Save approval
                                                 </button>
                                                 <button onClick={()=>{setSuppApproveInput(false);setSuppApproveAmt('')}}
                                                   style={{ ...btnBase, color:tsu, background:'transparent', border:`1px solid ${bdr}`, height:36, padding:'0 12px' }}>
@@ -2374,26 +2377,29 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               const isSuppDenied2 = claimStatus === 'Supplement Denied'
 
                               const gapCardEl = (() => {
-                                // State 1: Supplement filed, awaiting carrier response → amber
+                                // State 1: Supplement filed, awaiting carrier response → white card, amber badge
                                 if (isFiledPending2) return (
-                                  <Card dk={dk} variant="warning" pad="none" style={{marginBottom:14}}>
+                                  <Card dk={dk} variant="default" pad="none" style={{marginBottom:14}}>
                                     <div style={{padding:'14px 16px'}}>
-                                      <div style={{fontWeight:800,fontSize:13,color:'#92400E',marginBottom:6}}>⏳ Supplement filed — awaiting carrier</div>
+                                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap' as const}}>
+                                        <span style={{fontWeight:700,fontSize:13,color:tp}}>Supplement filed</span>
+                                        <span style={{fontSize:10,fontWeight:800,background:dk?'rgba(217,119,6,0.15)':'#FFFBEB',color:'#B45309',border:`1px solid ${dk?'rgba(217,119,6,0.35)':'#FDE68A'}`,borderRadius:20,padding:'2px 8px',letterSpacing:'0.04em'}}>⏳ Awaiting carrier</span>
+                                      </div>
                                       <div style={{display:'flex',gap:22,flexWrap:'wrap' as const,marginBottom:8}}>
                                         <div>
-                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Approved so far</div>
-                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{approvedAmt > 0 ? `$${approvedAmt.toLocaleString()}` : '—'}</div>
+                                          <div style={{fontSize:10.5,fontWeight:700,color:tsu,textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Approved so far</div>
+                                          <div style={{fontSize:17,fontWeight:700,color:tp}}>{approvedAmt > 0 ? `$${approvedAmt.toLocaleString()}` : '—'}</div>
                                         </div>
                                         <div>
-                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Supplement filed for</div>
-                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{supplementAmt > 0 ? `$${supplementAmt.toLocaleString()}` : 'Pending'}</div>
+                                          <div style={{fontSize:10.5,fontWeight:700,color:tsu,textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Filed for</div>
+                                          <div style={{fontSize:17,fontWeight:700,color:tp}}>{supplementAmt > 0 ? `$${supplementAmt.toLocaleString()}` : '—'}</div>
                                         </div>
                                         <div>
-                                          <div style={{fontSize:10.5,fontWeight:800,color:'#B45309',textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
-                                          <div style={{fontSize:17,fontWeight:800,color:'#92400E'}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
+                                          <div style={{fontSize:10.5,fontWeight:700,color:tsu,textTransform:'uppercase' as const,letterSpacing:'0.07em'}}>Your estimate</div>
+                                          <div style={{fontSize:17,fontWeight:700,color:tp}}>{estTotal > 0 ? `$${estTotal.toLocaleString()}` : '—'}</div>
                                         </div>
                                       </div>
-                                      <div style={{fontSize:11.5,color:'#92400E',lineHeight:1.45}}>Once the adjuster responds, record their decision in the workflow above — approved or denied.</div>
+                                      <div style={{fontSize:11.5,color:tsu,lineHeight:1.45}}>Record the carrier&rsquo;s decision in the workflow above — approved or denied.</div>
                                     </div>
                                   </Card>
                                 )
