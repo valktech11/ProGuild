@@ -121,9 +121,23 @@ export async function GET(
       // trade_slug — tells the public page which component to render
       trade_slug: (estimate.pro as any)?.trade_slug ?? estimate.trade_slug ?? null,
       // Payment milestones — roofing only (30/40/30 deposit/delivery/completion).
-      // HVAC and other trades use a simple two-milestone structure built client-side.
+      // For insurance jobs the homeowner only pays their out-of-pocket share
+      // (total minus what insurance covers). Base milestones on that amount so
+      // deposit/delivery/completion figures match what the homeowner actually owes.
       payment_milestones: ((estimate.pro as any)?.trade_slug?.includes('roof') || estimate.trade_slug?.includes('roof'))
-        ? computeMilestones(Number(safe.total) || 0)
+        ? (() => {
+            const fullTotal = Number(safe.total) || 0
+            const isInsurance = roofingData?.insurance_claim === true
+            let milestoneBase = fullTotal
+            if (isInsurance) {
+              const approved   = Number(roofingData?.approved_amount)   || 0
+              const supplement = Number(roofingData?.supplement_amount) || 0
+              const deductible = Number(roofingData?.deductible)        || 0
+              const insurancePays = Math.max(approved + supplement - deductible, 0)
+              milestoneBase = Math.max(fullTotal - insurancePays, 0)
+            }
+            return computeMilestones(milestoneBase)
+          })()
         : null,
     }
   })
