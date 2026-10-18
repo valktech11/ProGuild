@@ -2074,10 +2074,16 @@ function InsuranceCard({ estimate, computedTotal, card, border, textP, textS, le
           <span style={{ fontSize: 14, fontWeight: 700, color: textP, flexShrink: 0 }}>{fmtDec(fullCost)}</span>
         </div>
         <div style={{ height: 1, background: border }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-          padding: '12px 16px' }}>
-          <span style={{ fontSize: 13, color: textS, fontWeight: 600, minWidth: 0 }}>Insurance pays homeowner</span>
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.green, flexShrink: 0 }}>{fmtDec(Math.max(insurancePays,0))}</span>
+        <div style={{ padding: '12px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: textS, fontWeight: 600, minWidth: 0 }}>Insurance pays homeowner</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.green, flexShrink: 0 }}>{fmtDec(Math.max(insurancePays,0))}</span>
+          </div>
+          <div style={{ fontSize: 11, color: textS, textAlign: 'right', marginTop: 2 }}>
+            {supplement > 0
+              ? `${fmtDec(approved)} + ${fmtDec(supplement)} − ${fmtDec(deductible)}`
+              : `${fmtDec(approved)} − ${fmtDec(deductible)}`}
+          </div>
         </div>
         <div style={{ height: 1, background: border }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
