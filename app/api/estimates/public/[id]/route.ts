@@ -19,7 +19,7 @@ export async function GET(
     .select(`
       *,
       items:estimate_items(*),
-      pro:pros(full_name, city, state, phone_cell, trade_slug, roofing_material_prices, gbb_templates)
+      pro:pros!pro_id(full_name, city, state, phone_cell, trade_slug, roofing_material_prices, gbb_templates)
     `)
     .eq('id', id)
     .single()
