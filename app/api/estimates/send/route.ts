@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error || !est) {
-    return NextResponse.json({ error: 'Estimate not found' }, { status: 404 })
+    console.error('[estimates/send] estimate fetch error:', JSON.stringify(error))
+    return NextResponse.json({
+      error: 'Estimate not found',
+      detail: error?.message ?? 'no data returned',
+      code: error?.code ?? null,
+    }, { status: 404 })
   }
 
   // Ownership: member → must be assigned; owner/company → company match or
@@ -177,8 +182,12 @@ export async function POST(req: NextRequest) {
     if (resendErr) throw new Error(resendErr.message)
     resendMessageId = resendData?.id ?? null
   } catch (err: any) {
-    console.error('[estimates/send] Resend error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('[estimates/send] Resend error:', JSON.stringify(err))
+    return NextResponse.json({
+      error: 'Email failed to send',
+      detail: err?.message ?? String(err),
+      to: contactEmail,
+    }, { status: 500 })
   }
 
   // Store Resend message ID + sent_to_email for traceability and bounce matching

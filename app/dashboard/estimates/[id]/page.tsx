@@ -556,7 +556,8 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
               })
               if (!sendR.ok) {
                 const e = await sendR.json().catch(() => ({}))
-                throw new Error((e as any)?.error || 'Email failed to send')
+                const msg = (e as any)?.detail ? `${(e as any).error}: ${(e as any).detail}` : ((e as any)?.error || 'Email failed to send')
+                throw new Error(msg)
               }
               setEstimate(prev => prev ? { ...prev, status: 'sent' } as any : prev)
               setSaveMsg('Sent to homeowner ✓')
