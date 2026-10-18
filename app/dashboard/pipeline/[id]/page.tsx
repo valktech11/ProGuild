@@ -1968,9 +1968,16 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                               </div>}
                                             </div>
                                           </div>
-                                          {cTot >= eTot && eTot > 0 && <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(21,128,61,0.25)' : '#BBF7D0'}`, fontSize: T.fontSub, color: '#15803D', fontWeight: 700, lineHeight: 1.45 }}>
-                                            ✓ Carrier covers your full estimate. Send the estimate to homeowner to collect.
-                                          </div>}
+                                          {cTot >= eTot && eTot > 0
+                                            ? <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(21,128,61,0.25)' : '#BBF7D0'}`, fontSize: T.fontSub, color: '#15803D', fontWeight: 700, lineHeight: 1.45 }}>
+                                                ✓ Carrier covers your full estimate. Send the estimate to homeowner to collect.
+                                              </div>
+                                            : eTot > 0 && cTot < eTot
+                                              ? <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(21,128,61,0.25)' : '#BBF7D0'}`, fontSize: T.fontSub, color: '#92400E', lineHeight: 1.45 }}>
+                                                  ⚠ Still owed: <strong>{money(eTot - cTot)}</strong> — carrier approved less than your estimate. Consider re-filing or collecting the gap from the homeowner.
+                                                </div>
+                                              : null
+                                          }
                                         </div>
                                       )
                                       // Default: gap review card (pre-filing, status=Approved with no supplement yet)
@@ -2039,7 +2046,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           {/* Approved amount entry */}
                                           {rjd2.claim_status === 'Supplement Filed' && suppApproveInput && (
                                             <div style={{ background: dk ? 'rgba(21,128,61,0.10)' : '#F0FDF4', border:`1px solid ${dk?'rgba(21,128,61,0.3)':'#BBF7D0'}`, borderRadius:10, padding:'12px 14px' }}>
-                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom:8 }}>Enter amount carrier approved for supplement</div>
+                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom: suppAmt > 0 ? 4 : 8 }}>Enter amount carrier approved for supplement</div>
+                                              {suppAmt > 0 && <div style={{ fontSize:11.5, color:'#166534', marginBottom:8 }}>Supplement requested: <strong>{money(suppAmt)}</strong> — enter what the carrier actually approved</div>}
                                               <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' as const }}>
                                                 <div style={{ position:'relative' as const, display:'inline-flex', alignItems:'center' }}>
                                                   <span style={{ position:'absolute' as const, left:10, fontSize:14, fontWeight:700, color:'#64748B' }}>$</span>
