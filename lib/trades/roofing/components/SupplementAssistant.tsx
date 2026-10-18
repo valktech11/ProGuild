@@ -316,27 +316,32 @@ function ResultPanel({ result, dk, border, text, sub, evidence, copied, copyLett
         </div>
       )}
 
-      {/* FL codes + evidence — collapsed by default */}
+      {/* FL codes + evidence — collapsible section header */}
       {allItems.length > 0 && (
-        <button
-          onClick={() => setShowDetails(o => !o)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: sub, fontSize: 12, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' as const }}>
-          <span>{showDetails ? '▲' : '▼'}</span>
-          {showDetails ? 'Hide FL codes & evidence' : `Show FL codes & evidence (${allItems.length} items)`}
-        </button>
-      )}
-      {showDetails && allItems.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-          {result.missing_items.length > 0 && (
+        <div style={{ borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <button
+            onClick={() => setShowDetails(o => !o)}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Missing items</div>
-              <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" evidence={evidence} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: text }}>FL Codes &amp; Evidence</span>
+              <span style={{ fontSize: 12, color: sub, marginLeft: 8 }}>— why each item is owed</span>
             </div>
-          )}
-          {result.underpaid_items.length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
-              <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
+            <span style={{ fontSize: 12, color: sub }}>{showDetails ? '▲ Hide' : '▼ View'}</span>
+          </button>
+          {showDetails && (
+            <div style={{ padding: '14px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+              {result.missing_items.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Missing items</div>
+                  <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" evidence={evidence} />
+                </div>
+              )}
+              {result.underpaid_items.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
+                  <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
+                </div>
+              )}
             </div>
           )}
         </div>
