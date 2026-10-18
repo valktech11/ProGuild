@@ -1539,7 +1539,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
   const saveNote = async () => {
     setSaving(true)
     try {
-      await apiFetch(`/api/estimates/${estimate.id}?pro_id=${session?.id}`, {
+      await apiFetch(`/api/estimates/${estimate.id}?pro_id=${(estimate as any).pro_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: note }),
