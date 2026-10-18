@@ -394,9 +394,10 @@ export function computeSupplementGap(
   approved: number,
   supplement: number,
 ): SupplementGap {
-  const your_estimate = estTotal > 0 ? estTotal : 0;
-  const carrier_total = (approved > 0 ? approved : 0) + (supplement > 0 ? supplement : 0);
-  const gap = your_estimate > 0 && carrier_total > 0 ? your_estimate - carrier_total : null;
+  const r = (n: number) => Math.round(n * 100) / 100;
+  const your_estimate = r(estTotal > 0 ? estTotal : 0);
+  const carrier_total = r((approved > 0 ? approved : 0) + (supplement > 0 ? supplement : 0));
+  const gap = your_estimate > 0 && carrier_total > 0 ? r(your_estimate - carrier_total) : null;
   return { your_estimate, carrier_total, gap, has_gap: gap !== null && gap > 0 };
 }
 
