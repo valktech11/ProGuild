@@ -2027,8 +2027,8 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                             </button>
                                           )}
 
-                                          {/* Filed & pending: two-outcome buttons */}
-                                          {rjd2.claim_status === 'Supplement Filed' && !suppApproveInput && (
+                                          {/* Filed & pending: two-outcome buttons — hidden while analysis is running */}
+                                          {rjd2.claim_status === 'Supplement Filed' && !suppApproveInput && !suppAnalyzing && (
                                             <div>
                                               <div style={{ fontSize:11.5, fontWeight:700, color:tsu, marginBottom:8 }}>Carrier responded?</div>
                                               <div style={{ display:'flex', gap:8, flexWrap:'wrap' as const }}>
