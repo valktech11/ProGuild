@@ -2278,7 +2278,7 @@ function RightPanel({ estType, tiers, tierLabels, tierTotals, selectedTier, selT
       </div>
 
       {/* Insurance breakdown — right panel, mirrors left-panel InsuranceCard */}
-      {(estimate.insurance_claim || !!(estimate.approved_amount || estimate.claim_number)) && (
+      {!!(estimate.insurance_claim || estimate.approved_amount || estimate.claim_number || estimate.claim_status) && (
         <InsuranceCard estimate={estimate} computedTotal={total} card={card} border={border} textP={textP} textS={textS} leadId={(estimate as any).lead_id} />
       )}
 
