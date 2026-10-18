@@ -239,7 +239,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     if (!estimate || voiding) return
     setVoiding(true)
     try {
-      await apiFetch(`/api/estimates/${id}`, {
+      await apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -302,7 +302,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     }
     setSaving(true)
     try {
-      const r = await apiFetch(`/api/estimates/${id}`, {
+      const r = await apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(estimate),
@@ -518,7 +518,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 pitch:              (updates as any).pitch              ?? (estimate as any).pitch,
                 waste_pct:          (updates as any).waste_pct          ?? (estimate as any).waste_pct,
               }
-              const r = await apiFetch(`/api/estimates/${id}`, {
+              const r = await apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -541,11 +541,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             try {
               const sentAt = new Date().toISOString()
               // 1. Mark as sent
-              const patchR = await apiFetch(`/api/estimates/${id}`, {
+              const patchR = await apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'sent', sent_at: sentAt }),
               })
-              if (!patchR.ok) throw new Error('Failed to update estimate status')
+              if (!patchR.ok) {
+                const patchErr = await patchR.json().catch(() => ({}))
+                throw new Error((patchErr as any)?.error || 'Failed to update estimate status')
+              }
               // 2. Send email
               const sendR = await apiFetch('/api/estimates/send', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -843,7 +846,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
                           // Call proper initial-send route (not reminder)
                           const [, sendResult] = await Promise.all([
-                            apiFetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) }),
+                            apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) }),
                             apiFetch('/api/estimates/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
                           ])
 
@@ -1222,7 +1225,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                         onClick={async () => {
                           if (!estimate) return
                           const sentAt = new Date().toISOString()
-                          await apiFetch(`/api/estimates/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) })
+                          await apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...estimate, status: 'sent', sent_at: sentAt }) })
                           setEstimate(prev => {
                             if (!prev) return prev
                             return { ...prev, status: 'sent', timeline: prev.timeline.map(tl => tl.event === 'sent' ? { ...tl, timestamp: sentAt } : tl) }
@@ -1454,7 +1457,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 const sentAt = new Date().toISOString()
                 await handleSave()
                 const [, sendResult] = await Promise.all([
-                  apiFetch(`/api/estimates/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...estimate, status:'sent', sent_at: sentAt }) }),
+                  apiFetch(`/api/estimates/${id}?pro_id=${session?.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...estimate, status:'sent', sent_at: sentAt }) }),
                   apiFetch('/api/estimates/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ estimateId: id, pro_id: session?.id }) }),
                 ])
                 setEstimate(prev => prev ? { ...prev, status:'sent', timeline: prev.timeline.map(tl => tl.event === 'sent' ? { ...tl, timestamp: sentAt } : tl) } : prev)
@@ -1536,7 +1539,7 @@ function NotesTab({ estimate, setEstimate, darkMode }: {
   const saveNote = async () => {
     setSaving(true)
     try {
-      await apiFetch(`/api/estimates/${estimate.id}`, {
+      await apiFetch(`/api/estimates/${estimate.id}?pro_id=${session?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: note }),
