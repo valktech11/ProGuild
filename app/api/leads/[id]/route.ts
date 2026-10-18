@@ -200,15 +200,25 @@ export async function GET(
           .select('amount, total')
           .eq('estimate_id', estRow.id),
       ])
+      // DIAG: log raw values to understand why total may be 0
+      console.log('[SUPP-DIAG] estRow.id=', estRow.id, 'estRow.total=', estRow.total, 'tax_rate=', estRow.tax_rate)
+      console.log('[SUPP-DIAG] redRow=', JSON.stringify(redRow))
+      console.log('[SUPP-DIAG] itemRows count=', (itemRows ?? []).length, 'amounts=', (itemRows ?? []).map((it: any) => it.amount ?? it.total))
       estTotals = computeEstimateTotals({
         estimate_type: redRow?.estimate_type,
         tiered_data:   redRow?.tiered_data as any,
         items: (itemRows ?? []).map((it: any) => ({ amount: it.amount ?? it.total ?? 0 })),
         tax_rate: estRow.tax_rate,
       })
+      console.log('[SUPP-DIAG] computeEstimateTotals result=', JSON.stringify(estTotals))
+    } else {
+      console.log('[SUPP-DIAG] estRow is null — no estimate found for lead_id=', id, 'companyId=', companyId)
     }
     ;(roofingJobData as any).supplement_gap = computeSupplementGap(
-      estTotals?.total ?? (estRow?.total as number) ?? 0,
+      // Use || not ?? so a computed 0 falls back to the DB column (which is
+      // authoritative for draft estimates where tiered_data / items may not
+      // be stored in a way computeEstimateTotals can read).
+      estTotals?.total || (estRow?.total as number) || 0,
       (roofingJobData as any).approved_amount   ?? 0,
       (roofingJobData as any).supplement_amount ?? 0,
     )
