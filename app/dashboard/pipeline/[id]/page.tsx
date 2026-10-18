@@ -225,6 +225,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
   const [suppAnalyzing, setSuppAnalyzing] = useState(false) // true while SupplementAssistant is running analysis
   const [suppApproveInput, setSuppApproveInput] = useState(false)  // show inline approved-amount field
   const [suppApproveAmt,   setSuppApproveAmt]   = useState('')     // value typed into that field
+  const [suppRequestedAmt, setSuppRequestedAmt] = useState(0)      // total_supplement_estimate from last analysis run
   const [tipDismissed, setTipDismissed] = useState<string | null>(null)  // stage whose coaching tip the user dismissed (session-scoped)
   // Step-completion pop: track which stage keys were done on the previous render
   // so we can detect the exact frame a key transitions done→newly-done.
@@ -2007,7 +2008,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         </div>
                                       )
                                     })()}
-                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} />
+                                    <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!(rjd2 as any)?.insurance_claim} darkMode={dk} measuredLF={(rjd2 as any)?.linear_footage ?? null} groundedFlags={(rjd2 as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} onResult={setSuppRequestedAmt} />
                                     {/* Supplement lifecycle transitions — single source of truth */}
                                     {!(stage==='job_won'||stage==='lost') && rjd2.claim_status !== 'Closed' && rjd2.claim_status !== 'Supplement Denied' && (()=>{
                                       const advance = async (next:string, extraFields:Record<string,unknown>, toast:string)=>{
@@ -2020,7 +2021,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         <div style={{ marginTop:14 }}>
                                           {/* Approved status: offer to file supplement */}
                                           {rjd2.claim_status === 'Approved' && (
-                                            <button onClick={()=>advance('Supplement Filed',{},'Supplement filed')} disabled={suppAnalyzing}
+                                            <button onClick={()=>advance('Supplement Filed', suppRequestedAmt > 0 ? {supplement_amount: suppRequestedAmt} : {}, 'Supplement filed')} disabled={suppAnalyzing}
                                               style={{ ...btnBase, color: suppAnalyzing ? '#94A3B8' : '#fff', background: suppAnalyzing ? '#CBD5E1' : BRAND.teal, opacity: suppAnalyzing ? 0.7 : 1 }}>
                                               {suppAnalyzing ? 'Analyzing…' : '📋 Mark supplement filed'}
                                             </button>
@@ -2046,8 +2047,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                           {/* Approved amount entry */}
                                           {rjd2.claim_status === 'Supplement Filed' && suppApproveInput && (
                                             <div style={{ background: dk ? 'rgba(21,128,61,0.10)' : '#F0FDF4', border:`1px solid ${dk?'rgba(21,128,61,0.3)':'#BBF7D0'}`, borderRadius:10, padding:'12px 14px' }}>
-                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom: suppAmt > 0 ? 4 : 8 }}>Enter amount carrier approved for supplement</div>
-                                              {suppAmt > 0 && <div style={{ fontSize:11.5, color:'#166534', marginBottom:8 }}>Supplement requested: <strong>{money(suppAmt)}</strong> — enter what the carrier actually approved</div>}
+                                              {(()=>{ const hintAmt = suppAmt > 0 ? suppAmt : suppRequestedAmt; return (<>
+                                              <div style={{ fontSize:12.5, fontWeight:800, color:'#15803D', marginBottom: hintAmt > 0 ? 4 : 8 }}>Enter amount carrier approved for supplement</div>
+                                              {hintAmt > 0 && <div style={{ fontSize:11.5, color:'#166534', marginBottom:8 }}>Supplement requested: <strong>{money(hintAmt)}</strong> — enter what the carrier actually approved</div>}
+                                              </>)})()}
                                               <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' as const }}>
                                                 <div style={{ position:'relative' as const, display:'inline-flex', alignItems:'center' }}>
                                                   <span style={{ position:'absolute' as const, left:10, fontSize:14, fontWeight:700, color:'#64748B' }}>$</span>
@@ -2483,7 +2486,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                               return (
                                 <div id="supplement-section" style={{marginTop:16}}>
                                   {gapCardEl}
-                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing}/>
+                                  <SupplementAssistant leadId={lead.id} proId={session!.id} propertyState={lead.contact_state} propertyAddress={lead.property_address} hasClaim={!!rjd?.insurance_claim} darkMode={dk} measuredLF={rjd?.linear_footage ?? null} groundedFlags={(rjd as any)?.supplement_flags ?? null} onAnalyzingChange={setSuppAnalyzing} onResult={setSuppRequestedAmt}/>
                                 </div>
                               )
                             })()}

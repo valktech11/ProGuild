@@ -16,6 +16,7 @@ interface Props {
   groundedFlags?:     GroundedSupplementFlag[] | null  // server-computed (Bible §28); falls back to local compute if absent
   checklistItems?:    DBLineItem[] | null             // Phase A: DB-driven checklist (fetched by parent or page)
   onAnalyzingChange?: (analyzing: boolean) => void   // lets parent disable "Mark supplement filed" during analysis
+  onResult?:          (total: number) => void         // fires with total_supplement_estimate after analysis completes
 }
 
 const TEAL = '#0F766E'
@@ -391,7 +392,7 @@ function ResultPanel({ result, dk, border, text, sub, evidence, copied, copyLett
   )
 }
 
-export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems, onAnalyzingChange }: Props) {
+export default function SupplementAssistant({ leadId, proId, propertyState, propertyAddress, hasClaim, darkMode: dk, measuredLF, groundedFlags, checklistItems, onAnalyzingChange, onResult }: Props) {
   const [scope,   setScope]   = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -449,6 +450,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
       if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`)
       const newResult = (data as { result: SupplementResult }).result
       setResult(newResult)
+      if (newResult?.total_supplement_estimate) onResult?.(newResult.total_supplement_estimate)
       if (newResult) {
         const items = [...(newResult.missing_items||[]), ...(newResult.underpaid_items||[])]
         const keys = [...new Set(items.map((i: SupplementItem) => itemNameToCorpusKey(i.item)).filter(Boolean))] as string[]
