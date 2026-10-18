@@ -1908,26 +1908,12 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     {isFLLead && (() => {
                                       // Filed & pending — neutral amber card, not scary orange
                                       if (isFiledPending) return (
-                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
-                                          <div style={{ padding: isWide ? '14px 18px' : '13px 16px' }}>
-                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Supplement filed — awaiting carrier</div>
-                                            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' as const, marginTop: 8 }}>
-                                              <div>
-                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Approved so far</div>
-                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(approvedAmt2)}</div>
-                                              </div>
-                                              {suppAmt > 0 && <div>
-                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Supplement filed for</div>
-                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: '#D97706' }}>{money(suppAmt)}</div>
-                                              </div>}
-                                              {eTot > 0 && <div>
-                                                <div style={{ fontSize: T.fontBadge, fontWeight: 700, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Your estimate</div>
-                                                <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#F1F5F9' : '#0F172A' }}>{money(eTot)}</div>
-                                              </div>}
-                                            </div>
-                                          </div>
-                                          <div style={{ padding: '9px 16px', borderTop: `1px solid ${dk ? 'rgba(217,119,6,0.25)' : '#FDE68A'}`, fontSize: T.fontSub, color: '#92400E', lineHeight: 1.45 }}>
-                                            Once the adjuster responds, record their decision below — approved or denied.
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>⏳ Supplement filed — awaiting carrier</div>
+                                          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                                            <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Approved <strong>{money(approvedAmt2)}</strong></span>
+                                            {suppAmt > 0 && <span style={{ fontSize: T.fontSub, color: '#D97706' }}>Filed <strong>{money(suppAmt)}</strong></span>}
+                                            {eTot > 0 && <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Estimate <strong>{money(eTot)}</strong></span>}
                                           </div>
                                         </div>
                                       )
