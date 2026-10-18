@@ -274,12 +274,12 @@ function ResultPanel({ result, dk, border, text, sub, evidence, copied, copyLett
 
   return (
     <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Total summary */}
-      <div style={{ padding: '14px 16px', borderRadius: 10, background: TEAL + (dk ? '22' : '10'), border: `1px solid ${TEAL}44` }}>
+      {/* Total summary — compact inline row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 9, background: TEAL + (dk ? '22' : '10'), border: `1px solid ${TEAL}44` }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Estimated supplement</div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: text, marginTop: 2 }}>{money(result.total_supplement_estimate)}</div>
-        <div style={{ fontSize: 11.5, color: sub, marginTop: 2 }}>
-          {result.missing_items.length} missing · {result.underpaid_items.length} underpaid
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <span style={{ fontSize: 11.5, color: sub }}>{result.missing_items.length} missing · {result.underpaid_items.length} underpaid</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: text }}>{money(result.total_supplement_estimate)}</span>
         </div>
       </div>
 
