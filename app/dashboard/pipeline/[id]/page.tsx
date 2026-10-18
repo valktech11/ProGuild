@@ -1908,12 +1908,17 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                     {isFLLead && (() => {
                                       // Filed & pending — neutral amber card, not scary orange
                                       if (isFiledPending) return (
-                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
-                                          <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>⏳ Supplement filed — awaiting carrier</div>
-                                          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' as const }}>
-                                            <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Approved <strong>{money(approvedAmt2)}</strong></span>
-                                            {suppAmt > 0 && <span style={{ fontSize: T.fontSub, color: '#D97706' }}>Filed <strong>{money(suppAmt)}</strong></span>}
-                                            {eTot > 0 && <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Estimate <strong>{money(eTot)}</strong></span>}
+                                        <div style={{ borderRadius: T.radLg, border: `1px solid ${dk ? 'rgba(217,119,6,0.35)' : '#FDE68A'}`, background: dk ? 'rgba(217,119,6,0.10)' : '#FFFBEB', overflow: 'hidden', marginBottom: 12 }}>
+                                          <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 8 }}>
+                                            <div style={{ fontSize: T.fontBadge, fontWeight: 800, color: '#D97706', textTransform: 'uppercase' as const, letterSpacing: '0.08em' }}>⏳ Supplement filed — awaiting carrier</div>
+                                            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' as const }}>
+                                              <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Approved <strong>{money(approvedAmt2)}</strong></span>
+                                              {suppAmt > 0 && <span style={{ fontSize: T.fontSub, color: '#D97706' }}>Filed <strong>{money(suppAmt)}</strong></span>}
+                                              {eTot > 0 && <span style={{ fontSize: T.fontSub, color: '#92400E' }}>Estimate <strong>{money(eTot)}</strong></span>}
+                                            </div>
+                                          </div>
+                                          <div style={{ padding: '7px 14px', borderTop: `1px solid ${dk ? 'rgba(217,119,6,0.25)' : '#FDE68A'}`, fontSize: T.fontSub, color: '#92400E' }}>
+                                            Once the adjuster responds, record their decision below — approved or denied.
                                           </div>
                                         </div>
                                       )
