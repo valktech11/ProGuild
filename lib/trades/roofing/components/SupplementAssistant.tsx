@@ -82,45 +82,55 @@ function ItemTable({ items, dk, accent, evidence }: { items: SupplementItem[]; d
 
 // ── Phase A: Deterministic checklist (DB-driven, no AI call) ─────────────────
 function SupplementChecklist({ items, dk }: { items: DBLineItem[]; dk: boolean }) {
+  const [open, setOpen] = useState(false)
   const border = dk ? '#334155' : '#E2E8F0'
   const text   = dk ? '#E2E8F0' : '#0F172A'
   const sub    = dk ? '#94A3B8' : '#64748B'
   if (!items || items.length === 0) return null
   return (
     <div style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-      <div style={{ padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', borderBottom: `1px solid ${border}` }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-          FL Supplement Checklist — {items.length} items
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', border: 'none', cursor: 'pointer', textAlign: 'left' as const }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+            FL Supplement Checklist — {items.length} items
+          </div>
+          <div style={{ fontSize: 11, color: sub, marginTop: 2 }}>Paste the adjuster scope below to scan against these.</div>
         </div>
-        <div style={{ fontSize: 11, color: sub, marginTop: 2 }}>Paste the adjuster scope below to scan against these.</div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column' as const }}>
-        {items.map((item, i) => (
-          <div key={item.key} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
-            borderBottom: i < items.length - 1 ? `1px solid ${border}` : 'none',
-            background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA'),
-          }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-              background: item.is_deterministic ? '#10B981' : '#F59E0B' }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: text }}>{item.name}</span>
-              {item.is_condition_based && (
-                <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, color: '#F59E0B', background: '#FEF3C7', padding: '1px 6px', borderRadius: 4 }}>FIELD EVIDENCE</span>
-              )}
-            </div>
-            <span style={{ fontSize: 10, color: sub, flexShrink: 0 }}>
-              {item.category === 'condition_based' ? 'Condition' : 'Code'}
+        <span style={{ fontSize: 12, color: sub, marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column' as const }}>
+            {items.map((item, i) => (
+              <div key={item.key} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+                borderBottom: i < items.length - 1 ? `1px solid ${border}` : 'none',
+                background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA'),
+              }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                  background: item.is_deterministic ? '#10B981' : '#F59E0B' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: text }}>{item.name}</span>
+                  {item.is_condition_based && (
+                    <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, color: '#F59E0B', background: '#FEF3C7', padding: '1px 6px', borderRadius: 4 }}>FIELD EVIDENCE</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 10, color: sub, flexShrink: 0 }}>
+                  {item.category === 'condition_based' ? 'Condition' : 'Code'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '7px 14px', borderTop: `1px solid ${border}`, background: dk ? 'rgba(255,255,255,0.02)' : '#F8FAFC' }}>
+            <span style={{ fontSize: 10, color: sub }}>
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10B981', marginRight: 5 }} />Validated argument
+              <span style={{ marginLeft: 12, display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', marginRight: 5 }} />Provisional
             </span>
           </div>
-        ))}
-      </div>
-      <div style={{ padding: '7px 14px', borderTop: `1px solid ${border}`, background: dk ? 'rgba(255,255,255,0.02)' : '#F8FAFC' }}>
-        <span style={{ fontSize: 10, color: sub }}>
-          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10B981', marginRight: 5 }} />Validated argument
-          <span style={{ marginLeft: 12, display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', marginRight: 5 }} />Provisional
-        </span>
-      </div>
+        </>
+      )}
     </div>
   )
 }
@@ -244,6 +254,132 @@ function RateSettings({ proId, dk }: { proId: string; dk: boolean }) {
           <div style={{ fontSize: 10, color: sub, marginTop: 8, lineHeight: 1.4 }}>
             Saved rates apply to all future supplement analyses. Re-run Analyze Scope to use updated rates.
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Result panel (collapsible sections) ──────────────────────────────────────
+function ResultPanel({ result, dk, border, text, sub, evidence, copied, copyLetter }: {
+  result: SupplementResult | null
+  dk: boolean; border: string; text: string; sub: string
+  evidence: EvidenceMap; copied: boolean; copyLetter: () => void
+}) {
+  const [showDetails, setShowDetails] = useState(false)
+  const [showLetter,  setShowLetter]  = useState(false)
+  if (!result) return null
+
+  const allItems = [...result.missing_items, ...result.underpaid_items]
+
+  return (
+    <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Total summary */}
+      <div style={{ padding: '14px 16px', borderRadius: 10, background: TEAL + (dk ? '22' : '10'), border: `1px solid ${TEAL}44` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Estimated supplement</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: text, marginTop: 2 }}>{money(result.total_supplement_estimate)}</div>
+        <div style={{ fontSize: 11.5, color: sub, marginTop: 2 }}>
+          {result.missing_items.length} missing · {result.underpaid_items.length} underpaid
+        </div>
+      </div>
+
+      {result.missing_items.length === 0 && result.underpaid_items.length === 0 && (
+        <div style={{ fontSize: 13, color: sub, lineHeight: 1.5 }}>
+          No missing or underpaid items found — the adjuster&apos;s scope looks complete against the FL checklist. That&apos;s a valid result, not an error.
+        </div>
+      )}
+
+      {/* Summary table — always visible */}
+      {allItems.length > 0 && (
+        <div style={{ borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '8px 14px', background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', borderBottom: `1px solid ${border}` }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Item</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase' as const, letterSpacing: '0.06em', textAlign: 'right' as const, paddingRight: 24 }}>Qty</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase' as const, letterSpacing: '0.06em', textAlign: 'right' as const }}>Amount</span>
+          </div>
+          {allItems.map((it, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '9px 14px', borderBottom: i < allItems.length - 1 ? `1px solid ${border}` : 'none', background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA') }}>
+              <div style={{ paddingRight: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: text }}>{it.item}</span>
+                <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 700, color: i < result.missing_items.length ? '#DC2626' : '#D97706', background: i < result.missing_items.length ? '#FEE2E2' : '#FEF3C7', padding: '1px 5px', borderRadius: 4 }}>
+                  {i < result.missing_items.length ? 'MISSING' : 'UNDERPAID'}
+                </span>
+              </div>
+              <span style={{ fontSize: 12, color: sub, textAlign: 'right' as const, paddingRight: 24, whiteSpace: 'nowrap' as const }}>{it.suggested_quantity || '1 EA'}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEAL, textAlign: 'right' as const, whiteSpace: 'nowrap' as const }}>{money(it.suggested_total)}</span>
+            </div>
+          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', borderTop: `1px solid ${TEAL}33` }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>Total Request</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>{money(result.total_supplement_estimate)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* FL codes + evidence — collapsed by default */}
+      {allItems.length > 0 && (
+        <button
+          onClick={() => setShowDetails(o => !o)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: `1px solid ${border}`, background: 'transparent', color: sub, fontSize: 12, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' as const }}>
+          <span>{showDetails ? '▲' : '▼'}</span>
+          {showDetails ? 'Hide FL codes & evidence' : `Show FL codes & evidence (${allItems.length} items)`}
+        </button>
+      )}
+      {showDetails && allItems.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+          {result.missing_items.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Missing items</div>
+              <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" evidence={evidence} />
+            </div>
+          )}
+          {result.underpaid_items.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
+              <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Draft letter — collapsed by default, Copy always visible */}
+      {result.supplement_letter && (
+        <div style={{ borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC' }}>
+            <button
+              onClick={() => setShowLetter(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <span style={{ fontSize: 14 }}>📄</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: text }}>Draft Supplement Letter</span>
+              <span style={{ fontSize: 11, color: sub }}>{showLetter ? '▲' : '▼'}</span>
+            </button>
+            <button
+              onClick={copyLetter}
+              style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${TEAL}`, background: copied ? TEAL : 'transparent', color: copied ? '#fff' : TEAL, fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+              {copied ? 'Copied ✓' : 'Copy Letter'}
+            </button>
+          </div>
+          {!showLetter && (
+            <div
+              onClick={() => setShowLetter(true)}
+              style={{ padding: '10px 14px', borderTop: `1px solid ${border}`, fontSize: 12, color: sub, lineHeight: 1.5, cursor: 'pointer', fontStyle: 'italic' as const }}>
+              {result.supplement_letter.split('\n').slice(0, 3).join(' · ').slice(0, 160)}…
+              <span style={{ color: TEAL, fontWeight: 600, marginLeft: 6 }}>Show full letter</span>
+            </div>
+          )}
+          {showLetter && (
+            <textarea
+              readOnly
+              value={result.supplement_letter}
+              rows={14}
+              style={{
+                width: '100%', boxSizing: 'border-box' as const, resize: 'vertical' as const,
+                padding: '12px 14px', fontSize: 12.5, lineHeight: 1.6, fontFamily: 'inherit',
+                border: 'none', borderTop: `1px solid ${border}`,
+                background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', color: text, display: 'block',
+              }}
+            />
+          )}
         </div>
       )}
     </div>
@@ -439,84 +575,7 @@ export default function SupplementAssistant({ leadId, proId, propertyState, prop
         </div>
         <style>{`@keyframes pgspin { to { transform: rotate(360deg) } }`}</style>
 
-        {result && (
-          <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Total */}
-            <div style={{ padding: '14px 16px', borderRadius: 10, background: TEAL + (dk ? '22' : '10'), border: `1px solid ${TEAL}44` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: dk ? '#5EEAD4' : TEAL, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estimated supplement</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: text, marginTop: 2 }}>{money(result.total_supplement_estimate)}</div>
-              <div style={{ fontSize: 11.5, color: sub, marginTop: 2 }}>
-                {result.missing_items.length} missing · {result.underpaid_items.length} underpaid
-              </div>
-            </div>
-
-            {result.missing_items.length === 0 && result.underpaid_items.length === 0 && (
-              <div style={{ fontSize: 13, color: sub, lineHeight: 1.5 }}>
-                No missing or underpaid items found — the adjuster&apos;s scope looks complete against the FL checklist. That&apos;s a valid result, not an error.
-              </div>
-            )}
-
-            {result.missing_items.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Missing items</div>
-                <ItemTable items={result.missing_items} dk={dk} accent="#DC2626" evidence={evidence} />
-              </div>
-            )}
-
-            {result.underpaid_items.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Underpaid items</div>
-                <ItemTable items={result.underpaid_items} dk={dk} accent="#D97706" evidence={evidence} />
-              </div>
-            )}
-
-            {/* Itemized summary table — mirrors mobile QTY/AMOUNT grid */}
-            {(result.missing_items.length > 0 || result.underpaid_items.length > 0) && (
-              <div style={{ borderRadius: 10, border: `1px solid ${border}`, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '8px 14px', background: dk ? 'rgba(255,255,255,0.04)' : '#F8FAFC', borderBottom: `1px solid ${border}` }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Item</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', paddingRight: 24 }}>Qty</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: sub, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Amount</span>
-                </div>
-                {[...result.missing_items, ...result.underpaid_items].map((it, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '9px 14px', borderBottom: i < result.missing_items.length + result.underpaid_items.length - 1 ? `1px solid ${border}` : 'none', background: i % 2 === 0 ? 'transparent' : (dk ? 'rgba(255,255,255,0.01)' : '#FAFAFA') }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: text, paddingRight: 12 }}>{it.item}</span>
-                    <span style={{ fontSize: 12, color: sub, textAlign: 'right', paddingRight: 24, whiteSpace: 'nowrap' }}>{it.suggested_quantity || '1 EA'}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: TEAL, textAlign: 'right', whiteSpace: 'nowrap' }}>{money(it.suggested_total)}</span>
-                  </div>
-                ))}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '10px 14px', background: dk ? 'rgba(15,118,110,0.12)' : '#F0FDF9', borderTop: `1px solid ${TEAL}33` }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>Total Request</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: dk ? '#5EEAD4' : TEAL }}>{money(result.total_supplement_estimate)}</span>
-                </div>
-              </div>
-            )}
-
-            {result.supplement_letter && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Draft supplement letter</div>
-                  <button
-                    onClick={copyLetter}
-                    style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${TEAL}`, background: copied ? TEAL : 'transparent', color: copied ? '#fff' : TEAL, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                    {copied ? 'Copied!' : 'Copy Letter'}
-                  </button>
-                </div>
-                <textarea
-                  readOnly
-                  value={result.supplement_letter}
-                  rows={12}
-                  style={{
-                    width: '100%', boxSizing: 'border-box', resize: 'vertical',
-                    padding: '12px 14px', fontSize: 12.5, lineHeight: 1.6, fontFamily: 'inherit',
-                    border: `1px solid ${border}`, borderRadius: 9,
-                    background: dk ? 'rgba(255,255,255,0.03)' : '#F8FAFC', color: text,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
+        <ResultPanel result={result} dk={dk} border={border} text={text} sub={sub} evidence={evidence} copied={copied} copyLetter={copyLetter} />
 
         {/* Rate settings */}
         <RateSettings proId={proId} dk={dk} />
