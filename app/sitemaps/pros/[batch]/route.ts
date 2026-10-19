@@ -32,6 +32,10 @@ export async function GET(
     .range(offset, offset + LIMIT - 1)
 
   if (!data) return new NextResponse('Error', { status: 500 })
+  // Offset overshot the real row count (count drifted from the live query,
+  // e.g. pros deactivated between index cache and crawl) — 404 instead of
+  // emitting an empty sitemap, so GSC stops expecting this batch to have URLs.
+  if (data.length === 0) return new NextResponse('Not Found', { status: 404 })
 
   const urls = data.map(pro => {
     const loc = `${BASE}/pro/${pro.slug}`

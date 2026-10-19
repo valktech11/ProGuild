@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { cache } from 'react'
+import { notFound, redirect } from 'next/navigation'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { proDisplayName, tradeDisplayName } from '@/lib/utils'
 import ProfileClient from './ProfileClient'
@@ -22,7 +24,9 @@ type ProMeta = {
   trade_category: { slug: string | null; category_name: string | null } | null
 }
 
-async function fetchPro(idOrSlug: string): Promise<ProMeta | null> {
+// cache() dedupes this across generateMetadata + Page within one request —
+// one DB hit per crawl/visit, not two.
+const fetchPro = cache(async (idOrSlug: string): Promise<ProMeta | null> => {
   try {
     const col = UUID_RE.test(idOrSlug) ? 'id' : 'slug'
     const { data } = await getSupabaseAdmin()
@@ -34,7 +38,7 @@ async function fetchPro(idOrSlug: string): Promise<ProMeta | null> {
   } catch {
     return null
   }
-}
+})
 
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
@@ -99,6 +103,22 @@ export async function generateMetadata(
   }
 }
 
-export default function Page() {
+export default async function Page(
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const pro = await fetchPro(id)
+
+  // Unknown/deleted pro — real 404, not a 200 "not found" shell. Fixes GSC
+  // soft-404 misclassification on dead UUID URLs.
+  if (!pro) notFound()
+
+  // UUID accessed but a slug exists — 301 to the canonical slug URL instead
+  // of relying on the <link rel="canonical"> hint alone. Collapses the
+  // UUID/slug duplicate-content pair GSC was reporting.
+  if (UUID_RE.test(id) && pro.slug && pro.slug !== id) {
+    redirect(`/pro/${pro.slug}`)
+  }
+
   return <ProfileClient />
 }
