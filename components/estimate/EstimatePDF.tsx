@@ -46,6 +46,15 @@ export type PDFEstimate = {
   pro_phone?: string
   // trade slug drives milestone style (roofing = 30/40/30, hvac = 50/50, other = deposit box)
   trade_slug?: string
+  // Insurance claim panel
+  insurance_claim?:   boolean
+  approved_amount?:   number | null
+  supplement_amount?: number | null
+  deductible?:        number | null
+  claim_status?:      string | null
+  insurance_company?: string | null
+  claim_number?:      string | null
+  adjuster_name?:     string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -169,6 +178,36 @@ const s = StyleSheet.create({
   mPct:    { fontSize: 8.5, color: MUTED },
   mWhen:   { fontSize: 8.5, color: MUTED },
   mAmt:    { fontSize: 9, fontFamily: 'Helvetica-Bold', color: TEAL, textAlign: 'right' },
+  // Insurance claim panel
+  insuranceSection: {
+    borderLeft: `3px solid #F59E0B`,
+    borderRadius: 6,
+    backgroundColor: '#FFFBEB',
+    padding: 12,
+    marginBottom: 24,
+  },
+  insuranceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 6,
+  },
+  insuranceTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.8 },
+  insurancePill: {
+    fontSize: 7, fontFamily: 'Helvetica-Bold',
+    color: '#FFFFFF', backgroundColor: '#16A34A',
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 99,
+  },
+  insuranceMeta: { fontSize: 8, color: MUTED, marginLeft: 4 },
+  insuranceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottom: `1px solid #FDE68A` },
+  insuranceRowLast: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 7, paddingBottom: 2 },
+  insuranceLabel: { fontSize: 9, color: BODY },
+  insuranceValue: { fontSize: 9, color: BODY },
+  insuranceValueGreen: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#16A34A' },
+  insuranceValueOrange: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#D97706' },
+  insuranceBreakdown: { fontSize: 7.5, color: MUTED, marginTop: 1, textAlign: 'right' },
+  insuranceAdjuster: { fontSize: 8, color: MUTED, marginTop: 8 },
   termsSection: { marginBottom: 24 },
   sectionLabel: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
   termsText: { fontSize: 8.5, color: MUTED, lineHeight: 1.6 },
@@ -191,6 +230,17 @@ const s = StyleSheet.create({
 function EstimatePage({ estimate }: { estimate: PDFEstimate }) {
   const depositAmount = Math.round(estimate.total * (estimate.deposit_percent / 100) * 100) / 100
   const statusLabel = estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)
+  // Insurance claim panel — only shown when claim exists and supplement/approved is set
+  const isInsuranceClaim = estimate.insurance_claim === true
+  const claimStatus      = estimate.claim_status ?? ''
+  const showInsurance    = isInsuranceClaim && (claimStatus === 'Approved' || claimStatus === 'Supplement Approved')
+  const approved         = Number(estimate.approved_amount)   || 0
+  const supplement       = Number(estimate.supplement_amount) || 0
+  const deductible       = Number(estimate.deductible)        || 0
+  const insurancePays    = Math.max(approved + supplement - deductible, 0)
+  const outOfPocket      = Math.max((estimate.total || 0) - insurancePays, 0)
+  const hasSupp          = supplement > 0 && claimStatus === 'Supplement Approved'
+
   const tradeSlug = estimate.trade_slug ?? estimate.pro_trade ?? ''
   const isRoofing = tradeSlug.includes('roof')
   const isHVAC    = tradeSlug.includes('hvac') || tradeSlug.includes('air-condition')
@@ -286,6 +336,51 @@ function EstimatePage({ estimate }: { estimate: PDFEstimate }) {
           </View>
         </View>
       </View>
+
+      {/* Insurance Claim Panel — only when approved/supplement approved */}
+      {showInsurance && (
+        <View style={s.insuranceSection}>
+          {/* Header row */}
+          <View style={s.insuranceHeader}>
+            <Text style={s.insuranceTitle}>Insurance Claim</Text>
+            <Text style={s.insurancePill}>{claimStatus}</Text>
+            {(estimate.insurance_company || estimate.claim_number) && (
+              <Text style={s.insuranceMeta}>
+                {[estimate.insurance_company, estimate.claim_number ? `Claim #${estimate.claim_number}` : null].filter(Boolean).join(' · ')}
+              </Text>
+            )}
+          </View>
+
+          {/* Full job cost */}
+          <View style={s.insuranceRow}>
+            <Text style={s.insuranceLabel}>Full job cost</Text>
+            <Text style={s.insuranceValue}>{fmt(estimate.total || 0)}</Text>
+          </View>
+
+          {/* Insurance pays homeowner */}
+          <View style={s.insuranceRow}>
+            <View>
+              <Text style={s.insuranceLabel}>Insurance pays homeowner</Text>
+            </View>
+            <View>
+              <Text style={s.insuranceValueGreen}>{fmt(insurancePays)}</Text>
+              <Text style={s.insuranceBreakdown}>
+                {fmt(approved)}{hasSupp ? ` + ${fmt(supplement)}` : ''} − {fmt(deductible)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Homeowner out of pocket */}
+          <View style={s.insuranceRowLast}>
+            <Text style={[s.insuranceLabel, { fontFamily: 'Helvetica-Bold', color: NAVY }]}>Homeowner out of pocket</Text>
+            <Text style={s.insuranceValueOrange}>{fmt(outOfPocket)}</Text>
+          </View>
+
+          {estimate.adjuster_name && (
+            <Text style={s.insuranceAdjuster}>Adjuster: {estimate.adjuster_name}</Text>
+          )}
+        </View>
+      )}
 
       {/* Payment Schedule — milestone table for roofing/hvac, deposit box fallback for others */}
       {milestones ? (

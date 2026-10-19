@@ -35,6 +35,17 @@ export async function GET(req: NextRequest) {
     .eq('estimate_id', id)
     .maybeSingle()
 
+  // Fetch roofing_job_data for insurance claim panel — only if lead exists
+  let roofingJob: any = null
+  if ((estimate as any).lead_id) {
+    const { data } = await sb
+      .from('roofing_job_data')
+      .select('insurance_claim, approved_amount, supplement_amount, deductible, claim_status, insurance_company, claim_number, adjuster_name')
+      .eq('lead_id', (estimate as any).lead_id)
+      .maybeSingle()
+    roofingJob = data
+  }
+
   const pdfData = (() => {
     // Standard estimates: derive totals from line items so the PDF never shows a
     // stale stored total. Same source-of-truth rule as the public approve page + email.
@@ -67,6 +78,15 @@ export async function GET(req: NextRequest) {
     pro_state: pro?.state      ?? '',
     pro_phone: pro?.phone      ?? '',
     trade_slug: pro?.trade_slug ?? (estimate as any).trade_slug ?? '',
+    // Insurance claim panel — only populated when claim exists
+    insurance_claim:   roofingJob?.insurance_claim   ?? false,
+    approved_amount:   roofingJob?.approved_amount   ?? null,
+    supplement_amount: roofingJob?.supplement_amount ?? null,
+    deductible:        roofingJob?.deductible        ?? null,
+    claim_status:      roofingJob?.claim_status      ?? null,
+    insurance_company: roofingJob?.insurance_company ?? null,
+    claim_number:      roofingJob?.claim_number      ?? null,
+    adjuster_name:     roofingJob?.adjuster_name     ?? null,
   }
   })()
 
