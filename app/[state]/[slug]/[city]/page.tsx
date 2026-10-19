@@ -11,6 +11,10 @@ const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   fl: { name: 'Florida', abbr: 'FL' },
 }
 
+// Pages are pre-built via generateStaticParams (SSG); without this, pro
+// listings/counts freeze at build time and never refresh between deploys.
+export const revalidate = 3600
+
 function slugToTitle(slug: string) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
@@ -25,7 +29,7 @@ async function getCityPros(tradeId: string, stateAbbr: string, city: string) {
   // Claimed pros first
   const { data: claimed } = await getSupabaseAdmin()
     .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
+    .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId)
     .ilike('state', stateAbbr)
     .ilike('city', city)
@@ -40,7 +44,7 @@ async function getCityPros(tradeId: string, stateAbbr: string, city: string) {
     const needed = 12 - claimedList.length
     const { data: unclaimed } = await getSupabaseAdmin()
       .from('pros')
-      .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
+      .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
       .eq('trade_category_id', tradeId)
       .ilike('state', stateAbbr)
       .ilike('city', city)
@@ -136,9 +140,9 @@ export default async function CityTradePage(
       position: i + 1,
       item: {
         '@type': ['LocalBusiness', 'ProfessionalService'],
-        '@id': `${siteUrl}/pro/${pro.id}`,
+        '@id': `${siteUrl}/pro/${pro.slug || pro.id}`,
         name: pro.full_name,
-        url: `${siteUrl}/pro/${pro.id}`,
+        url: `${siteUrl}/pro/${pro.slug || pro.id}`,
         description: `Licensed ${tradeName} in ${cityDisplay}, ${info.abbr}`,
         address: {
           '@type': 'PostalAddress',

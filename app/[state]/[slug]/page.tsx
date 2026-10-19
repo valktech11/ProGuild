@@ -143,7 +143,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   // 1. Claimed pros first (ordered by rating)
   const { data: claimed } = await sb
     .from('pros')
-    .select('id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
+    .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', true)
     .order('avg_rating', { ascending: false, nullsFirst: false })
@@ -157,7 +157,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
 
   // 2. Pad with unclaimed pros who have email OR phone — they are contactable
   const needed = 12 - claimedFiltered.length
-  const SELECT = 'id, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)'
+  const SELECT = 'id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)'
 
   // Fetch unclaimed with email first, then phone-only to avoid broken OR
   // email/phone_cell columns store "" instead of NULL for missing values — filter both
@@ -314,9 +314,9 @@ export default async function SlugPage(
       position: i + 1,
       item: {
         '@type': ['LocalBusiness', 'ProfessionalService'],
-        '@id': `${siteUrl}/pro/${pro.id}`,
+        '@id': `${siteUrl}/pro/${pro.slug || pro.id}`,
         name: pro.full_name,
-        url: `${siteUrl}/pro/${pro.id}`,
+        url: `${siteUrl}/pro/${pro.slug || pro.id}`,
         description: `Licensed ${tradeLabel} in ${pro.city || info.name}, ${info.abbr}`,
         address: {
           '@type': 'PostalAddress',
