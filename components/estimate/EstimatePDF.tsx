@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer'
+import { computeMilestones, computeHVACMilestones } from '@/lib/estimates/milestones'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PDFItem = {
@@ -43,6 +44,8 @@ export type PDFEstimate = {
   pro_city?: string
   pro_state?: string
   pro_phone?: string
+  // trade slug drives milestone style (roofing = 30/40/30, hvac = 50/50, other = deposit box)
+  trade_slug?: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -140,6 +143,32 @@ const s = StyleSheet.create({
   depositLabel: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: TEAL },
   depositSub: { fontSize: 8, color: MUTED, marginTop: 2 },
   depositAmount: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: TEAL },
+  // Milestone table (roofing 30/40/30, hvac 50/50)
+  milestoneSection: { marginBottom: 24 },
+  milestoneHeader: {
+    flexDirection: 'row',
+    backgroundColor: CREAM,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    marginBottom: 2,
+  },
+  milestoneRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottom: `1px solid ${BORDER}`,
+    alignItems: 'center',
+  },
+  colMilestoneName: { flex: 2.5 },
+  colMilestonePct:  { flex: 0.8 },
+  colMilestoneWhen: { flex: 2 },
+  colMilestoneAmt:  { flex: 1.2 },
+  mthText: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.7 },
+  mName:   { fontSize: 9, fontFamily: 'Helvetica-Bold', color: NAVY },
+  mPct:    { fontSize: 8.5, color: MUTED },
+  mWhen:   { fontSize: 8.5, color: MUTED },
+  mAmt:    { fontSize: 9, fontFamily: 'Helvetica-Bold', color: TEAL, textAlign: 'right' },
   termsSection: { marginBottom: 24 },
   sectionLabel: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
   termsText: { fontSize: 8.5, color: MUTED, lineHeight: 1.6 },
@@ -162,6 +191,15 @@ const s = StyleSheet.create({
 function EstimatePage({ estimate }: { estimate: PDFEstimate }) {
   const depositAmount = Math.round(estimate.total * (estimate.deposit_percent / 100) * 100) / 100
   const statusLabel = estimate.status.charAt(0).toUpperCase() + estimate.status.slice(1)
+  const tradeSlug = estimate.trade_slug ?? estimate.pro_trade ?? ''
+  const isRoofing = tradeSlug.includes('roof')
+  const isHVAC    = tradeSlug.includes('hvac') || tradeSlug.includes('air-condition')
+  // Compute milestones from locked schedule — never from stored deposit_percent
+  const milestones = isRoofing
+    ? computeMilestones(estimate.total)
+    : isHVAC
+    ? computeHVACMilestones(estimate.total)
+    : null
 
   return (
     <Page size="A4" style={s.page}>
@@ -249,8 +287,26 @@ function EstimatePage({ estimate }: { estimate: PDFEstimate }) {
         </View>
       </View>
 
-      {/* Deposit */}
-      {estimate.require_deposit && (
+      {/* Payment Schedule — milestone table for roofing/hvac, deposit box fallback for others */}
+      {milestones ? (
+        <View style={s.milestoneSection}>
+          <Text style={[s.sectionLabel, { marginBottom: 6 }]}>Payment Schedule</Text>
+          <View style={s.milestoneHeader}>
+            <View style={s.colMilestoneName}><Text style={s.mthText}>Milestone</Text></View>
+            <View style={s.colMilestonePct}><Text style={s.mthText}>%</Text></View>
+            <View style={s.colMilestoneWhen}><Text style={s.mthText}>Due When</Text></View>
+            <View style={s.colMilestoneAmt}><Text style={[s.mthText, { textAlign: 'right' }]}>Amount</Text></View>
+          </View>
+          {milestones.map((m) => (
+            <View key={m.id} style={s.milestoneRow}>
+              <View style={s.colMilestoneName}><Text style={s.mName}>{m.name}</Text></View>
+              <View style={s.colMilestonePct}><Text style={s.mPct}>{m.pct}%</Text></View>
+              <View style={s.colMilestoneWhen}><Text style={s.mWhen}>{m.due_when}</Text></View>
+              <View style={s.colMilestoneAmt}><Text style={s.mAmt}>{fmt(m.amount)}</Text></View>
+            </View>
+          ))}
+        </View>
+      ) : estimate.require_deposit ? (
         <View style={s.depositBox}>
           <View>
             <Text style={s.depositLabel}>Deposit Required to Begin Work</Text>
@@ -258,7 +314,7 @@ function EstimatePage({ estimate }: { estimate: PDFEstimate }) {
           </View>
           <Text style={s.depositAmount}>{fmt(depositAmount)}</Text>
         </View>
-      )}
+      ) : null}
 
       {/* Terms */}
       {estimate.terms ? (

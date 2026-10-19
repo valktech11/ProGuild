@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
     pro_city:  pro?.city       ?? '',
     pro_state: pro?.state      ?? '',
     pro_phone: pro?.phone      ?? '',
+    trade_slug: pro?.trade_slug ?? (estimate as any).trade_slug ?? '',
   }
   })()
 
