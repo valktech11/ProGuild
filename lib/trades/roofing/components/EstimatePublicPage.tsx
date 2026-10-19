@@ -304,35 +304,63 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
 
           {/* Insurance breakdown — shown on public proposal when insurance job */}
           {estimate.insurance_claim && estimate.approved_amount && (estimate.claim_status === 'Approved' || estimate.claim_status === 'Supplement Approved') && (() => {
-            const insurancePays = (estimate.approved_amount ?? 0) + (estimate.supplement_amount ?? 0) - (estimate.deductible ?? 0)
-            const outOfPocket   = estimate.total - Math.max(insurancePays, 0)
+            const approved      = estimate.approved_amount ?? 0
+            const supplement    = estimate.supplement_amount ?? 0
+            const deductible    = estimate.deductible ?? 0
+            const insurancePays = Math.max(approved + supplement - deductible, 0)
+            const outOfPocket   = Math.max(estimate.total - insurancePays, 0)
+            const isSupp        = estimate.claim_status === 'Supplement Approved'
+            const hasSupp       = supplement > 0 && isSupp
             return (
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14,
-                padding: 20, marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span style={{ fontSize: 14 }}>🛡️</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: C.teal, textTransform: 'uppercase' as const,
-                    letterSpacing: '0.07em' }}>Insurance Claim</span>
-                  {estimate.insurance_company && (
+              <div style={{ border: '1.5px solid #F59E0B', borderLeft: '4px solid #F59E0B',
+                borderRadius: 12, padding: 20, marginBottom: 20, background: '#FFFBEB' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' as const }}>
+                  <span style={{ fontSize: 13 }}>🛡️</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase' as const,
+                    letterSpacing: '0.08em' }}>Insurance Claim</span>
+                  {/* Status badge */}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#fff',
+                    background: '#16A34A', borderRadius: 99, padding: '2px 8px' }}>
+                    {estimate.claim_status}
+                  </span>
+                  {/* Carrier · Claim# */}
+                  {(estimate.insurance_company || estimate.claim_number) && (
                     <span style={{ fontSize: 12, color: C.secondary }}>
-                      · {estimate.insurance_company}{estimate.claim_number ? ` · #${estimate.claim_number}` : ''}
+                      {estimate.insurance_company ?? ''}{estimate.claim_number ? ` · Claim #${estimate.claim_number}` : ''}
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                {/* Full job cost */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10,
+                  borderBottom: '1px solid #FDE68A', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, color: C.secondary }}>Full job cost</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{fmt(estimate.total)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmt(estimate.total)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, color: C.secondary }}>Insurance pays</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>{fmt(Math.max(insurancePays, 0))}</span>
+                {/* Insurance pays homeowner */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                  paddingBottom: 10, borderBottom: '1px solid #FDE68A', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: C.secondary }}>Insurance pays homeowner</span>
+                  <div style={{ textAlign: 'right' as const }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>{fmt(insurancePays)}</div>
+                    <div style={{ fontSize: 11, color: C.secondary, marginTop: 2 }}>
+                      {fmt(approved)}{hasSupp ? ` + ${fmt(supplement)}` : ''} − {fmt(deductible)}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ height: 1, background: C.border, marginBottom: 10 }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>You pay</span>
-                  <span style={{ fontSize: 20, fontWeight: 900, color: outOfPocket <= 0 ? C.teal : '#D97706',
-                    letterSpacing: '-0.02em' }}>{fmt(Math.max(outOfPocket, 0))}</span>
+                {/* Homeowner out of pocket */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  background: '#FEF3C7', borderRadius: 8, padding: '10px 12px' }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Homeowner out of pocket</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: '#D97706',
+                    letterSpacing: '-0.02em' }}>{fmt(outOfPocket)}</span>
                 </div>
+                {/* Adjuster */}
+                {(estimate as any).adjuster_name && (
+                  <div style={{ fontSize: 12, color: C.secondary, marginTop: 10 }}>
+                    Adjuster: {(estimate as any).adjuster_name}
+                  </div>
+                )}
               </div>
             )
           })()}

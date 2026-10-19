@@ -57,7 +57,7 @@ export async function GET(
   if (estimate.lead_id && (estimate.pro as any)?.trade_slug?.includes('roof')) {
     const { data } = await sb
       .from('roofing_job_data')
-      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, claim_status, insurance_company, claim_number')
+      .select('square_count, pitch, waste_pct, insurance_claim, approved_amount, deductible, supplement_amount, claim_status, insurance_company, claim_number, adjuster_name')
       .eq('lead_id', estimate.lead_id)
       .maybeSingle()
     roofingData = data
@@ -118,6 +118,7 @@ export async function GET(
       supplement_amount: roofingData?.supplement_amount ?? null,
       insurance_company: roofingData?.insurance_company ?? null,
       claim_number:      roofingData?.claim_number      ?? null,
+      adjuster_name:     roofingData?.adjuster_name     ?? null,
       // trade_slug — tells the public page which component to render
       trade_slug: (estimate.pro as any)?.trade_slug ?? estimate.trade_slug ?? null,
       // Payment milestones — roofing only (30/40/30 deposit/delivery/completion).
