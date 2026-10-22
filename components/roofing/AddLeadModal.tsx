@@ -113,23 +113,39 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
     if (!phone.trim() && !email.trim()) { fail('phone', phoneRef.current, 'Add a phone number or email'); return }
     if (!scope.trim())                  { fail('scope', scopeRef.current, 'Describe the damage or scope'); return }
     setSaving(true)
-    const r = await apiFetch('/api/leads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pro_id: proId, contact_name: name.trim(),
-        contact_phone: phone.trim() || null,
-        contact_email: email.trim() || null,
-        property_address: [street.trim(), city.trim(), addrState.trim(), zip.trim()].filter(Boolean).join(', ') || null,
-        contact_city: city.trim() || null,
-        contact_state: addrState.trim() || null,
-        message: scope.trim(), lead_source: source, is_manual: true,
-      }),
-    })
-    const d = await r.json()
-    setSaving(false)
-    if (r.ok) { onAdded(d.lead); onClose() }
-    else setErr(d.error || 'Failed to save lead')
+    // Never let a hung/failed request freeze the button with no feedback: a
+    // timeout caps the wait, and try/catch/finally always re-enables Save and
+    // surfaces the real reason (a non-JSON 500 used to throw here silently).
+    const ctrl = new AbortController()
+    const timeout = setTimeout(() => ctrl.abort(), 20000)
+    try {
+      const r = await apiFetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          pro_id: proId, contact_name: name.trim(),
+          contact_phone: phone.trim() || null,
+          contact_email: email.trim() || null,
+          property_address: [street.trim(), city.trim(), addrState.trim(), zip.trim()].filter(Boolean).join(', ') || null,
+          contact_city: city.trim() || null,
+          contact_state: addrState.trim() || null,
+          message: scope.trim(), lead_source: source, is_manual: true,
+        }),
+      })
+      const text = await r.text()
+      let d: any = {}
+      try { d = text ? JSON.parse(text) : {} } catch { /* non-JSON (e.g. 500 HTML) */ }
+      if (r.ok) { onAdded(d.lead); onClose() }
+      else setErr(d.error || `Couldn't save lead (server returned ${r.status}). Try again.`)
+    } catch (e: any) {
+      setErr(e?.name === 'AbortError'
+        ? 'Saving timed out — check your connection and try again.'
+        : 'Network error while saving. Try again.')
+    } finally {
+      clearTimeout(timeout)
+      setSaving(false)
+    }
   }
 
   function iStyle(k: string): React.CSSProperties {
