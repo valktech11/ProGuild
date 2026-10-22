@@ -1132,7 +1132,11 @@ function ProMeasureInner() {
               <div style={{marginBottom:10,fontSize:10.5,color:T.textSubtle}}>Trace the roof outline first — auto-draw builds the ridge/hip/valley lines from it.</div>
             )}
             {autoHint && (
-              <div style={{marginBottom:10,fontSize:10.5,color:T.textSubtle,lineHeight:1.4}}>{autoHint}</div>
+              <div style={{marginBottom:10,padding:'9px 11px',borderRadius:8,background:'#FEF2F2',border:'1px solid #FECACA',
+                color:'#B91C1C',fontSize:11.5,fontWeight:600,display:'flex',alignItems:'flex-start',gap:7,lineHeight:1.4}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{autoHint}</span>
+              </div>
             )}
             {lines.some(l=>l.source==='skeleton') && (
               <div style={{marginBottom:10,padding:'7px 10px',borderRadius:8,background:'#FEF3C7',border:'1px solid #FCD98A',

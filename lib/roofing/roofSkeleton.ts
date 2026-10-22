@@ -61,7 +61,11 @@ export function computeRoofSkeleton(
 
   const planar = outline.map(toPlanar);
 
-  const toleranceDeg = opts.toleranceDeg ?? 5;
+  // 8° (not 5°) tolerates hand-traced satellite outlines — a deliberate rectangle's
+  // clicks land a few degrees off 90°, while genuinely non-orthogonal shapes
+  // (L/T-additions, diamonds, triangles) are off by 20°+ and still fall back. The
+  // roofer corrects the pre-draw anyway, so a slightly-skewed input is low-risk.
+  const toleranceDeg = opts.toleranceDeg ?? 8;
   if (!isOrthogonal(planar, toleranceDeg)) return { ...empty, orthogonal: false };
 
   const arcs = buildSkeleton(planar);
