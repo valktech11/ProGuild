@@ -10,7 +10,11 @@ const L: Pt[]     = [[0, 0], [40, 0], [40, 20], [20, 20], [20, 40], [0, 40]];
 const T: Pt[]     = [[0, 0], [60, 0], [60, 20], [40, 20], [40, 50], [20, 50], [20, 20], [0, 20]];
 const CROSS: Pt[] = [[22, 0], [44, 0], [44, 22], [66, 22], [66, 44], [44, 44], [44, 66], [22, 66], [22, 44], [0, 44], [0, 22], [22, 22]];
 
-const H = Math.hypot(12, 12); // 16.9706 — a 12ft 45° hip/valley run
+// 45° run lengths for the differing insets of each polygon (half-width of the span
+// the wavefront collapses): RECT insets 12, L/T inset 10, CROSS inset 11.
+const H12 = Math.hypot(12, 12); // 16.9706
+const H10 = Math.hypot(10, 10); // 14.1421
+const H11 = Math.hypot(11, 11); // 15.5563
 
 describe('isOrthogonal', () => {
   it('accepts rectangle, L, T, cross (right angles)', () => {
@@ -40,7 +44,7 @@ describe('buildSkeleton — rectangle', () => {
     expect(totalLength(arcs, 'ridge')).toBeCloseTo(16, 3);
   });
   it('four 45° hips total 4 × 12√2', () => {
-    expect(totalLength(arcs, 'hip')).toBeCloseTo(4 * H, 2);
+    expect(totalLength(arcs, 'hip')).toBeCloseTo(4 * H12, 2);
   });
 });
 
@@ -59,7 +63,7 @@ describe('buildSkeleton — L-shape (1 reflex corner → 1 valley)', () => {
   it('emits exactly one valley from the reflex corner', () => {
     const valleys = arcs.filter(a => a.kind === 'valley');
     expect(valleys).toHaveLength(1);
-    expect(totalLength(arcs, 'valley')).toBeCloseTo(H, 2);
+    expect(totalLength(arcs, 'valley')).toBeCloseTo(H10, 2);
   });
   it('LF totals match the validated reference', () => {
     expect(totalLength(arcs, 'ridge')).toBeCloseTo(40.0, 1);
@@ -71,7 +75,7 @@ describe('buildSkeleton — T-shape (2 reflex corners → 2 valleys)', () => {
   const arcs = buildSkeleton(T);
   it('emits two valleys', () => {
     expect(arcs.filter(a => a.kind === 'valley')).toHaveLength(2);
-    expect(totalLength(arcs, 'valley')).toBeCloseTo(2 * H, 1);
+    expect(totalLength(arcs, 'valley')).toBeCloseTo(2 * H10, 1);
   });
   it('LF totals match the validated reference', () => {
     expect(totalLength(arcs, 'ridge')).toBeCloseTo(70.0, 1);
@@ -90,9 +94,9 @@ describe('buildSkeleton — cross (4 reflex corners → 4 valleys to one peak)',
     }
   });
   it('LF totals match the validated reference', () => {
-    expect(totalLength(arcs, 'ridge')).toBeCloseTo(80.0, 1);
-    expect(totalLength(arcs, 'hip')).toBeCloseTo(113.14, 1);
-    expect(totalLength(arcs, 'valley')).toBeCloseTo(56.57, 1);
+    expect(totalLength(arcs, 'ridge')).toBeCloseTo(88.0, 1);
+    expect(totalLength(arcs, 'hip')).toBeCloseTo(8 * H11, 1);
+    expect(totalLength(arcs, 'valley')).toBeCloseTo(4 * H11, 1);
   });
 });
 
