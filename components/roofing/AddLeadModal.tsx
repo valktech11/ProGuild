@@ -77,6 +77,12 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
 
   // Autocomplete on street — parses result into street/city/state/zip
   const streetRef = useRef<HTMLInputElement>(null)
+  const nameRef   = useRef<HTMLInputElement>(null)
+  const phoneRef  = useRef<HTMLInputElement>(null)
+  const scopeRef  = useRef<HTMLTextAreaElement>(null)
+  // Which required field failed validation — drives the red border + scroll-to so
+  // a missed field is never mistaken for a dead Save button.
+  const [errField, setErrField] = useState('')
   usePlacesAutocomplete(streetRef, (formatted: string) => {
     // Canonical parse — see lib/address.ts. Do NOT hand-index the parts array:
     // that is how the street address ended up written into contact_city.
@@ -95,10 +101,18 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   const fb = (k: string) => setFocus(f => ({ ...f, [k]: false }))
 
   async function save() {
-    if (!name.trim())                     { setErr('Homeowner name is required'); return }
-    if (!phone.trim() && !email.trim())   { setErr('Phone or email is required'); return }
-    if (!scope.trim())                    { setErr('Describe the damage or scope'); return }
-    setSaving(true); setErr('')
+    setErr(''); setErrField('')
+    // On a failed check: show the message, flag the field red, and pull it into
+    // view + focus — the error banner alone sits below the fold and gets missed.
+    const fail = (field: string, el: HTMLElement | null, msg: string) => {
+      setErr(msg); setErrField(field)
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      try { (el as any)?.focus?.({ preventScroll: true }) } catch { el?.focus?.() }
+    }
+    if (!name.trim())                   { fail('name',  nameRef.current,  'Homeowner name is required'); return }
+    if (!phone.trim() && !email.trim()) { fail('phone', phoneRef.current, 'Add a phone number or email'); return }
+    if (!scope.trim())                  { fail('scope', scopeRef.current, 'Describe the damage or scope'); return }
+    setSaving(true)
     const r = await apiFetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -119,14 +133,15 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
   }
 
   function iStyle(k: string): React.CSSProperties {
-    const active = focus[k]
+    const active  = focus[k]
+    const invalid = errField === k
     return {
       width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8,
-      border: `1.5px solid ${active ? TEAL : (dk ? '#2D3748' : '#D1D5DB')}`,
+      border: `1.5px solid ${invalid ? '#DC2626' : active ? TEAL : (dk ? '#2D3748' : '#D1D5DB')}`,
       background: dk ? '#0F172A' : 'white',
       color: dk ? '#F1F5F9' : '#111827',
       outline: 'none', transition: 'border-color 200ms, box-shadow 200ms',
-      boxShadow: active ? '0 0 0 3px rgba(15,118,110,0.12)' : 'none',
+      boxShadow: invalid ? '0 0 0 3px rgba(220,38,38,0.14)' : active ? '0 0 0 3px rgba(15,118,110,0.12)' : 'none',
       boxSizing: 'border-box' as const, fontFamily: 'inherit',
     }
   }
@@ -224,13 +239,13 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <Lbl text="Homeowner name" req />
-                <input value={name} onChange={e => setName(san(e.target.value))}
+                <input ref={nameRef} value={name} onChange={e => { setName(san(e.target.value)); if (errField==='name') setErrField('') }}
                   placeholder="Jane Rodriguez" style={iStyle('name')}
                   onFocus={() => fo('name')} onBlur={() => fb('name')} />
               </div>
               <div>
                 <Lbl text="Phone number" req />
-                <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))}
+                <input ref={phoneRef} value={phone} onChange={e => { setPhone(formatPhone(e.target.value)); if (errField==='phone') setErrField('') }}
                   placeholder="813-555-0192" type="tel" inputMode="numeric" maxLength={12}
                   style={iStyle('phone')}
                   onFocus={() => fo('phone')} onBlur={() => fb('phone')} />
@@ -286,7 +301,7 @@ export default function RoofingAddLeadModal({ proId, onClose, onAdded, dk = fals
             <div>
               <Lbl text="Describe the damage / scope" req />
               <div style={{ position: 'relative' }}>
-                <textarea value={scope} onChange={e => setScope(san(e.target.value))}
+                <textarea ref={scopeRef} value={scope} onChange={e => { setScope(san(e.target.value)); if (errField==='scope') setErrField('') }}
                   placeholder="Storm damage to 3 sections, missing shingles, possible leak over garage. Hail from May 12 storm."
                   rows={3} maxLength={250}
                   style={{ ...iStyle('scope'), resize: 'none' as const, lineHeight: 1.65, paddingBottom: 28 }}
