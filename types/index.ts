@@ -23,6 +23,7 @@ export interface TradeCategory {
 
 export interface Pro {
   id: string
+  slug: string | null
   full_name: string
   email: string
   phone: string | null
