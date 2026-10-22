@@ -83,10 +83,14 @@ export async function GET(req: NextRequest) {
     await admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
   }
 
-  // Self-heal: claimed pro with no company (claimed via /claim/[token] before fix)
-  // Create company on first login so pipeline becomes visible immediately.
+  // Self-heal: ANY pro with no company (claimed via /claim/[token] before the fix,
+  // a test/legacy row, or an edge-case signup). Every pro must have a company —
+  // the dashboard's leads/jobs/summary endpoints 400 ("No company context")
+  // without one, locking the pro out. Create it on first login so the pipeline
+  // becomes visible immediately. (Was gated on is_claimed, which left unclaimed
+  // pros permanently stuck.)
   let healedCompany = company
-  if ((pro as any).is_claimed && !company && !(pro as any).company_id) {
+  if (!company && !(pro as any).company_id) {
     try {
       const trialHeal = (pro as any).trial_ends_at
         ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
