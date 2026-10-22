@@ -75,20 +75,13 @@ function ProMeasureInner() {
   // Line tool (ridge/hip/valley) — separate from polygon markers/refs.
   const [drawMode, setDrawMode] = useState<'polygon'|'line'|'idle'>('polygon')
   const [lineType, setLineType] = useState<'ridge'|'hip'|'valley'>('ridge')
-  // source: 'manual' = hand-drawn; 'skeleton' = straight-skeleton pre-draw, confirmed
-  // untouched; 'gemini_adjusted' = legacy (shelved). A skeleton line flips to 'manual'
-  // the moment any point is dragged (syncEditedLine) — honest audit trail, spec §5/§25.6.
-  type LineRec = {type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[];user_adjusted:boolean;source:'manual'|'gemini_adjusted'|'skeleton'}
+  type LineRec = {type:'ridge'|'hip'|'valley';lf:number;latlngs:{lat:number;lng:number}[];user_adjusted:boolean;source:'manual'|'gemini_adjusted'}
   const [lines, setLines] = useState<LineRec[]>(savedDraw?.lines || [])
   // Gemini-suggested guide lines awaiting human confirmation (Slice B/C).
   // Separate from committed `lines` — these are proposals, not measurements.
   type SuggLine = { id:string; type:'ridge'|'hip'|'valley'; latlngs:{lat:number;lng:number}[]; confidence:number }
   const [suggestedLines, setSuggestedLines] = useState<SuggLine[]>([])
   const [suggesting, setSuggesting] = useState(false)
-  // Straight-skeleton pre-draw (spec §2). Computes the ridge/hip/valley starting layer
-  // from the confirmed outline for orthogonal roofs; roofer corrects + saves.
-  const [autoDrawing, setAutoDrawing] = useState(false)
-  const [autoHint,    setAutoHint]    = useState<string|null>(null)
   const lineMarkers = useRef<any[]>([])   // active in-progress line vertices
   const linePolyRef = useRef<any>(null)   // active in-progress polyline
   const savedLineRefs = useRef<any[]>([]) // committed polylines on map
@@ -572,10 +565,8 @@ function ProMeasureInner() {
     if (path.getLength() < 2) return
     const a = path.getAt(0), b = path.getAt(1)
     const lf = window.google.maps.geometry.spherical.computeDistanceBetween(a, b) * 3.28084
-    // Any drag makes the line roofer-authored: flip a skeleton line to manual and
-    // mark user_adjusted (spec §5). A line already manual stays manual.
     setLines(ls => ls.map((ln,i)=> i===idx
-      ? { ...ln, lf:+lf.toFixed(0), latlngs:[{lat:a.lat(),lng:a.lng()},{lat:b.lat(),lng:b.lng()}], user_adjusted:true, source:'manual' }
+      ? { ...ln, lf:+lf.toFixed(0), latlngs:[{lat:a.lat(),lng:a.lng()},{lat:b.lat(),lng:b.lng()}] }
       : ln))
   }
 
@@ -781,49 +772,6 @@ function ProMeasureInner() {
     hubRef.current = null
     setLineType(t); lineTypeRef.current=t
     setDrawMode('line'); drawModeRef.current='line'
-  }
-
-  // ── Pre-draw (straight-skeleton) ───────────────────────────────────────────
-  // On outline confirm, compute the ridge/hip/valley starting layer server-side and
-  // drop it onto the canvas as editable committed lines. The roofer corrects with the
-  // existing drag/delete/add tools, then Saves — nothing here is authoritative (§25.6).
-  // Orthogonal roofs only; the server returns orthogonal:false for anything else and we
-  // keep today's blank-canvas manual flow unchanged (§4).
-  async function autoDrawRoofLines() {
-    const map = mapRef.current
-    if (!map || autoDrawing) return
-    const pins = markers.current.map(m=>m.getPosition?.()).filter(Boolean)
-    if (pins.length < 3) { setAutoHint('Trace the roof outline first — auto-draw works from the outline.'); return }
-    setAutoDrawing(true); setAutoHint(null)
-    try {
-      const outline = pins.map((p:any)=>({ lat:p.lat(), lng:p.lng() }))
-      const res = await apiFetch('/api/roofing/skeleton', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ pro_id: session?.id, outline }),
-      })
-      if (!res.ok) { setAutoHint('Could not compute roof lines — trace them manually.'); return }
-      const data = await res.json()
-      if (!data?.orthogonal || !Array.isArray(data.lines) || data.lines.length === 0) {
-        setAutoHint('Auto-draw is only available for right-angled roofs. Trace this one manually.')
-        return
-      }
-      // Replace committed lines with the computed starting layer. drawMode idle →
-      // the single source-of-truth overlay effect rebuilds them editable (drag/dblclick).
-      const skeleton: LineRec[] = data.lines.map((l:any)=>({
-        type: l.type, lf: l.lf,
-        latlngs: l.latlngs.map((p:any)=>({ lat:p.lat, lng:p.lng })),
-        user_adjusted: false, source: 'skeleton',
-      }))
-      savedLineRefs.current.forEach((p:any)=>p.setMap(null)); savedLineRefs.current=[]
-      clearActiveLine()
-      setLines(skeleton)
-      setDrawMode('idle'); drawModeRef.current='idle'
-    } catch {
-      setAutoHint('Could not compute roof lines — trace them manually.')
-    } finally {
-      setAutoDrawing(false)
-    }
   }
 
   function clearAll() {
@@ -1119,32 +1067,6 @@ function ProMeasureInner() {
         return (
           <div style={{background:T.panel,borderRadius:12,border:`1px solid ${T.divider}`,padding:'12px 14px',marginTop:4}}>
             {head('Materials')}
-            {/* Pre-draw: compute ridge/hip/valley from the confirmed outline (straight
-                skeleton — deterministic, no AI). Roofer corrects + saves; §25.6. */}
-            <button onClick={autoDrawRoofLines} disabled={autoDrawing||drawMode==='line'||pins<3}
-              style={{width:'100%',marginBottom:8,padding:'8px',borderRadius:8,border:`1px solid #0F766E`,
-                background:(autoDrawing||pins<3)?'transparent':'#0F766E',color:(autoDrawing||pins<3)?T.textMuted:'#fff',
-                fontSize:12,fontWeight:700,cursor:(autoDrawing||drawMode==='line'||pins<3)?'default':'pointer',
-                opacity:(drawMode==='line'||pins<3)?0.4:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-              {autoDrawing ? 'Drawing roof lines…' : <>⟐ Auto-draw roof lines</>}
-            </button>
-            {pins<3 && lines.length===0 && (
-              <div style={{marginBottom:10,fontSize:10.5,color:T.textSubtle}}>Trace the roof outline first — auto-draw builds the ridge/hip/valley lines from it.</div>
-            )}
-            {autoHint && (
-              <div style={{marginBottom:10,padding:'9px 11px',borderRadius:8,background:'#FEF2F2',border:'1px solid #FECACA',
-                color:'#B91C1C',fontSize:11.5,fontWeight:600,display:'flex',alignItems:'flex-start',gap:7,lineHeight:1.4}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span>{autoHint}</span>
-              </div>
-            )}
-            {lines.some(l=>l.source==='skeleton') && (
-              <div style={{marginBottom:10,padding:'7px 10px',borderRadius:8,background:'#FEF3C7',border:'1px solid #FCD98A',
-                color:'#B45309',fontSize:11,fontWeight:600,display:'flex',alignItems:'center',gap:7,lineHeight:1.3}}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7z"/></svg>
-                Auto-drawn · review and save
-              </div>
-            )}
             {/* Gemini line-suggestion (Slices A/B) — SHELVED. General vision LLMs
                 can't reliably trace roof crease geometry to estimation precision:
                 non-deterministic across runs, collapses to generic templates
