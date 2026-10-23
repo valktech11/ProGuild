@@ -145,17 +145,27 @@ export function extractMaskUrl(output: any): string | null {
   if (!output) return null
   if (typeof output === 'string') return output
   if (Array.isArray(output)) return output[0] ?? null
+  // meta/sam-2 actual output shape: { combined_mask, individual_masks: [] }
+  if (output.combined_mask) {
+    console.log(`[sam-segment] using combined_mask`)
+    return output.combined_mask
+  }
+  if (output.individual_masks && Array.isArray(output.individual_masks) && output.individual_masks.length > 0) {
+    console.log(`[sam-segment] using individual_masks[0] of ${output.individual_masks.length}`)
+    return output.individual_masks[0]
+  }
+  // Fallback: { masks: [], scores: [] }
   if (output.masks && Array.isArray(output.masks)) {
     const masks: string[]  = output.masks
     const scores: number[] = Array.isArray(output.scores) ? output.scores : []
     if (masks.length === 0) return null
     let best = 0
     scores.forEach((s, i) => { if (s > (scores[best] ?? 0)) best = i })
-    console.log(`[sam-segment] mask scores: ${scores.map(s=>s.toFixed(3)).join(', ')} → picking index ${best}`)
+    console.log(`[sam-segment] mask scores: ${scores.map((s:number)=>s.toFixed(3)).join(', ')} → picking index ${best}`)
     return masks[best] ?? masks[0]
   }
   if (output.mask) return output.mask
-  console.warn('[sam-segment] unexpected output shape:', JSON.stringify(output).slice(0, 200))
+  console.warn('[sam-segment] unexpected output shape:', JSON.stringify(output).slice(0, 300))
   return null
 }
 
