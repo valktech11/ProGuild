@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  extractMaskUrl,
-  maskUrlToContour,
+  resolveRoofPolygonPixels,
   buildMercatorTransform,
 } from '../sam-segment/route'
 
@@ -66,31 +65,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   if (poll.status === 'succeeded') {
-    const maskUrl = extractMaskUrl(poll.output)
-    if (!maskUrl) {
-      console.error('[sam-poll] succeeded but no mask URL. output:', JSON.stringify(poll.output).slice(0, 300))
-      return NextResponse.json({ status: 'failed', error: 'SAM2 returned no mask' })
-    }
-
-    let contour: Array<{ nx: number; ny: number }>
+    let result: { contour: Array<{ nx: number; ny: number }>; maskUrl: string | null; ratios: number[] }
     try {
-      contour = await maskUrlToContour(maskUrl, w, h)
+      result = await resolveRoofPolygonPixels(poll.output, w, h)
     } catch (err) {
       const detail = String(err).slice(0, 200)
-      console.error('[sam-poll] contour error:', detail)
+      console.error('[sam-poll] mask resolve error:', detail)
       return NextResponse.json({ status: 'failed', error: `Mask processing failed: ${detail}` })
     }
 
-    if (contour.length < 3) {
-      console.warn('[sam-poll] contour too small:', contour.length)
+    if (!result.maskUrl) {
+      console.error('[sam-poll] succeeded but no usable mask. output:', JSON.stringify(poll.output).slice(0, 300))
+      return NextResponse.json({ status: 'failed', error: 'SAM2 returned no usable mask' })
+    }
+    if (result.contour.length < 3) {
+      console.warn('[sam-poll] contour too small:', result.contour.length, 'ratios:', result.ratios)
       return NextResponse.json({ status: 'failed', error: 'No roof outline detected — try tapping the centre of the roof' })
     }
 
     const { pixelToLatLng } = buildMercatorTransform(lat, lng, zoom, w, h)
-    const polygon = contour.map(({ nx, ny }) => pixelToLatLng(nx * w, ny * h))
-    console.log(`[sam-poll] ✓ ${polygon.length} vertices ready`)
+    const polygon = result.contour.map(({ nx, ny }) => pixelToLatLng(nx * w, ny * h))
+    console.log(`[sam-poll] ✓ ${polygon.length} vertices ready (ratios=[${result.ratios.join(', ')}])`)
 
-    return NextResponse.json({ status: 'succeeded', polygon, vertexCount: polygon.length, maskUrl })
+    return NextResponse.json({ status: 'succeeded', polygon, vertexCount: polygon.length, maskUrl: result.maskUrl })
   }
 
   // Unknown status — treat as processing

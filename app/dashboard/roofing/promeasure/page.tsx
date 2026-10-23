@@ -757,7 +757,11 @@ function ProMeasureInner() {
     try {
       const lat  = latLng.lat()
       const lng  = latLng.lng()
-      const zoom = Math.max(18, Math.min(21, map.getZoom() ?? 20))
+      // Force zoom 21 for detection — tighter crop so the roof fills the tile
+      // and the centre point-prompt lands on shingle, not driveway/lawn. The
+      // tile zoom is passed through to the unprojection, so pins still land
+      // correctly regardless of the map's current display zoom.
+      const zoom = 21
       const SIZE = 640
 
       // Step 1: create prediction (fast — returns in <5s)

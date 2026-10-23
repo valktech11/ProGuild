@@ -5,17 +5,22 @@ import sharp from 'sharp'
 //
 // ASYNC FLOW (Hobby Vercel — 60s function limit):
 //   1. POST { center, zoom, width, height, tapX, tapY }
-//      → fetches satellite tile, creates Replicate prediction, returns { predictionId, pollUrl }
+//      → fetches satellite tile, creates Replicate prediction, returns { predictionId, tileParams }
 //      → completes in <5s (well under 60s limit)
 //   2. Client polls GET /api/promeasure/sam-poll?id=<predictionId> every 3s
-//      → each poll is <1s; returns { status:'processing'|'succeeded'|'failed', polygon?, error? }
-//      → on succeeded: polygon [{lat,lng}] ready to drop as pins
+//      → each poll <1s; on succeeded, selects the roof mask + traces polygon
 //
-// SAM2 model: meta/sam-2 on Replicate.
+// SAM2 model: meta/sam-2 on Replicate. Output: { combined_mask, individual_masks[] }.
+// We DON'T use combined_mask (union of all segments). We score each individual
+// mask by foreground area ratio and pick the one that reads as a single roof,
+// then trace its TRUE contour (Moore-neighbour) + simplify (Douglas-Peucker).
+// Convex hull was wrong — it fills concave notches (L/T roofs) and engulfs
+// adjacent structures (pool cages).
+//
 // Cost: ~$0.025/run.
 
 export const runtime     = 'nodejs'
-export const maxDuration = 30   // only creates prediction + fetches tile; well under 60s
+export const maxDuration = 30
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 const REPLICATE_API   = 'https://api.replicate.com/v1'
@@ -131,104 +136,172 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Failed to start SAM2', detail }, { status: 502 })
   }
 
-  // Return prediction metadata + tile params so the poll route can unproject.
   return NextResponse.json({
     predictionId: pred.id,
-    // Client stores these to pass back to the poll endpoint for unprojection.
     tileParams: { lat, lng, zoom, w, h },
   })
 }
 
-// ── Mask → contour helpers (used by poll route) ──────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// Mask resolution — shared with the poll route.
+// ════════════════════════════════════════════════════════════════════════════
 
-export function extractMaskUrl(output: any): string | null {
-  if (!output) return null
-  if (typeof output === 'string') return output
-  if (Array.isArray(output)) return output[0] ?? null
-  // meta/sam-2 actual output shape: { combined_mask, individual_masks: [] }
-  if (output.combined_mask) {
-    console.log(`[sam-segment] using combined_mask`)
-    return output.combined_mask
-  }
-  if (output.individual_masks && Array.isArray(output.individual_masks) && output.individual_masks.length > 0) {
-    console.log(`[sam-segment] using individual_masks[0] of ${output.individual_masks.length}`)
-    return output.individual_masks[0]
-  }
-  // Fallback: { masks: [], scores: [] }
-  if (output.masks && Array.isArray(output.masks)) {
-    const masks: string[]  = output.masks
-    const scores: number[] = Array.isArray(output.scores) ? output.scores : []
-    if (masks.length === 0) return null
-    let best = 0
-    scores.forEach((s, i) => { if (s > (scores[best] ?? 0)) best = i })
-    console.log(`[sam-segment] mask scores: ${scores.map((s:number)=>s.toFixed(3)).join(', ')} → picking index ${best}`)
-    return masks[best] ?? masks[0]
-  }
-  if (output.mask) return output.mask
-  console.warn('[sam-segment] unexpected output shape:', JSON.stringify(output).slice(0, 300))
-  return null
+// Gather every candidate mask URL from the Replicate output, individual masks
+// first (point-specific), combined_mask LAST (union of all segments — overshoots).
+export function gatherMaskUrls(output: any): string[] {
+  const urls: string[] = []
+  if (!output) return urls
+  if (typeof output === 'string') { urls.push(output); return urls }
+  if (Array.isArray(output)) { for (const u of output) if (typeof u === 'string') urls.push(u); return urls }
+  if (Array.isArray(output.individual_masks)) for (const u of output.individual_masks) if (typeof u === 'string') urls.push(u)
+  if (Array.isArray(output.masks))            for (const u of output.masks)            if (typeof u === 'string') urls.push(u)
+  if (typeof output.mask === 'string')          urls.push(output.mask)
+  if (typeof output.combined_mask === 'string') urls.push(output.combined_mask)  // last resort
+  return urls
 }
 
-export async function maskUrlToContour(
-  maskUrl: string, imgW: number, imgH: number, maxVertices = 48,
-): Promise<Array<{ nx: number; ny: number }>> {
-  console.log(`[sam-segment] downloading mask: ${maskUrl.slice(0, 80)}`)
-  const res = await fetch(maskUrl, { signal: AbortSignal.timeout(20_000) })
+// Download one mask, resize to tile dims, return binary grid + foreground ratio.
+async function loadMask(url: string, w: number, h: number): Promise<{ mask: Uint8Array; ratio: number }> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(20_000) })
   if (!res.ok) throw new Error(`mask fetch HTTP ${res.status}`)
-  const maskBuf = Buffer.from(await res.arrayBuffer())
-  console.log(`[sam-segment] mask downloaded: ${maskBuf.length} bytes`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  const raw = await sharp(buf).resize(w, h, { fit: 'fill' }).greyscale().extractChannel(0).raw().toBuffer()
+  const mask = new Uint8Array(w * h)
+  let fg = 0
+  for (let i = 0; i < mask.length; i++) { mask[i] = raw[i] > 128 ? 1 : 0; if (mask[i]) fg++ }
+  return { mask, ratio: fg / (w * h) }
+}
 
-  const raw = await sharp(maskBuf)
-    .resize(imgW, imgH, { fit: 'fill' })
-    .greyscale()
-    .extractChannel(0)
-    .raw()
-    .toBuffer()
+// Pick the roof mask by foreground area ratio, then trace + simplify its contour.
+// Returns normalised [0..1] vertices. Prefers masks in a plausible roof band;
+// a near-whole-tile mask (ground/lot) or a tiny one (vent) is rejected.
+export async function resolveRoofPolygonPixels(
+  output: any, w: number, h: number, maxVertices = 40,
+): Promise<{ contour: Array<{ nx: number; ny: number }>; maskUrl: string | null; ratios: number[] }> {
+  const urls = gatherMaskUrls(output)
+  if (urls.length === 0) { console.warn('[sam] no mask URLs in output'); return { contour: [], maskUrl: null, ratios: [] } }
 
-  const mask = new Uint8Array(imgW * imgH)
-  let foregroundCount = 0
-  for (let i = 0; i < mask.length; i++) { mask[i] = raw[i] > 128 ? 1 : 0; if (mask[i]) foregroundCount++ }
-  console.log(`[sam-segment] mask foreground pixels: ${foregroundCount} / ${imgW * imgH} (${(100*foregroundCount/imgW/imgH).toFixed(1)}%)`)
+  const LO = 0.03, HI = 0.55   // roof plausibly 3–55% of the tile at zoom 21
+  const cands: Array<{ url: string; mask: Uint8Array; ratio: number }> = []
+  for (const url of urls) {
+    try { const { mask, ratio } = await loadMask(url, w, h); cands.push({ url, mask, ratio }) }
+    catch (e) { console.warn('[sam] mask load failed', url.slice(0, 60), String(e).slice(0, 80)) }
+  }
+  if (cands.length === 0) return { contour: [], maskUrl: null, ratios: [] }
 
-  const boundary: Array<[number, number]> = []
-  for (let y = 0; y < imgH; y++) {
-    for (let x = 0; x < imgW; x++) {
-      if (!mask[y * imgW + x]) continue
-      const isBoundary =
-        x === 0 || x === imgW - 1 || y === 0 || y === imgH - 1 ||
-        !mask[y * imgW + (x-1)] || !mask[y * imgW + (x+1)] ||
-        !mask[(y-1) * imgW + x] || !mask[(y+1) * imgW + x]
-      if (isBoundary) boundary.push([x, y])
+  const ratios = cands.map(c => +c.ratio.toFixed(3))
+  console.log(`[sam] candidate ratios: [${ratios.join(', ')}]`)
+
+  const inBand = cands.filter(c => c.ratio >= LO && c.ratio <= HI)
+  let chosen: { url: string; mask: Uint8Array; ratio: number }
+  if (inBand.length) {
+    // Largest in-band = the full roof rather than a sub-part (m2m returns nested masks).
+    chosen = inBand.reduce((a, b) => (b.ratio > a.ratio ? b : a))
+  } else {
+    const sorted = [...cands].sort((a, b) => a.ratio - b.ratio)
+    // All too big → smallest (least over-reach). Otherwise → largest available.
+    chosen = cands.every(c => c.ratio > HI) ? sorted[0] : sorted[sorted.length - 1]
+    console.warn(`[sam] no mask in band [${LO},${HI}] — falling back to ratio=${chosen.ratio.toFixed(3)}`)
+  }
+  console.log(`[sam] chose ratio=${chosen.ratio.toFixed(3)} url=${chosen.url.slice(0, 60)}`)
+
+  const contour = traceAndSimplify(chosen.mask, w, h, maxVertices)
+  return { contour, maskUrl: chosen.url, ratios }
+}
+
+// ── Contour trace (Moore-neighbour) + Douglas-Peucker simplify ───────────────
+
+function traceAndSimplify(mask: Uint8Array, w: number, h: number, maxVertices: number): Array<{ nx: number; ny: number }> {
+  const ring = mooreTrace(mask, w, h)
+  if (ring.length < 3) { console.warn('[sam] ring too short:', ring.length); return [] }
+  console.log(`[sam] traced ring: ${ring.length} px`)
+
+  let eps = 3
+  let simp = rdp(ring, eps)
+  let guard = 0
+  while (simp.length > maxVertices && guard++ < 10) { eps *= 1.6; simp = rdp(ring, eps) }
+
+  // Drop the duplicate closing vertex (Moore returns to start).
+  if (simp.length > 1) {
+    const a = simp[0], b = simp[simp.length - 1]
+    if (a[0] === b[0] && a[1] === b[1]) simp = simp.slice(0, -1)
+  }
+  console.log(`[sam] simplified: ${simp.length} vertices (eps=${eps.toFixed(1)})`)
+  return simp.map(([x, y]) => ({ nx: x / w, ny: y / h }))
+}
+
+// Moore-neighbour boundary tracing — follows the true outer contour of the blob
+// containing the topmost-leftmost foreground pixel. Backtrack = last background
+// pixel checked before each boundary step.
+function mooreTrace(mask: Uint8Array, w: number, h: number): Array<[number, number]> {
+  const idx = (x: number, y: number) => y * w + x
+  const inb = (x: number, y: number) => x >= 0 && x < w && y >= 0 && y < h
+  const fg  = (x: number, y: number) => inb(x, y) && mask[idx(x, y)] === 1
+
+  let sx = -1, sy = -1
+  for (let y = 0; y < h && sy < 0; y++) for (let x = 0; x < w; x++) { if (fg(x, y)) { sx = x; sy = y; break } }
+  if (sx < 0) return []
+
+  // 8 neighbours clockwise: W, NW, N, NE, E, SE, S, SW
+  const dirs: Array<[number, number]> = [[-1,0],[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1]]
+  const dirOf = (px: number, py: number, qx: number, qy: number) => {
+    const dx = qx - px, dy = qy - py
+    for (let i = 0; i < 8; i++) if (dirs[i][0] === dx && dirs[i][1] === dy) return i
+    return 0
+  }
+
+  const contour: Array<[number, number]> = [[sx, sy]]
+  let px = sx, py = sy
+  let bx = sx - 1, by = sy   // backtrack starts west (background — start is leftmost on its row)
+  const maxSteps = 8 * (w + h) * 4
+
+  for (let step = 0; step < maxSteps; step++) {
+    const b = dirOf(px, py, bx, by)
+    let found = false
+    for (let i = 1; i <= 8; i++) {
+      const d  = (b + i) % 8
+      const nx = px + dirs[d][0], ny = py + dirs[d][1]
+      if (fg(nx, ny)) {
+        const pb = (d + 7) % 8                 // previous (background) neighbour → new backtrack
+        bx = px + dirs[pb][0]; by = py + dirs[pb][1]
+        px = nx; py = ny
+        contour.push([px, py])
+        found = true
+        break
+      }
     }
+    if (!found) break                          // isolated pixel
+    if (px === sx && py === sy) break           // closed the loop
   }
-  console.log(`[sam-segment] boundary pixels: ${boundary.length}`)
-  if (boundary.length === 0) return []
-
-  const hull    = convexHull(boundary)
-  const step    = Math.max(1, Math.floor(hull.length / maxVertices))
-  const sampled = hull.filter((_, i) => i % step === 0)
-  console.log(`[sam-segment] hull=${hull.length} vertices → sampled=${sampled.length}`)
-
-  return sampled.map(([x, y]) => ({ nx: x / imgW, ny: y / imgH }))
+  return contour
 }
 
-function convexHull(pts: Array<[number, number]>): Array<[number, number]> {
-  const sorted = [...pts].sort(([ax,ay],[bx,by]) => ax-bx || ay-by)
-  const cross  = (O:[number,number], A:[number,number], B:[number,number]) =>
-    (A[0]-O[0])*(B[1]-O[1]) - (A[1]-O[1])*(B[0]-O[0])
-  const lower: Array<[number,number]> = []
-  for (const p of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop()
-    lower.push(p)
+// Douglas-Peucker polyline simplification (perpendicular distance to the chord).
+function rdp(points: Array<[number, number]>, eps: number): Array<[number, number]> {
+  if (points.length < 3) return points
+  const [ax, ay] = points[0]
+  const [bx, by] = points[points.length - 1]
+  const dx = bx - ax, dy = by - ay
+  const len = Math.sqrt(dx * dx + dy * dy)
+
+  let dmax = 0, index = 0
+  for (let i = 1; i < points.length - 1; i++) {
+    const [x, y] = points[i]
+    const d = len === 0
+      ? Math.hypot(x - ax, y - ay)
+      : Math.abs(dy * x - dx * y + bx * ay - by * ax) / len
+    if (d > dmax) { dmax = d; index = i }
   }
-  const upper: Array<[number,number]> = []
-  for (const p of [...sorted].reverse()) {
-    while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop()
-    upper.push(p)
+
+  if (dmax > eps) {
+    const left  = rdp(points.slice(0, index + 1), eps)
+    const right = rdp(points.slice(index), eps)
+    return left.slice(0, -1).concat(right)
   }
-  lower.pop(); upper.pop()
-  return [...lower, ...upper]
+  return [points[0], points[points.length - 1]]
 }
+
+// ── Web Mercator unproject ───────────────────────────────────────────────────
 
 export function buildMercatorTransform(lat: number, lng: number, zoom: number, w: number, h: number) {
   const scale   = Math.pow(2, zoom)
