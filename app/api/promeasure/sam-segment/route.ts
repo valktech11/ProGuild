@@ -34,7 +34,7 @@ const MAPS_STATIC     = 'https://maps.googleapis.com/maps/api/staticmap'
 // meta/sam-2 — supports input_points + input_labels for point-prompted segmentation.
 // Version pinned (latest as of Oct 2026).
 const SAM2_MODEL   = 'meta/sam-2'
-const SAM2_VERSION = 'fe97b453a6455861e3bac769b0c03a50e0e2a836399de68b7ba76640e2c4ee78'
+const SAM2_VERSION = 'fe97b453a6455861e3bac769b441ca1f1086110da7466dbb65cf1eecfd60dc83'
 
 const MAX_DIM = 640   // Google Static Maps free-tier cap
 
@@ -277,8 +277,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     maskUrl = await runSam2PointPrompt(tile.b64, pixelX, pixelY)
   } catch (err) {
-    console.error('[sam-segment] SAM2 error:', err)
-    return NextResponse.json({ error: 'SAM2 segmentation failed', detail: String(err).slice(0, 200) }, { status: 502 })
+    const detail = String(err).slice(0, 300)
+    console.error('[sam-segment] SAM2 error:', detail)
+    return NextResponse.json({ error: 'SAM2 segmentation failed', detail }, { status: 502 })
   }
   if (!maskUrl) return NextResponse.json({ error: 'SAM2 returned no mask' }, { status: 422 })
 

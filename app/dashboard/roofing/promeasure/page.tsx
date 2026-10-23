@@ -786,7 +786,7 @@ function ProMeasureInner() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setSamError(data?.error || 'Detection failed — tap the centre of the roof and try again')
+        setSamError((data?.error || 'Detection failed') + (data?.detail ? ` — ${data.detail}` : ' — tap the centre of the roof and try again'))
         setMapHint(null)
         return
       }
