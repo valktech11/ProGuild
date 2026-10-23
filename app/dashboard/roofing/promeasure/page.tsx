@@ -132,14 +132,6 @@ function ProMeasureInner() {
   const [perim,        setPerim]        = useState<number|null>(null)
   const [mapReady,     setMapReady]     = useState(false)
 
-  // ── SAM2 tap-to-detect roof outline ───────────────────────────────────────
-  // samMode: 'idle' | 'tap'  — 'tap' = waiting for user to click the roof
-  const [samMode,      setSamMode]      = useState<'idle'|'tap'>('idle')
-  const [samDetecting, setSamDetecting] = useState(false)
-  const [samError,     setSamError]     = useState<string|null>(null)
-  const samModeRef = useRef<'idle'|'tap'>('idle')
-  useEffect(()=>{ samModeRef.current = samMode },[samMode])
-
   // ── SINGLE SOURCE OF TRUTH for committed-line overlays ────────────────────
   // All committed ridge/hip/valley polylines are owned here and ONLY here —
   // destroyed + recreated from lines[] whenever lines or draw-mode change. This
@@ -378,7 +370,6 @@ function ProMeasureInner() {
         })
         if (near) return
       }
-      if (samModeRef.current === 'tap') { detectRoofAt(e.latLng, map); return }
       if (drawModeRef.current === 'line') { addLinePoint(e.latLng, map); return }
       if (drawModeRef.current === 'idle') return // not drawing anything — ignore stray clicks
       // polygon mode → place pins, unless a region is already saved (redraw needs Start over).
@@ -731,117 +722,6 @@ function ProMeasureInner() {
   }
 
   function cancelLine() { clearActiveLine(); setDrawMode('idle'); drawModeRef.current='idle' }
-
-  // ── SAM2 tap-to-detect ────────────────────────────────────────────────────
-  // Phase 1: arm the tap. User clicks "Detect Roof" → samMode becomes 'tap'.
-  // Phase 2: map click fires → detectRoofAt(latLng) → calls /api/promeasure/sam-segment.
-  // Phase 3: response polygon dropped as pins, replacing any prior outline.
-
-  function armSamTap() {
-    if (samDetecting) return
-    setSamError(null)
-    setSamMode('tap')
-    samModeRef.current = 'tap'
-    setMapHint('Click the centre of the roof to detect its outline automatically')
-  }
-
-  function cancelSamTap() {
-    setSamMode('idle'); samModeRef.current='idle'
-    setMapHint(null)
-  }
-
-  async function detectRoofAt(latLng: any, map: any) {
-    setSamMode('idle'); samModeRef.current='idle'
-    setSamDetecting(true); setSamError(null)
-    setMapHint('Starting AI detection…')
-    try {
-      const lat  = latLng.lat()
-      const lng  = latLng.lng()
-      // Force zoom 21 for detection — tighter crop so the roof fills the tile
-      // and the centre point-prompt lands on shingle, not driveway/lawn. The
-      // tile zoom is passed through to the unprojection, so pins still land
-      // correctly regardless of the map's current display zoom.
-      const zoom = 21
-      const SIZE = 640
-
-      // Step 1: create prediction (fast — returns in <5s)
-      const createRes = await fetch('/api/promeasure/sam-segment', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ center:{lat,lng}, zoom, width:SIZE, height:SIZE, tapX:0.5, tapY:0.5 }),
-        signal: AbortSignal.timeout(30_000),
-      })
-      const createData = await createRes.json()
-      if (!createRes.ok) {
-        setSamError((createData?.error || 'Failed to start detection') + (createData?.detail ? ` — ${createData.detail}` : ''))
-        setMapHint(null)
-        return
-      }
-      const { predictionId, tileParams } = createData
-      if (!predictionId) { setSamError('No prediction ID returned'); setMapHint(null); return }
-
-      // Step 2: poll until done (client-side loop, no server timeout risk)
-      const pollBase = `/api/promeasure/sam-poll?id=${predictionId}&lat=${tileParams.lat}&lng=${tileParams.lng}&zoom=${tileParams.zoom}&w=${tileParams.w}&h=${tileParams.h}`
-      let elapsed = 0
-      let polygon: Array<{lat:number;lng:number}> | null = null
-
-      while (elapsed < 120_000) {
-        await new Promise(r => setTimeout(r, 3000))
-        elapsed += 3000
-        setMapHint(`Detecting… ${Math.round(elapsed/1000)}s`)
-
-        let pollData: any
-        try {
-          const pollRes = await fetch(pollBase, { signal: AbortSignal.timeout(15_000) })
-          pollData = await pollRes.json()
-        } catch { continue }  // transient network error — retry
-
-        if (pollData.status === 'processing') continue
-        if (pollData.status === 'failed') {
-          setSamError(pollData.error || 'Detection failed — try tapping the centre of the roof')
-          setMapHint(null)
-          return
-        }
-        if (pollData.status === 'succeeded') {
-          polygon = pollData.polygon
-          break
-        }
-      }
-
-      if (!polygon || polygon.length < 3) {
-        setSamError(polygon ? 'No roof outline detected — try tapping the centre' : 'Detection timed out — try again')
-        setMapHint(null)
-        return
-      }
-
-      // Clear existing pins + polygon, drop SAM result as new pins.
-      markers.current.forEach((m:any)=>m.setMap(null)); markers.current=[]
-      if (polyRef.current) { polyRef.current.setMap(null); polyRef.current=null }
-      regionsRef.current=[]
-      setLines([]); setPins(0); setArea(null); setPerim(null)
-
-      polygon.forEach(({lat:la,lng:ln})=>{
-        const pos = new window.google.maps.LatLng(la, ln)
-        const m = new window.google.maps.Marker({
-          position:pos, map,
-          icon:{ path:window.google.maps.SymbolPath.CIRCLE, scale:7,
-            fillColor:settings.markerColor, fillOpacity:1, strokeColor:'#fff', strokeWeight:2 },
-          draggable:true, zIndex:10,
-        })
-        m.addListener('dblclick',()=>{ m.setMap(null); markers.current=markers.current.filter((x:any)=>x!==m); redraw(map) })
-        m.addListener('dragend', ()=>redraw(map))
-        markers.current.push(m)
-      })
-      redraw(map)
-      setDrawMode('idle'); drawModeRef.current='idle'
-      setMapHint('Roof outline detected ✓ — drag pins to refine, then add Ridge/Hip/Valley lines')
-      setTimeout(()=>setMapHint(null), 5000)
-    } catch (err) {
-      setSamError('Unexpected error — try again')
-      console.error('[detectRoofAt]', err)
-    } finally {
-      setSamDetecting(false)
-    }
-  }
 
   function removeLine(i:number) {
     // Just update state — the single source-of-truth effect rebuilds the overlays.
@@ -1279,40 +1159,7 @@ function ProMeasureInner() {
             )}
           </button>
         )}
-        {/* SAM2 Detect Roof button — visible when map is ready and no outline drawn yet */}
-        {mapReady && regions.length===0 && (
-          <div style={{display:'flex',flexDirection:'column',gap:6}}>
-            {samMode==='tap' ? (
-              <button onClick={cancelSamTap}
-                style={{width:'100%',padding:'10px',borderRadius:10,border:`1.5px solid #F59E0B`,background:'rgba(245,158,11,0.12)',color:'#F59E0B',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                Cancel — click roof to detect
-              </button>
-            ) : samDetecting ? (
-              <button disabled style={{width:'100%',padding:'10px',borderRadius:10,border:`1.5px solid ${T.cardBorder}`,background:T.cardBg,color:T.textMuted,fontSize:12,fontWeight:700,cursor:'default',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                Detecting roof…
-              </button>
-            ) : (
-              <button onClick={armSamTap} disabled={!address.trim()}
-                style={{width:'100%',padding:'10px',borderRadius:10,border:`1.5px solid #14B8A6`,background:'rgba(20,184,166,0.10)',color:'#14B8A6',fontSize:12,fontWeight:700,cursor:address.trim()?'pointer':'default',opacity:address.trim()?1:0.4,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                AI Detect Roof Outline
-              </button>
-            )}
-            {samError && (
-              <div style={{fontSize:11,color:'#EF4444',padding:'6px 8px',borderRadius:7,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',lineHeight:1.4}}>
-                {samError}
-              </div>
-            )}
-            {!area&&regions.length===0&&!samMode&&(
-              <p style={{fontSize:11,color:T.textSubtle,textAlign:'center',lineHeight:1.5,margin:0}}>
-                AI detect auto-draws the outline · or click pins manually
-              </p>
-            )}
-          </div>
-        )}
-        {!mapReady&&!area&&regions.length===0&&(
+        {!area&&regions.length===0&&(
           <p style={{fontSize:12,color:T.textSubtle,textAlign:'center',lineHeight:1.6}}>
             Search an address above, then click the roof outline to drop pins
           </p>
