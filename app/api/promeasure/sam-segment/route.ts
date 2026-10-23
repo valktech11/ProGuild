@@ -176,7 +176,7 @@ async function loadMask(url: string, w: number, h: number): Promise<{ mask: Uint
 // Returns normalised [0..1] vertices. Prefers masks in a plausible roof band;
 // a near-whole-tile mask (ground/lot) or a tiny one (vent) is rejected.
 export async function resolveRoofPolygonPixels(
-  output: any, w: number, h: number, maxVertices = 40,
+  output: any, w: number, h: number, maxVertices = 14,
 ): Promise<{ contour: Array<{ nx: number; ny: number }>; maskUrl: string | null; ratios: number[] }> {
   const urls = gatherMaskUrls(output)
   if (urls.length === 0) { console.warn('[sam] no mask URLs in output'); return { contour: [], maskUrl: null, ratios: [] } }
@@ -205,8 +205,44 @@ export async function resolveRoofPolygonPixels(
   }
   console.log(`[sam] chose ratio=${chosen.ratio.toFixed(3)} url=${chosen.url.slice(0, 60)}`)
 
-  const contour = traceAndSimplify(chosen.mask, w, h, maxVertices)
+  // Erode 2px to pull the contour off the soft mask edge (SAM bleeds onto the
+  // surrounding grass/driveway). Fall back to the raw mask if erosion is too
+  // aggressive and wipes most of the blob.
+  const origFg = countFg(chosen.mask)
+  const eroded = erode(chosen.mask, w, h, 2)
+  const erodedFg = countFg(eroded)
+  const useMask = erodedFg > origFg * 0.5 && erodedFg > 200 ? eroded : chosen.mask
+  console.log(`[sam] erosion: ${origFg} → ${erodedFg} fg px (${useMask === eroded ? 'using eroded' : 'erosion too aggressive, using raw'})`)
+
+  const contour = traceAndSimplify(useMask, w, h, maxVertices)
   return { contour, maskUrl: chosen.url, ratios }
+}
+
+function countFg(mask: Uint8Array): number {
+  let n = 0
+  for (let i = 0; i < mask.length; i++) if (mask[i]) n++
+  return n
+}
+
+// Morphological erosion — a foreground pixel survives only if all 4 neighbours
+// are foreground. Shrinks the blob inward by `iterations` pixels.
+function erode(mask: Uint8Array, w: number, h: number, iterations: number): Uint8Array {
+  let cur = mask
+  for (let it = 0; it < iterations; it++) {
+    const next = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!cur[y * w + x]) continue
+        const up    = y > 0     ? cur[(y - 1) * w + x] : 0
+        const down  = y < h - 1 ? cur[(y + 1) * w + x] : 0
+        const left  = x > 0     ? cur[y * w + (x - 1)] : 0
+        const right = x < w - 1 ? cur[y * w + (x + 1)] : 0
+        if (up && down && left && right) next[y * w + x] = 1
+      }
+    }
+    cur = next
+  }
+  return cur
 }
 
 // ── Contour trace (Moore-neighbour) + Douglas-Peucker simplify ───────────────
@@ -216,10 +252,12 @@ function traceAndSimplify(mask: Uint8Array, w: number, h: number, maxVertices: n
   if (ring.length < 3) { console.warn('[sam] ring too short:', ring.length); return [] }
   console.log(`[sam] traced ring: ${ring.length} px`)
 
-  let eps = 3
+  // Higher epsilon floor → aggressive simplification. A residential roof
+  // footprint is ~6–14 real corners; anything more is pixel noise.
+  let eps = 6
   let simp = rdp(ring, eps)
   let guard = 0
-  while (simp.length > maxVertices && guard++ < 10) { eps *= 1.6; simp = rdp(ring, eps) }
+  while (simp.length > maxVertices && guard++ < 12) { eps *= 1.5; simp = rdp(ring, eps) }
 
   // Drop the duplicate closing vertex (Moore returns to start).
   if (simp.length > 1) {
