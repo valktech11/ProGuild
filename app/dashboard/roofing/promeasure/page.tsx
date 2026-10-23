@@ -753,57 +753,68 @@ function ProMeasureInner() {
   async function detectRoofAt(latLng: any, map: any) {
     setSamMode('idle'); samModeRef.current='idle'
     setSamDetecting(true); setSamError(null)
-    setMapHint('Detecting roof outline… (5–30 s)')
+    setMapHint('Starting AI detection…')
     try {
-      // Compute the same tile params as suggestRoofLines: polygon centroid → center,
-      // zoom 20 (sharp enough for residential roofs), 640×640 tile.
-      const center = latLng
-      const lat    = center.lat()
-      const lng    = center.lng()
-      const zoom   = Math.max(18, Math.min(21, map.getZoom() ?? 20))
-      const SIZE   = 640
+      const lat  = latLng.lat()
+      const lng  = latLng.lng()
+      const zoom = Math.max(18, Math.min(21, map.getZoom() ?? 20))
+      const SIZE = 640
 
-      // Compute tile pixel coords of the tap point using Web Mercator
-      // (same math as suggest-lines LERP so it maps to the same tile).
-      const scale  = Math.pow(2, zoom)
-      const worldPx = 256 * scale
-      const project = (la: number, ln: number) => {
-        const sinY = Math.sin(la * Math.PI / 180)
-        return { x:(ln+180)/360*worldPx, y:(0.5 - Math.log((1+sinY)/(1-sinY))/(4*Math.PI))*worldPx }
-      }
-      const ctr    = project(lat, lng)
-      const x0     = ctr.x - SIZE/2
-      const y0     = ctr.y - SIZE/2
-      // The tap IS the center (user tapped center of roof → we use that as tile center too).
-      // tapX=0.5, tapY=0.5 means "the point we centered the tile on" = the tap point.
-      const tapX = 0.5
-      const tapY = 0.5
-
-      const res = await fetch('/api/promeasure/sam-segment', {
+      // Step 1: create prediction (fast — returns in <5s)
+      const createRes = await fetch('/api/promeasure/sam-segment', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ center:{lat,lng}, zoom, width:SIZE, height:SIZE, tapX, tapY }),
-        signal: AbortSignal.timeout(90_000),
+        body: JSON.stringify({ center:{lat,lng}, zoom, width:SIZE, height:SIZE, tapX:0.5, tapY:0.5 }),
+        signal: AbortSignal.timeout(30_000),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setSamError((data?.error || 'Detection failed') + (data?.detail ? ` — ${data.detail}` : ' — tap the centre of the roof and try again'))
+      const createData = await createRes.json()
+      if (!createRes.ok) {
+        setSamError((createData?.error || 'Failed to start detection') + (createData?.detail ? ` — ${createData.detail}` : ''))
         setMapHint(null)
         return
       }
-      const polygon: Array<{lat:number;lng:number}> = data.polygon
-      if (!Array.isArray(polygon) || polygon.length < 3) {
-        setSamError('No roof outline detected — try tapping the centre of the roof')
+      const { predictionId, tileParams } = createData
+      if (!predictionId) { setSamError('No prediction ID returned'); setMapHint(null); return }
+
+      // Step 2: poll until done (client-side loop, no server timeout risk)
+      const pollBase = `/api/promeasure/sam-poll?id=${predictionId}&lat=${tileParams.lat}&lng=${tileParams.lng}&zoom=${tileParams.zoom}&w=${tileParams.w}&h=${tileParams.h}`
+      let elapsed = 0
+      let polygon: Array<{lat:number;lng:number}> | null = null
+
+      while (elapsed < 120_000) {
+        await new Promise(r => setTimeout(r, 3000))
+        elapsed += 3000
+        setMapHint(`Detecting… ${Math.round(elapsed/1000)}s`)
+
+        let pollData: any
+        try {
+          const pollRes = await fetch(pollBase, { signal: AbortSignal.timeout(15_000) })
+          pollData = await pollRes.json()
+        } catch { continue }  // transient network error — retry
+
+        if (pollData.status === 'processing') continue
+        if (pollData.status === 'failed') {
+          setSamError(pollData.error || 'Detection failed — try tapping the centre of the roof')
+          setMapHint(null)
+          return
+        }
+        if (pollData.status === 'succeeded') {
+          polygon = pollData.polygon
+          break
+        }
+      }
+
+      if (!polygon || polygon.length < 3) {
+        setSamError(polygon ? 'No roof outline detected — try tapping the centre' : 'Detection timed out — try again')
         setMapHint(null)
         return
       }
 
-      // Clear existing pins + polygon, then drop SAM polygon as new pins.
+      // Clear existing pins + polygon, drop SAM result as new pins.
       markers.current.forEach((m:any)=>m.setMap(null)); markers.current=[]
       if (polyRef.current) { polyRef.current.setMap(null); polyRef.current=null }
       regionsRef.current=[]
       setLines([]); setPins(0); setArea(null); setPerim(null)
 
-      // Drop each vertex as a pin (same as addPin but batch).
       polygon.forEach(({lat:la,lng:ln})=>{
         const pos = new window.google.maps.LatLng(la, ln)
         const m = new window.google.maps.Marker({
@@ -819,9 +830,10 @@ function ProMeasureInner() {
       redraw(map)
       setDrawMode('idle'); drawModeRef.current='idle'
       setMapHint('Roof outline detected ✓ — drag pins to refine, then add Ridge/Hip/Valley lines')
-      setTimeout(()=>setMapHint(null), 4000)
+      setTimeout(()=>setMapHint(null), 5000)
     } catch (err) {
-      setSamError('Detection timed out — try again')
+      setSamError('Unexpected error — try again')
+      console.error('[detectRoofAt]', err)
     } finally {
       setSamDetecting(false)
     }
