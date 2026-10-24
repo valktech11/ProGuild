@@ -1632,7 +1632,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
                       estimate: {title: carrierApproved ? 'Write the estimate' : 'Price the job', sub: carrierApproved ? 'Carrier approved — price the job now' : 'Squares loaded — open the calculator', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
                       supp:     {title:'Review supplement gap', sub:'Carrier may have under-scoped — check the code items they missed', cta:'Open Supplement Assistant', onClick:goSupplement, mins:'3 min', icon:<><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8.5" x2="11" y2="13.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/></>},
-                      send:     {title:'Send to homeowner', sub:'Open the estimate — send for instant approve & pay', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
+                      send:     {title:'Send the estimate', sub:'Open the estimate — send for instant approve & pay', cta:est?'Open Estimate':'Build Estimate', onClick:goEstimate, mins:'1 min', icon:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
                     }
                     let na = nextKey ? NA[nextKey] : null
                     // Back half: once the front-half workflow (measure → estimate →
@@ -1719,6 +1719,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const sqv = rjd2.square_count
                     const dn = (k: string) => !!wf.steps.find(s => s.key === k)?.done
                     const money = (n: number) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    const moneyFull = (n: number) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     const relTime = (iso?: string) => {
                       if (!iso) return null
                       const s = (Date.now() - new Date(iso).getTime()) / 1000
@@ -1744,7 +1745,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     })
                     stages.push({
                       key: 'estimate', label: isClaim2 ? 'Estimate' : 'Price the job', done: dn('estimate'),
-                      summary: est ? `${(est as any).estimate_number || 'Estimate'} · ${money(Number(est.total) || 0)}${(est as any).status ? ` · ${(est as any).status}` : ''}` : 'Price the job in the calculator',
+                      summary: est ? `${(est as any).estimate_number || 'Estimate'} · ${moneyFull(Number(est.total) || 0)}${(est as any).status ? ` · ${(est as any).status}` : ''}` : 'Price the job in the calculator',
                     })
                     if (isClaim2) stages.push({
                       key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
@@ -2157,7 +2158,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                         {estInline && (
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const }}>
                                             <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: tsu, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Estimate</span>
-                                            <CountUpMoney value={Number(est?.total) || 0} fmt={money} style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }} />
+                                            <CountUpMoney value={Number(est?.total) || 0} fmt={moneyFull} style={{ fontSize: isWide ? T.fontStat : T.fontStatMobile, fontWeight: 800, color: BRAND.teal, lineHeight: 1, letterSpacing: '-0.02em' }} />
                                             {statusPill((est as any)?.status)}
                                             {estFresh && <span style={{ fontSize: T.fontSub, color: tsu }}>Updated {estFresh}</span>}
                                           </span>
