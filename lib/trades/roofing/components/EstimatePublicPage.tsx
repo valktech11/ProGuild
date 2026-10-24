@@ -72,7 +72,9 @@ export default function RoofingEstimatePublicPage({ estimate, onApprove }: Props
   const isGBB = estimate.estimate_type === 'tiered' && (estimate.tiered_data?.tiers?.length ?? 0) > 0
   const tiers = estimate.tiered_data?.tiers ?? []
 
-  const [selectedTier, setSelectedTier] = useState<'standard' | 'upgraded' | 'premium' | null>(null)
+  const [selectedTier, setSelectedTier] = useState<'standard' | 'upgraded' | 'premium' | null>(
+    estimate.tiered_data?.selected_tier ?? null
+  )
   const [approved,     setApproved]     = useState(estimate.status === 'approved')
   const [approving,    setApproving]    = useState(false)
   const [termsOpen,    setTermsOpen]    = useState(false)
