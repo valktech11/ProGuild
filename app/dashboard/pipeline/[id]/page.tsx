@@ -1812,7 +1812,9 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       return <span style={{ fontSize: T.fontBadge, fontWeight: 800, color: c, background: bg, border: `1px solid ${c}33`, borderRadius: T.radSm, padding: '3px 9px', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>{st}</span>
                     }
                     return (
-                      <div style={{ position: 'relative', marginBottom: 12 }}>
+                      <>
+                        {heroEl}
+                        <div style={{ position: 'relative', marginBottom: 12 }}>
                         {/* one continuous path — upcoming stages read as 'ahead', not shut */}
                         <div style={{ position: 'absolute', left: isWide ? 19 : 15, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
@@ -2285,6 +2287,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           )}
                         </div>
                       </div>
+                      </>
                     )
                   })()}
 
