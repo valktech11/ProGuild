@@ -38,7 +38,7 @@ function CountUpMoney({ value, fmt, style }: { value: number; fmt: (n: number) =
     const tick = (now: number) => {
       const p = Math.min(1, (now - t0) / dur)
       const eased = 1 - Math.pow(1 - p, 3) // ease-out cubic
-      setDisp(Math.round(from + (to - from) * eased))
+      setDisp(from + (to - from) * eased)
       if (p < 1) rafRef.current = requestAnimationFrame(tick)
       else fromRef.current = to
     }
