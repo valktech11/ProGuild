@@ -1688,6 +1688,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                           </div>
                           {na ? (
                             <div style={{display:'flex',alignItems:'stretch',gap:T.sp4,flexShrink:0}}>
+                              {nextKey && (
                               <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:3,padding:'8px 16px',borderRadius:T.radMd,background:'rgba(255,255,255,0.10)',border:'1px solid rgba(255,255,255,0.18)'}}>
                                 <span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:T.fontBadge,fontWeight:700,color:'rgba(255,255,255,0.65)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
                                   <Svg size={11} stroke="rgba(255,255,255,0.65)" sw={2}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Svg>
@@ -1695,6 +1696,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 </span>
                                 <span style={{color:'#fff',lineHeight:1}}><span style={{fontSize:T.fontHero,fontWeight:800}}>{na.mins.replace(' min','')}</span><span style={{fontSize:T.fontSub,fontWeight:600,marginLeft:3,color:'rgba(255,255,255,0.75)'}}>min</span></span>
                               </div>
+                              )}
                               <button onClick={na.onClick} disabled={nextKey==='measure'&&qbGenerating}
                                 onMouseEnter={e=>{if(nextKey==='measure'&&qbGenerating)return;const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
                                 onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
