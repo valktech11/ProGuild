@@ -1753,12 +1753,15 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                       key: 'carrier', label: 'Carrier Claim', done: dn('carrier'),
                       summary: dn('carrier') ? `${rjd2.carrier_name || 'Carrier'} · decision recorded` : `${rjd2.carrier_name || 'Carrier'} · awaiting decision`,
                     })
-                    // When no claim is logged yet but the lead stage implies an insurance track,
-                    // add a placeholder carrier step so the pro sees it in the spine workflow.
-                    if (!isClaim2 && ['insurance_approved','scheduled','in_progress','job_won'].includes(stage)) stages.push({
-                      key: 'carrier-prompt', label: 'Carrier Claim', done: false,
-                      summary: 'Log insurance claim details in the Details tab',
-                    })
+                    // NOTE: a carrier-prompt placeholder used to be pushed here for
+                    // !isClaim2 leads at ['insurance_approved','scheduled','in_progress','job_won'].
+                    // Removed Oct 24, 2026 — insurance_approved is an auto-only stage
+                    // (lib/trades/roofing/state-machine.ts) that retail leads never literally
+                    // reach, but scheduled/in_progress/job_won are ordinary downstream stages
+                    // every lead passes through. The old condition false-positived on every
+                    // retail job once scheduled, with no dismiss. The one legitimate moment
+                    // (stage==='insurance_approved' && !isClaim) is already covered by the
+                    // banner in the Details/Claim tab — see ~line 2333.
                     if (isClaim2 && wf.decisionRecorded) stages.push({
                       key: 'supp', label: 'Supplement', done: dn('supp'),
                       summary: wf.gap != null ? `Potential gap ${money(wf.gap)} — review items` : 'Review supplement items',
@@ -1821,24 +1824,6 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         <div style={{ position: 'absolute', left: isWide ? 19 : 15, top: 30, bottom: 30, width: 2, background: dk ? 'rgba(255,255,255,0.10)' : '#CBD5E1', zIndex: 0 }} />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', zIndex: 1 }}>
                           {stages.map((s, i) => {
-                            // Carrier-prompt: claim not yet logged but lead is on insurance track
-                            if (s.key === 'carrier-prompt') {
-                              return (
-                                <div key={s.key} style={{ display: 'grid', gridTemplateColumns: `${GW}px 1fr`, gap: 12, alignItems: 'start' }}>
-                                  {gIcon(dk ? 'rgba(255,255,255,0.04)' : '#F1F5F9', <Svg size={isWide ? 17 : 15} stroke={tsu} sw={2}>{ICONS.carrier}</Svg>, bdr, 'carrier')}
-                                  <div style={{ background: dk ? 'rgba(245,158,11,0.08)' : '#FFFBEB', border: `1px solid ${dk ? 'rgba(245,158,11,0.25)' : '#FDE68A'}`, borderRadius: T.radLg, padding: isWide ? '14px 18px' : '12px 14px' }}>
-                                    <div style={{ fontSize: T.fontEmphasis, fontWeight: 800, color: dk ? '#FCD34D' : '#92400E', marginBottom: 4 }}>Log insurance claim details</div>
-                                    <div style={{ fontSize: T.fontSub, color: dk ? '#FDE68A' : '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
-                                      This lead is on the insurance track. Open the <strong>Details tab</strong> and enable the Insurance Claim toggle to log carrier info, adjuster appointment, and approved amount.
-                                    </div>
-                                    <button onClick={() => { setTab('claim'); setTimeout(() => { document.getElementById('insurance-claim-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 80) }}
-                                      style={{ fontSize: T.fontSub, fontWeight: 800, color: '#fff', background: BRAND.teal, border: 'none', borderRadius: T.radSm, padding: '8px 16px', cursor: 'pointer' }}>
-                                      Go to claim details →
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            }
                             // Carrier stage — summary + nav to Details tab where the full claim card lives
                             if (s.key === 'carrier') {
                               const cState = s.done ? 'done' : (i === firstActive ? 'active' : 'upcoming')
