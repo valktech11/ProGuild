@@ -356,7 +356,7 @@ export default function HVACAddLeadModal({ proId, tradeSlug, onClose, onAdded, d
             <div>
               <Lbl text="Street address" opt />
               <input ref={streetRef} value={street} onChange={e => setStreet(san(e.target.value))}
-                placeholder="3919 Highgate Dr"
+                placeholder="123 Main St"
                 style={iStyle('street')} autoComplete="off"
                 onFocus={() => fo('street')} onBlur={() => fb('street')} />
             </div>

@@ -287,7 +287,7 @@ export default function AddLeadModal({ proId, tradeSlug, onClose, onAdded, dk=fa
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 </div>
                 <input ref={streetRef} value={street} onChange={e=>setStreet(e.target.value)}
-                  placeholder="3919 Highgate Court" autoComplete="off"
+                  placeholder="123 Main St" autoComplete="off"
                   style={{width:'100%',boxSizing:'border-box',padding:'9px 12px 9px 34px',border:`1.5px solid ${BORDER}`,borderRadius:8,fontSize:13,outline:'none',background:CREAM,color:NAVY,transition:'all 0.15s'}}
                   onFocus={e=>{e.target.style.borderColor=TEAL;e.target.style.background='#fff';e.target.style.boxShadow='0 0 0 3px rgba(15,118,110,0.1)'}}
                   onBlur={e=>{e.target.style.borderColor=BORDER;e.target.style.background=CREAM;e.target.style.boxShadow='none'}}
