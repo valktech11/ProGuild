@@ -1627,7 +1627,7 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                     const goCarrier = ()=>{ setTab('claim'); setTimeout(()=>document.getElementById('insurance-claim-section')?.scrollIntoView({behavior:'smooth',block:'start'}),60) }
                     const goEstimate = ()=> est ? router.push(`/dashboard/estimates/${est.id}?from=pipeline&lead_id=${lead.id}`) : router.push(`/dashboard/roofing/calculator?lead_id=${lead.id}`)
                     const carrierApproved = ['Approved','Supplement Filed','Supplement Approved','Closed'].includes((lead as any).roofing_job_data?.claim_status)
-                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode}> = {
+                    const NA:Record<string,{title:string;sub:string;cta:string;onClick:()=>void;mins:string;icon:React.ReactNode;noCta?:boolean}> = {
                       measure:  {title:'Measure the roof', sub:'Pull roof size from satellite — about 30 seconds', cta:'Measure Roof', onClick:runSatelliteMeasure, mins:'1 min', icon:<><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></>},
                       carrier:  {title:'Review carrier scope', sub:'Record the carrier\u2019s decision to see whether a supplement is needed.', cta:'Record Decision', onClick:goCarrier, mins:'2 min', icon:<><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></>},
                       estimate: {title: carrierApproved ? 'Write the estimate' : 'Price the job', sub: carrierApproved ? 'Carrier approved — price the job now' : 'Squares loaded — open the calculator', cta:'Build Estimate', onClick:goEstimate, mins:'2 min', icon:<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></>},
@@ -1651,10 +1651,10 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                         na = {title:'Follow up with homeowner', sub:'Most jobs are won on the follow-up', cta:'Call homeowner', onClick:callHome, mins:'1 min', icon:iPhone}
                       else if (ls === 'proposal_signed')
                         na = hasDate
-                          ? {title:'Confirm & prep for install', sub:`Install set for ${fmt(sd)} — review scope & crew`, cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep}
+                          ? {title:'Confirm & prep for install', sub:`Install set for ${fmt(sd)} — review scope & crew`, cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep, noCta:true}
                           : {title:'Schedule the install', sub:'Homeowner approved — set the install date', cta:'Schedule', onClick:()=>setShowScheduleModal(true), mins:'1 min', icon:iCal}
                       else if (ls === 'scheduled')
-                        na = {title:'Confirm & prep for install', sub: hasDate ? `Install set for ${fmt(sd)} — review scope & crew` : 'Review scope, materials & crew before the date', cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep}
+                        na = {title:'Confirm & prep for install', sub: hasDate ? `Install set for ${fmt(sd)} — review scope & crew` : 'Review scope, materials & crew before the date', cta:'Review', onClick:()=>setShowScheduleModal(true), mins:'2 min', icon:iPrep, noCta:hasDate}
                       else if (ls === 'in_progress')
                         na = {title:'Take job-phase photos', sub:'Decking, install, completion — document as you go', cta:'Add Photos', onClick:()=>setTab('photos'), mins:'2 min', icon:iCam}
                     }
@@ -1697,14 +1697,14 @@ function LeadDetailInner({ params }: { params: Promise<{ id:string }> }) {
                                 <span style={{color:'#fff',lineHeight:1}}><span style={{fontSize:T.fontHero,fontWeight:800}}>{na.mins.replace(' min','')}</span><span style={{fontSize:T.fontSub,fontWeight:600,marginLeft:3,color:'rgba(255,255,255,0.75)'}}>min</span></span>
                               </div>
                               )}
-                              <button onClick={na.onClick} disabled={nextKey==='measure'&&qbGenerating}
+                              {!(na as any).noCta && <button onClick={na.onClick} disabled={nextKey==='measure'&&qbGenerating}
                                 onMouseEnter={e=>{if(nextKey==='measure'&&qbGenerating)return;const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(-2px)';b.style.boxShadow='0 14px 28px -6px rgba(0,0,0,0.35)'}}
                                 onMouseLeave={e=>{const b=e.currentTarget as HTMLButtonElement;b.style.transform='translateY(0)';b.style.boxShadow='0 8px 18px -4px rgba(0,0,0,0.28)'}}
                                 style={{display:'inline-flex',alignItems:'center',gap:8,padding:'0 22px',borderRadius:T.radSm,border:'none',background:'#fff',color:BRAND.teal,fontSize:T.fontEmphasis,fontWeight:800,cursor:(nextKey==='measure'&&qbGenerating)?'wait':'pointer',whiteSpace:'nowrap',boxShadow:'0 8px 18px -4px rgba(0,0,0,0.28)',transition:'transform 0.15s, box-shadow 0.15s',opacity:(nextKey==='measure'&&qbGenerating)?0.9:1}}>
                                 {nextKey==='measure'&&qbGenerating
                                   ? <><span style={{width:14,height:14,borderRadius:'50%',border:`2px solid ${BRAND.teal}40`,borderTopColor:BRAND.teal,animation:'pg-spin 0.7s linear infinite',display:'inline-block'}}/>Measuring…</>
                                   : <>{na.cta}<Svg size={16} stroke={BRAND.teal} sw={2.5}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></Svg></>}
-                              </button>
+                              </button>}
                               {nextKey==='measure'&&qbError&&<div style={{marginTop:8,fontSize:T.fontSub,color:'#ff6b6b',fontWeight:600}}>{qbError}</div>}
                             </div>
                           ) : (est && (
