@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { proFirstName, proDisplayName } from '@/lib/utils'
+import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
 const C = {
   bg:     '#0a0f0f',
@@ -296,6 +297,15 @@ export default function ClaimPage() {
             </div>
           )}
         </div>
+
+        {(stage === 'preview' || stage === 'password') && (
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <div style={{ color: C.muted, fontSize: 11, marginBottom: 10 }}>Also on your phone</div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <AppStoreBadges tone="dark" />
+            </div>
+          </div>
+        )}
 
         <div style={{ textAlign: 'center', marginTop: 20, color: C.muted, fontSize: 12 }}>
           ProGuild.ai · Verified Licensed Contractors
