@@ -189,7 +189,7 @@ export default function ClaimPage() {
                   Built from Florida DBPR records. Claim it to manage leads, send estimates, and collect reviews — free for 90 days.
                 </div>
                 <div style={{ background: '#F5F2EC', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', color: C.muted, fontSize: 12.5, lineHeight: 1.5, marginBottom: 24 }}>
-                  We created this profile using publicly available Florida DBPR license records. Claiming it lets you manage your own business details — no one else can access or edit it.
+                  We created this profile using publicly available Florida DBPR license records. Claiming it lets you manage your own business details — your profile stays visible to homeowners, but only you can edit it.
                 </div>
 
                 {/* Benefits */}
