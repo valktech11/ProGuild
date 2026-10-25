@@ -195,12 +195,14 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
       return
     }
 
-    // Session is now set in the cookie. Go straight to the destination — the
-    // SessionProvider resolves it via SIGNED_IN. Skipping /auth/callback removes a
-    // full-screen loader and a duplicate /api/auth/me on the login path. (OAuth
-    // still routes through /auth/callback for its code exchange.)
-    authTrace('login:navigate', { to: _loginRedirect || '/dashboard' })
-    router.push(_loginRedirect || '/dashboard')
+    // STABILIZED: route through /auth/callback, which WAITS for /api/auth/me
+    // before navigating to /dashboard. Navigating straight to /dashboard raced
+    // the in-flight session resolve (session=null, loading=false) and caused a
+    // login↔dashboard redirect ping-pong. The direct-nav optimization needs the
+    // login form to wait for the resolved context session first — tracked
+    // separately; until then the callback path is the safe route.
+    authTrace('login:navigate', { to: _loginRedirect || '/auth/callback' })
+    router.push(_loginRedirect || '/auth/callback')
   }
 
   async function handleForgotPassword() {
