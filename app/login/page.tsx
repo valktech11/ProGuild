@@ -5,6 +5,7 @@ import { TradeCategory, Session } from '@/types'
 import { US_STATES, fetchCitiesForState } from '@/lib/utils'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import OAuthButtons from '@/components/auth/OAuthButtons'
+import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -37,11 +38,7 @@ const HeroPanel = () => (
     <div style={{ position:'relative', padding:'52px 48px', zIndex:1 }}>
       {/* Logo */}
       <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:64 }}>
-        <div style={{ width:40, height:40, borderRadius:10, background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 16px rgba(15,118,110,0.5)' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-          </svg>
-        </div>
+        <img src="/logo.png" alt="ProGuild" style={{ width:40, height:40, borderRadius:10, boxShadow:'0 4px 16px rgba(15,118,110,0.5)' }} />
         <span style={{ color:'#fff', fontWeight:700, fontSize:20, letterSpacing:'-0.02em', fontFamily:'system-ui' }}>ProGuild.ai</span>
       </div>
 
@@ -111,6 +108,9 @@ const HeroPanel = () => (
       <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:24 }}>
         <p style={{ color:'rgba(180,210,220,0.5)', fontSize:12, margin:0 }}>&ldquo;Finally a CRM that understands roofing.&rdquo;</p>
         <p style={{ color:'rgba(180,210,220,0.35)', fontSize:11, marginTop:4 }}>— Tampa roofer, 14 years</p>
+      </div>
+      <div style={{ marginTop:20 }}>
+        <AppStoreBadges tone="dark" />
       </div>
     </div>
   </div>
@@ -842,11 +842,7 @@ function LoginPageInner() {
 
         {/* Mobile top bar */}
         <div className="md:hidden" style={{ display:'flex', alignItems:'center', gap:10, padding:'24px 24px 0' }}>
-          <div style={{ width:34, height:34, borderRadius:8, background:`linear-gradient(135deg, ${C.teal}, ${C.tealL})`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-            </svg>
-          </div>
+          <img src="/logo.png" alt="ProGuild" style={{ width:34, height:34, borderRadius:8 }} />
           <span style={{ fontWeight:700, fontSize:17, color:C.navy }}>ProGuild.ai</span>
         </div>
 
@@ -871,6 +867,12 @@ function LoginPageInner() {
             {tab === 'login'
               ? <LoginForm onSwitchTab={() => setTab('signup')} router={router} />
               : <SignupForm onSwitchTab={() => setTab('login')} router={router} />}
+
+            {/* App-store links — only surface this on mobile viewports; the
+                hero panel (desktop) already has its own copy of these. */}
+            <div className="md:hidden" style={{ display:'flex', justifyContent:'center', marginTop:28 }}>
+              <AppStoreBadges tone="light" />
+            </div>
 
           </div>
         </main>
