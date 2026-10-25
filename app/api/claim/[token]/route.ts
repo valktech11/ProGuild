@@ -15,6 +15,22 @@ export async function GET(
     .eq('claim_token', token)
     .single()
 
+  // License status for the claim badge — only claim "verified" when we've
+  // actually checked and the license is still active/expiring_soon. Falls
+  // back to a neutral record-found state when expired or no license row
+  // exists, rather than showing an unconditional "DBPR Verified" badge.
+  let licenseStatus: string | null = null
+  if (pro) {
+    const { data: lic } = await sb
+      .from('pro_licenses')
+      .select('license_status')
+      .eq('pro_id', pro.id)
+      .order('is_primary', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    licenseStatus = lic?.license_status ?? null
+  }
+
   if (error || !pro) {
     return NextResponse.json({ error: 'Invalid or expired claim link.' }, { status: 404 })
   }
@@ -33,6 +49,7 @@ export async function GET(
     state:     pro.state,
     trade:     (pro as any).trade_category?.category_name || pro.trade_slug || 'Trade Professional',
     photo_url: pro.profile_photo_url || null,
+    license_status: licenseStatus,
   })
 }
 

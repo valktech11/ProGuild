@@ -5,13 +5,17 @@ import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { proFirstName, proDisplayName } from '@/lib/utils'
 import AppStoreBadges from '@/components/ui/AppStoreBadges'
 
+// Matches the homepage palette (app/HomeClient.tsx) — this is a marketing/
+// landing touchpoint, not an app screen, so it borrows that light, familiar
+// tone rather than the dashboard's dark navy theme.
 const C = {
-  bg:     '#0a0f0f',
-  card:   '#111918',
-  border: 'rgba(255,255,255,0.08)',
-  teal:   '#14B8A6',
-  muted:  '#94A3B8',
-  error:  '#F87171',
+  bg:     '#FAF9F6',
+  card:   '#FFFFFF',
+  border: '#E8E2D9',
+  teal:   '#0F766E',
+  text:   '#0F172A',
+  muted:  '#64748B',
+  error:  '#DC2626',
 }
 
 const BENEFITS = [
@@ -19,7 +23,6 @@ const BENEFITS = [
   { bold: 'AI scans insurance claims', rest: ' for missed line items' },
   { bold: 'Unlimited job photos', rest: ' — no per-user fees' },
   { bold: 'Unlimited team members', rest: ' — one flat rate, no per-seat fees' },
-  { bold: 'DBPR-verified profile', rest: ' — get discovered by homeowners' },
 ]
 
 function Check() {
@@ -43,7 +46,7 @@ export default function ClaimPage() {
   const { token } = useParams() as { token: string }
   const router    = useRouter()
 
-  const [pro,    setPro]    = useState<any>(null)
+  const [pro,    setPro]    = useState<any>(null) // includes license_status
   const [stage,  setStage]  = useState<Stage>('loading')
   const [errMsg, setErrMsg] = useState('')
   const [pw,     setPw]     = useState('')
@@ -115,10 +118,14 @@ export default function ClaimPage() {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 14px', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.05)',
+    background: '#FFFFFF',
     border: `1px solid ${C.border}`,
-    borderRadius: 10, color: '#fff', fontSize: 14, outline: 'none',
+    borderRadius: 10, color: C.text, fontSize: 14, outline: 'none',
   }
+
+  // "Verified" is only accurate when we've actually confirmed the license is
+  // still in force — expired or unknown licenses get neutral, non-claim copy.
+  const licenseVerified = pro?.license_status === 'active' || pro?.license_status === 'expiring_soon'
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
@@ -128,12 +135,12 @@ export default function ClaimPage() {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             <img src="/logo.png" alt="ProGuild" style={{ width: 36, height: 36, borderRadius: 8 }} />
-            <span style={{ color: '#fff', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>ProGuild.ai</span>
+            <span style={{ color: C.text, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>ProGuild.ai</span>
           </div>
           <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Verified Licensed Contractors</div>
         </div>
 
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, overflow: 'hidden' }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
 
           {/* Loading */}
           {stage === 'loading' && (
@@ -144,7 +151,7 @@ export default function ClaimPage() {
           {stage === 'error' && (
             <div style={{ padding: '48px 32px', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-              <div style={{ color: '#fff', fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Link issue</div>
+              <div style={{ color: C.text, fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Link issue</div>
               <div style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{errMsg}</div>
               <a href="mailto:support@proguild.ai" style={{ color: C.teal, fontSize: 14 }}>Contact support →</a>
             </div>
@@ -161,7 +168,9 @@ export default function ClaimPage() {
                       <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                  <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>DBPR Verified</span>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    {licenseVerified ? 'DBPR Verified' : 'Florida DBPR Record'}
+                  </span>
                 </div>
                 <div style={{ color: '#fff', fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{proDisplayName(pro.full_name)}</div>
                 <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 6 }}>
@@ -171,11 +180,16 @@ export default function ClaimPage() {
 
               {/* Card body */}
               <div style={{ padding: '28px 28px 32px' }}>
-                <div style={{ color: '#fff', fontSize: 23, fontWeight: 700, lineHeight: 1.3, marginBottom: 10 }}>
-                  Your verified profile is already<br />live on ProGuild
+                <div style={{ color: C.text, fontSize: 23, fontWeight: 700, lineHeight: 1.3, marginBottom: 10 }}>
+                  {licenseVerified
+                    ? <>Your verified profile is already<br />live on ProGuild</>
+                    : <>Your profile is already<br />live on ProGuild</>}
                 </div>
-                <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+                <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>
                   Built from Florida DBPR records. Claim it to manage leads, send estimates, and collect reviews — free for 90 days.
+                </div>
+                <div style={{ background: '#F5F2EC', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', color: C.muted, fontSize: 12.5, lineHeight: 1.5, marginBottom: 24 }}>
+                  We created this profile using publicly available Florida DBPR license records. Claiming it lets you manage your own business details — no one else can access or edit it.
                 </div>
 
                 {/* Benefits */}
@@ -183,11 +197,19 @@ export default function ClaimPage() {
                   {BENEFITS.map((b, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ marginTop: 1 }}><Check /></div>
-                      <span style={{ color: '#CBD5E1', fontSize: 14, lineHeight: 1.5 }}>
-                        <strong style={{ color: '#fff', fontWeight: 600 }}>{b.bold}</strong>{b.rest}
+                      <span style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                        <strong style={{ color: C.text, fontWeight: 600 }}>{b.bold}</strong>{b.rest}
                       </span>
                     </div>
                   ))}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ marginTop: 1 }}><Check /></div>
+                    <span style={{ color: C.muted, fontSize: 14, lineHeight: 1.5 }}>
+                      <strong style={{ color: C.text, fontWeight: 600 }}>
+                        {licenseVerified ? 'DBPR-verified profile' : 'Florida DBPR profile'}
+                      </strong>{' '}— get discovered by homeowners
+                    </span>
+                  </div>
                 </div>
 
                 {/* CTA */}
@@ -217,7 +239,7 @@ export default function ClaimPage() {
             <>
               <div style={{ background: 'linear-gradient(135deg, #0F766E, #065F46)', padding: '20px 28px' }}>
                 <div style={{ color: '#fff', fontSize: 16, fontWeight: 700 }}>Set your password</div>
-                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>
+                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 }}>
                   One step to unlock {proFirstName(pro.full_name)}'s dashboard
                 </div>
               </div>
@@ -278,14 +300,14 @@ export default function ClaimPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 20px', fontSize: 28
               }}>✓</div>
-              <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, marginBottom: 10 }}>Profile claimed!</div>
+              <div style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 10 }}>Profile claimed!</div>
               <div style={{ color: C.muted, fontSize: 14, lineHeight: 1.6 }}>
                 Welcome to ProGuild.<br />
                 Setting up your dashboard…
               </div>
               <div style={{ marginTop: 24 }}>
-                <div style={{ 
-                  height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden'
+                <div style={{
+                  height: 3, background: C.border, borderRadius: 2, overflow: 'hidden'
                 }}>
                   <div style={{ 
                     height: '100%', background: C.teal, borderRadius: 2,
@@ -302,7 +324,7 @@ export default function ClaimPage() {
           <div style={{ textAlign: 'center', marginTop: 24 }}>
             <div style={{ color: C.muted, fontSize: 11, marginBottom: 10 }}>Also on your phone</div>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <AppStoreBadges tone="dark" />
+              <AppStoreBadges tone="light" />
             </div>
           </div>
         )}
