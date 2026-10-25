@@ -11,6 +11,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import Loader from '@/components/ui/Loader'
+import { authTrace } from '@/lib/auth-trace' // TEMP diagnostic — remove before prod
 
 function CallbackInner() {
   const router = useRouter()
@@ -25,10 +26,12 @@ function CallbackInner() {
       // Give the SSR client a moment to process the OAuth code in the URL.
       // getSession() returns the established session once exchange completes.
       const { data: { session } } = await supabase.auth.getSession()
+      authTrace('callback:getSession', { hasSession: !!session })
 
       if (!session) {
         // Exchange may still be in flight; listen once for the sign-in event.
         const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+          authTrace('callback:onAuthStateChange', { event, hasSession: !!s })
           if (s) {
             sub.subscription.unsubscribe()
             if (!cancelled) resolveAndRoute(s.access_token)
@@ -38,6 +41,7 @@ function CallbackInner() {
         setTimeout(() => {
           if (!cancelled) {
             sub.subscription.unsubscribe()
+            authTrace('callback:timeout->/login')
             setMsg('Could not complete sign-in. Redirecting…')
             router.replace('/login')
           }
@@ -54,6 +58,7 @@ function CallbackInner() {
           headers: { Authorization: `Bearer ${token}` },
         })
         const d = await r.json()
+        authTrace('callback:me', { status: r.status, hasSession: !!d.session, needsProfile: !!d.needsProfile, removedFromCompany: !!d.removedFromCompany })
         if (cancelled) return
 
         // Check if this signup came from the visualizer
@@ -78,14 +83,16 @@ function CallbackInner() {
             return
           }
           if (d.removedFromCompany) {
+            authTrace('callback:navigate->/removed-from-team')
             router.replace('/removed-from-team')
           } else {
             // Check for post-OAuth redirect stored before OAuth started
             let postOAuthRedirect = '/dashboard'
-            try { 
+            try {
               const stored = sessionStorage.getItem('pg_oauth_redirect')
               if (stored) { postOAuthRedirect = stored; sessionStorage.removeItem('pg_oauth_redirect') }
             } catch {}
+            authTrace('callback:navigate', { to: postOAuthRedirect })
             router.replace(postOAuthRedirect)
           }
         } else if (r.ok && d.needsProfile) {
@@ -98,11 +105,14 @@ function CallbackInner() {
           }
           // Profile not built yet. Keep pg_visualizer_session in storage — the
           // visualizer links it itself once the pro record exists.
+          authTrace('callback:navigate->/complete-profile')
           router.replace('/complete-profile')
         } else {
+          authTrace('callback:navigate->/login', { reason: 'me-not-ok-or-no-session' })
           router.replace('/login')
         }
       } catch {
+        authTrace('callback:navigate->/login', { reason: 'threw' })
         if (!cancelled) router.replace('/login')
       }
     }

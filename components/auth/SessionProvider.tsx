@@ -12,6 +12,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react'
 import { Session } from '@/types'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { authTrace } from '@/lib/auth-trace' // TEMP diagnostic — remove before prod
 
 interface SessionContextValue {
   session: Session | null
@@ -39,8 +40,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => { sessionRef.current = session }, [session])
 
   const resolve = useCallback(async (opts?: { silent?: boolean }) => {
+    authTrace('resolve:start', { silent: !!opts?.silent, hasExisting: !!sessionRef.current })
     const supabase = getSupabaseBrowser()
     let { data: { session: authSession } } = await supabase.auth.getSession()
+    authTrace('resolve:getSession', { hasAuthSession: !!authSession })
 
     if (!authSession) {
       // getSession() can transiently return null while Supabase is mid token-
@@ -53,12 +56,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (opts?.silent && sessionRef.current) {
         const { data: refreshed } = await supabase.auth.refreshSession()
         authSession = refreshed?.session ?? null
+        authTrace('resolve:silentRefresh', { recovered: !!authSession })
       }
       if (!authSession) {
         if (!opts?.silent) {
+          authTrace('resolve:setSession(null)', { reason: 'no-authSession-nonsilent' })
           setSession(null)
           setNeedsProfile(false)
           setAuthEmail(null)
+        } else {
+          authTrace('resolve:keepSession', { reason: 'no-authSession-silent' })
         }
         setLoading(false)
         return
@@ -79,6 +86,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     try {
       let r = await fetchMe(authSession.access_token)
+      authTrace('resolve:me', { status: r?.status ?? 'null' })
 
       // 401 = the access token is expired/invalid. Before giving up and bouncing
       // to /login, force a token refresh and retry once. This makes routine ~1hr
@@ -89,11 +97,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const newToken = refreshed?.session?.access_token
         if (newToken) {
           r = await fetchMe(newToken)
+          authTrace('resolve:me-retry', { status: r?.status ?? 'null' })
         }
       }
 
       if (r && r.ok) {
         const d = await r.json()
+        authTrace('resolve:setSession(value)', { hasSession: !!d.session, needsProfile: !!d.needsProfile, removedFromCompany: !!d.removedFromCompany })
         setSession(d.session)
         setNeedsProfile(!!d.needsProfile)
         setRemovedFromCompany(!!d.removedFromCompany)
@@ -102,16 +112,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // the refresh-and-retry above also failed. On a silent re-resolve (token
         // refresh / tab refocus) a transient non-ok response must NOT wipe a
         // session we already have — that caused the login flicker.
+        authTrace('resolve:setSession(null)', { reason: 'me-not-ok-nonsilent', status: r?.status ?? 'null' })
         setSession(null)
         setNeedsProfile(false)
+      } else {
+        authTrace('resolve:keepSession', { reason: 'me-not-ok-silent', status: r?.status ?? 'null' })
       }
     } catch {
       // Network blip during a silent re-resolve: keep the existing session.
       if (!opts?.silent) {
+        authTrace('resolve:setSession(null)', { reason: 'me-threw-nonsilent' })
         setSession(null)
         setNeedsProfile(false)
+      } else {
+        authTrace('resolve:keepSession', { reason: 'me-threw-silent' })
       }
     }
+    authTrace('resolve:done:setLoading(false)')
     setLoading(false)
   }, [])
 
@@ -123,8 +140,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // where a routine token refresh briefly bounced pages toward /login.
     const supabase = getSupabaseBrowser()
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      authTrace('onAuthStateChange', { event })
       if (event === 'INITIAL_SESSION') return
-      if (event === 'SIGNED_OUT') { setSession(null); setNeedsProfile(false); setAuthEmail(null); return }
+      if (event === 'SIGNED_OUT') { authTrace('authEvent:SIGNED_OUT->setSession(null)'); setSession(null); setNeedsProfile(false); setAuthEmail(null); return }
       if (event === 'SIGNED_IN') { resolve(); return }
       // TOKEN_REFRESHED / USER_UPDATED / others: refresh data but never null on a blip.
       resolve({ silent: true })

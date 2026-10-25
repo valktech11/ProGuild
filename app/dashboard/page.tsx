@@ -7,6 +7,7 @@ import { timeAgo, fmtCurrency, proFirstName } from '@/lib/utils'
 import DashboardShell from '@/components/layout/DashboardShell'
 import { useProSession } from '@/lib/hooks/useProSession'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
+import { authTrace } from '@/lib/auth-trace' // TEMP diagnostic — remove before prod
 
 import { theme, T, BRAND } from '@/lib/tokens'
 import type { OverviewWidgetProps } from '@/lib/trades/_registry/types'
@@ -381,13 +382,15 @@ export default function OverviewPage() {
   }
 
   useEffect(() => {
+    authTrace('dash:effect', { sessionLoading, hasSession: !!session, needsProfile, removedFromCompany })
     // Wait until auth has resolved before deciding anything (prevents redirect loop)
     if (sessionLoading) return
     // Authenticated but no linked pro yet → home to find & claim their profile
-    if (needsProfile) { router.replace('/complete-profile'); return }
-    if (removedFromCompany) { router.replace('/removed-from-team'); return }
+    if (needsProfile) { authTrace('dash:navigate->/complete-profile'); router.replace('/complete-profile'); return }
+    if (removedFromCompany) { authTrace('dash:navigate->/removed-from-team'); router.replace('/removed-from-team'); return }
     // Not authenticated at all → login
-    if (!session) { router.replace('/login'); return }
+    if (!session) { authTrace('dash:navigate->/login'); router.replace('/login'); return }
+    authTrace('dash:fetchData')
     fetchData(session)
     // Listen for leads added from the sidebar "+ Add New Lead" button
     const handler = () => fetchData(session)
@@ -457,6 +460,7 @@ export default function OverviewPage() {
   }
 
   if (sessionLoading || !session || dataLoading) {
+    authTrace('dash:render:skeleton', { sessionLoading, hasSession: !!session, dataLoading })
     // Skeleton shell — prevents blank flash while session resolves
     return (
       <div style={{ minHeight: '100vh', background: t.pageBg, display: 'flex' }}>
