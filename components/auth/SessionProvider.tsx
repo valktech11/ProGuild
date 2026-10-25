@@ -48,6 +48,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const resolve = useCallback(async (opts?: { silent?: boolean }) => {
     if (resolvingRef.current) { authTrace('resolve:skip-inflight'); return }
     resolvingRef.current = true
+    // A non-silent resolve means we're establishing auth from scratch (initial
+    // load, or just after login/claim) and have no trusted session yet. Mark
+    // loading so protected pages show their skeleton and WAIT, instead of seeing
+    // session=null with loading=false and bouncing to /login while /api/auth/me
+    // is still in flight — that race is the login↔dashboard ping-pong. Silent
+    // re-resolves (token refresh) keep the current session and loading state.
+    if (!opts?.silent) { authTrace('resolve:setLoading(true)'); setLoading(true) }
     authTrace('resolve:start', { silent: !!opts?.silent, hasExisting: !!sessionRef.current })
     const supabase = getSupabaseBrowser()
     let { data: { session: authSession } } = await supabase.auth.getSession()
