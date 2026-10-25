@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import { proFirstName, proDisplayName } from '@/lib/utils'
 import AppStoreBadges from '@/components/ui/AppStoreBadges'
+import { authTrace } from '@/lib/auth-trace' // TEMP diagnostic — remove before prod
 
 // Matches the homepage palette (app/HomeClient.tsx) — this is a marketing/
 // landing touchpoint, not an app screen, so it borrows that light, familiar
@@ -81,12 +82,16 @@ export default function ClaimPage() {
         body: JSON.stringify({ password: pw }),
       })
       const d = await r.json()
+      authTrace('claim:POST', { ok: !!d.ok })
       if (d.ok) {
         // Show success screen immediately — eliminates flicker
         setStage('done')
         const supabase = getSupabaseBrowser()
+        authTrace('claim:signIn:start')
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email: pro.email, password: pw })
+        authTrace('claim:signIn:done', { err: signInErr?.message ?? null })
         if (signInErr) {
+          authTrace('claim:signIn:fail->login')
           setTimeout(() => router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`), 1500)
           return
         }
@@ -96,15 +101,17 @@ export default function ClaimPage() {
         await new Promise<void>(res => {
           const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
             if (event === 'SIGNED_IN' && newSession) {
+              authTrace('claim:wait:SIGNED_IN-heard')
               subscription.unsubscribe()
               res()
             }
           })
-          setTimeout(res, 3000) // hard fallback
+          setTimeout(() => { authTrace('claim:wait:3s-fallback-fired'); res() }, 3000) // hard fallback
         })
         // Use window.location for a hard navigation so the new page starts
         // fresh with the session already in localStorage — avoids the React
         // router reusing the old SessionProvider state that starts loading:true
+        authTrace('claim:navigate->/dashboard (hard)')
         window.location.href = '/dashboard'
       } else {
         setPwErr(d.error || 'Something went wrong. Please try again.')

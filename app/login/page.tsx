@@ -6,6 +6,7 @@ import { US_STATES, fetchCitiesForState } from '@/lib/utils'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 import OAuthButtons from '@/components/auth/OAuthButtons'
 import AppStoreBadges from '@/components/ui/AppStoreBadges'
+import { authTrace } from '@/lib/auth-trace' // TEMP diagnostic — remove before prod
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -178,10 +179,12 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
     setLoading(true); setError(''); setResetMsg('')
 
     const supabase = getSupabaseBrowser()
+    authTrace('login:signIn:start')
     const { error: signInErr } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     })
+    authTrace('login:signIn:done', { err: signInErr?.message ?? null })
 
     if (signInErr) {
       setLoading(false)
@@ -193,6 +196,7 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
     }
 
     // Session is now set. Route to redirect target or callback resolver.
+    authTrace('login:navigate', { to: _loginRedirect || '/auth/callback' })
     router.push(_loginRedirect || '/auth/callback')
   }
 
@@ -827,7 +831,8 @@ function LoginPageInner() {
   useEffect(() => {
     const supabase = getSupabaseBrowser()
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: unknown } }) => {
-      if (session) router.replace('/dashboard')
+      authTrace('loginMount:getSession', { hasSession: !!session })
+      if (session) { authTrace('loginMount:navigate->/dashboard'); router.replace('/dashboard') }
     })
   }, [])
 
