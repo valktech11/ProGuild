@@ -139,6 +139,10 @@ export async function GET(req: NextRequest) {
 
   // Resolve role + removed status + auth user metadata in parallel for speed
   const isRemovedCandidate = (pro as any).is_claimed === true && !(pro as any).company_id
+  // Only hit GoTrue (admin.getUserById) for the Google-avatar fallback when the
+  // pro has no stored photo. Pros with a profile_photo_url never use the result,
+  // so calling it on every auth resolve was a wasted network round-trip.
+  const needGoogleAvatar = !(pro as any).profile_photo_url
   const [membershipRes, removedCheckRes, authUserRes] = await Promise.all([
     company?.id
       ? admin.from('company_members').select('role').eq('company_id', company.id).eq('pro_id', pro.id).maybeSingle()
@@ -146,7 +150,9 @@ export async function GET(req: NextRequest) {
     isRemovedCandidate
       ? admin.from('company_members').select('id', { count: 'exact', head: true }).eq('pro_id', pro.id)
       : Promise.resolve({ count: 0 }),
-    admin.auth.admin.getUserById(authUser.id),
+    needGoogleAvatar
+      ? admin.auth.admin.getUserById(authUser.id)
+      : Promise.resolve({ data: { user: null } }),
   ])
   const role = ((membershipRes as any).data?.role as 'owner' | 'member') ?? null
   const wasRemoved = isRemovedCandidate ? (((removedCheckRes as any).count) ?? 0) > 0 : false
