@@ -195,9 +195,12 @@ function LoginForm({ onSwitchTab, router }: { onSwitchTab: () => void; router: a
       return
     }
 
-    // Session is now set. Route to redirect target or callback resolver.
-    authTrace('login:navigate', { to: _loginRedirect || '/auth/callback' })
-    router.push(_loginRedirect || '/auth/callback')
+    // Session is now set in the cookie. Go straight to the destination — the
+    // SessionProvider resolves it via SIGNED_IN. Skipping /auth/callback removes a
+    // full-screen loader and a duplicate /api/auth/me on the login path. (OAuth
+    // still routes through /auth/callback for its code exchange.)
+    authTrace('login:navigate', { to: _loginRedirect || '/dashboard' })
+    router.push(_loginRedirect || '/dashboard')
   }
 
   async function handleForgotPassword() {

@@ -39,7 +39,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<Session | null>(null)
   useEffect(() => { sessionRef.current = session }, [session])
 
+  // Guards against two resolve() runs overlapping — on boot the mount-resolve
+  // and a SIGNED_IN-resolve fire near-simultaneously, which double-hit
+  // /api/auth/me and double-ran the dashboard's fetchData. The second concurrent
+  // caller is dropped.
+  const resolvingRef = useRef(false)
+
   const resolve = useCallback(async (opts?: { silent?: boolean }) => {
+    if (resolvingRef.current) { authTrace('resolve:skip-inflight'); return }
+    resolvingRef.current = true
     authTrace('resolve:start', { silent: !!opts?.silent, hasExisting: !!sessionRef.current })
     const supabase = getSupabaseBrowser()
     let { data: { session: authSession } } = await supabase.auth.getSession()
@@ -68,6 +76,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           authTrace('resolve:keepSession', { reason: 'no-authSession-silent' })
         }
         setLoading(false)
+        resolvingRef.current = false
         return
       }
     }
@@ -130,6 +139,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     authTrace('resolve:done:setLoading(false)')
     setLoading(false)
+    resolvingRef.current = false
   }, [])
 
   useEffect(() => {
@@ -143,7 +153,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       authTrace('onAuthStateChange', { event })
       if (event === 'INITIAL_SESSION') return
       if (event === 'SIGNED_OUT') { authTrace('authEvent:SIGNED_OUT->setSession(null)'); setSession(null); setNeedsProfile(false); setAuthEmail(null); return }
-      if (event === 'SIGNED_IN') { resolve(); return }
+      // SIGNED_IN also re-fires on tab-focus / token auto-refresh. When a session
+      // is already held it's a re-emit, not a new login — skip the full re-resolve
+      // (which re-hit /api/auth/me and re-ran dashboard fetchData on every refocus).
+      // Only resolve when there's no session yet (a genuine login).
+      if (event === 'SIGNED_IN') {
+        if (sessionRef.current) { authTrace('authEvent:SIGNED_IN-ignored(have-session)'); return }
+        resolve(); return
+      }
       // TOKEN_REFRESHED / USER_UPDATED / others: refresh data but never null on a blip.
       resolve({ silent: true })
     })

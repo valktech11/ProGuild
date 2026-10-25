@@ -83,6 +83,20 @@ export default function ClaimPage() {
         // Show success screen immediately — eliminates flicker
         setStage('done')
         const supabase = getSupabaseBrowser()
+        // Subscribe to SIGNED_IN BEFORE signing in. signInWithPassword emits
+        // SIGNED_IN *during* the call, so a listener registered afterwards missed
+        // it and always waited out the full 3s fallback. Subscribing first lets us
+        // navigate the instant the session is persisted.
+        const signedIn = new Promise<void>(res => {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+            if (event === 'SIGNED_IN' && newSession) {
+              authTrace('claim:wait:SIGNED_IN-heard')
+              subscription.unsubscribe()
+              res()
+            }
+          })
+          setTimeout(() => { authTrace('claim:wait:3s-fallback-fired'); res() }, 3000) // safety fallback
+        })
         authTrace('claim:signIn:start')
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email: pro.email, password: pw })
         authTrace('claim:signIn:done', { err: signInErr?.message ?? null })
@@ -91,22 +105,8 @@ export default function ClaimPage() {
           setTimeout(() => router.replace(`/login?email=${encodeURIComponent(pro.email)}&claimed=1`), 1500)
           return
         }
-        // Wait for session to be fully written to storage before navigating.
-        // onAuthStateChange SIGNED_IN fires after the session is persisted,
-        // so the dashboard SessionProvider will find it immediately on mount.
-        await new Promise<void>(res => {
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-            if (event === 'SIGNED_IN' && newSession) {
-              authTrace('claim:wait:SIGNED_IN-heard')
-              subscription.unsubscribe()
-              res()
-            }
-          })
-          setTimeout(() => { authTrace('claim:wait:3s-fallback-fired'); res() }, 3000) // hard fallback
-        })
-        // Use window.location for a hard navigation so the new page starts
-        // fresh with the session already in localStorage — avoids the React
-        // router reusing the old SessionProvider state that starts loading:true
+        await signedIn
+        // Hard navigation so the dashboard boots fresh with the persisted session.
         authTrace('claim:navigate->/dashboard (hard)')
         window.location.href = '/dashboard'
       } else {
