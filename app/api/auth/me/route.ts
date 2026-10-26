@@ -7,6 +7,13 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { verifySupabaseToken } from '@/lib/pro-auth'
 
 export async function GET(req: NextRequest) {
+  // TEMP perf instrumentation (staging only) — remove once we've got a real
+  // timing breakdown. Logs to console (visible in Vercel logs) and returns a
+  // Server-Timing header so the browser Network tab shows it too.
+  const t0 = Date.now()
+  const timings: Record<string, number> = {}
+  const mark = (label: string) => { timings[label] = Date.now() - t0 }
+
   const authHeader = req.headers.get('authorization') || ''
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
 
@@ -15,6 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   const verified = await verifySupabaseToken(token)
+  mark('verifyToken')
   if (!verified) {
     return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
   }
@@ -42,6 +50,7 @@ export async function GET(req: NextRequest) {
     `)
     .eq('auth_user_id', authUser.id)
     .maybeSingle()
+  mark('prosQuery')
 
   if (proErr) {
     console.error('[auth/me] pros lookup failed', proErr)
@@ -82,6 +91,7 @@ export async function GET(req: NextRequest) {
   if (!(pro as any).trade_slug && resolvedTradeSlug) {
     await admin.from('pros').update({ trade_slug: resolvedTradeSlug }).eq('id', pro.id)
   }
+  mark('tradeSlugHeal')
 
   // Self-heal: ANY pro with no company (claimed via /claim/[token] before the fix,
   // a test/legacy row, or an edge-case signup). Every pro must have a company —
@@ -131,6 +141,7 @@ export async function GET(req: NextRequest) {
       // Non-fatal — session still returns, pro can still use the app
     }
   }
+  mark('companySelfHeal')
 
   // Plan and trial come from company if available, else fall back to pros
   // (fallback handles unclaimed/orphaned rows during migration window)
@@ -154,6 +165,7 @@ export async function GET(req: NextRequest) {
       ? admin.auth.admin.getUserById(authUser.id)
       : Promise.resolve({ data: { user: null } }),
   ])
+  mark('parallelResolve')
   const role = ((membershipRes as any).data?.role as 'owner' | 'member') ?? null
   const wasRemoved = isRemovedCandidate ? (((removedCheckRes as any).count) ?? 0) > 0 : false
   // Avatar: prefer profile_photo_url from pros table, fall back to Google OAuth avatar_url
@@ -207,6 +219,16 @@ export async function GET(req: NextRequest) {
     maxAge: cookieMaxAge,
     path: '/',
   })
+
+  mark('total')
+  console.log('[auth/me:timing]', JSON.stringify(timings))
+  // Server-Timing header — visible in the browser Network tab (Timing panel)
+  // without digging through server logs. Cumulative-from-start values, not
+  // deltas between marks, matching how `mark()` records them above.
+  res.headers.set(
+    'Server-Timing',
+    Object.entries(timings).map(([name, dur]) => `${name};dur=${dur}`).join(', ')
+  )
 
   return res
 }
