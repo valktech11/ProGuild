@@ -64,6 +64,10 @@ async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string)
       .eq('profile_status', 'Active')
       .eq('is_claimed', false)
       .not('license_number', 'is', null)
+      // Directory shows only contactable pros — a real phone OR a real (non-
+      // placeholder) email. Mirrors the Find-a-Pro search gate in
+      // app/api/pros/route.ts so listing, search and sitemap agree.
+      .or('phone_cell.not.is.null,and(email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
       .limit(needed)
     return [...claimedList, ...(unclaimed || [])]
   }
@@ -71,6 +75,8 @@ async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string)
 }
 
 async function getProCount(tradeId: string, stateAbbr: string, citySlug: string) {
+  // Count only contactable pros (same gate as the list + the sitemap RPC +
+  // app/api/pros/route.ts), so the headline count matches what's shown.
   const { count } = await getSupabaseAdmin()
     .from('pros')
     .select('id', { count: 'exact', head: true })
@@ -78,6 +84,7 @@ async function getProCount(tradeId: string, stateAbbr: string, citySlug: string)
     .ilike('state', stateAbbr)
     .eq('city_slug', citySlug)
     .eq('profile_status', 'Active')
+    .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
   return count || 0
 }
 
