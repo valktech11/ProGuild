@@ -133,7 +133,9 @@ export const FL_SEO_CITIES = [
 
 // City slug → display name
 export function cityToSlug(city: string): string {
-  return city.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-')
+  // Must stay in l-step with the SQL used to backfill pros.city_slug
+  // (scripts/city-slug-migration.sql) so generated links match stored slugs.
+  return city.trim().toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
 }
 export function slugToCity(slug: string): string {
   return FL_SEO_CITIES.find(c => cityToSlug(c) === slug) || slug
