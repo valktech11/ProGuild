@@ -467,31 +467,41 @@ export default function ProfileClient() {
     const s = _real
     if (_real) setSession(_real)
 
+    // Load all profile data given a resolved pro UUID. The URL in the address
+    // bar may be a slug (the canonical SEO URL) — we resolve it to a UUID here
+    // and fetch with that, but we DO NOT navigate to the UUID URL. The server
+    // (page.tsx) canonicalises UUID -> slug; if the client also navigated
+    // slug -> UUID the two would ping-pong forever (infinite redirect loop).
+    const loadData = (proId: string) => {
+      Promise.all([
+        fetch(`/api/pros/${proId}${!s || s.id !== proId ? '?view=1' : ''}`).then(r => r.json()),
+        fetch(`/api/reviews?pro_id=${proId}`).then(r => r.json()),
+        fetch(`/api/portfolio?pro_id=${proId}`).then(r => r.json()),
+        s ? fetch(`/api/follows?pro_id=${proId}`).then(r => r.json()) : Promise.resolve(null),
+      ]).then(([proData, reviewData, portfolioData, followData]) => {
+        if (proData.error) { setError(proData.error); setLoading(false); return }
+        setPro(proData.pro)
+        setReviews(reviewData.reviews || [])
+        setPortfolio(portfolioData.items || [])
+        if (followData && s) setIsFollowing((followData.followers||[]).some((f:any) => f?.id === s.id))
+        setLoading(false)
+        fetch(`/api/pro-licenses?pro_id=${proId}`).then(r => r.json()).then(d => setProLicenses(d.licenses || []))
+      }).catch(() => { setError('Could not load profile'); setLoading(false) })
+    }
+
     if (!UUID_RE.test(id)) {
+      // Slug URL — resolve to UUID, then load in place (no navigation).
       fetch(`/api/pros/slug?slug=${encodeURIComponent(id)}`)
         .then(r => r.json())
         .then(d => {
-          if (d.pro_id) router.replace(`/pro/${d.pro_id}`)
+          if (d.pro_id) loadData(d.pro_id)
           else { setError('Pro not found'); setLoading(false) }
         })
         .catch(() => { setError('Could not load profile'); setLoading(false) })
       return
     }
 
-    Promise.all([
-      fetch(`/api/pros/${id}${!s || s.id !== id ? '?view=1' : ''}`).then(r => r.json()),
-      fetch(`/api/reviews?pro_id=${id}`).then(r => r.json()),
-      fetch(`/api/portfolio?pro_id=${id}`).then(r => r.json()),
-      s ? fetch(`/api/follows?pro_id=${id}`).then(r => r.json()) : Promise.resolve(null),
-    ]).then(([proData, reviewData, portfolioData, followData]) => {
-      if (proData.error) { setError(proData.error); setLoading(false); return }
-      setPro(proData.pro)
-      setReviews(reviewData.reviews || [])
-      setPortfolio(portfolioData.items || [])
-      if (followData && s) setIsFollowing((followData.followers||[]).some((f:any) => f?.id === s.id))
-      setLoading(false)
-      fetch(`/api/pro-licenses?pro_id=${id}`).then(r => r.json()).then(d => setProLicenses(d.licenses || []))
-    }).catch(() => { setError('Could not load profile'); setLoading(false) })
+    loadData(id)
   }, [id, _real])
 
   // ── Profile view tracking ────────────────────────────────────────────────
@@ -526,7 +536,7 @@ export default function ProfileClient() {
     if (!session) { router.push('/login'); return }
     const r = await fetch('/api/follows', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ follower_id: session.id, following_id: id }),
+      body: JSON.stringify({ follower_id: session.id, following_id: pro.id }),
     })
     const d = await r.json()
     if (r.ok) setIsFollowing(d.following)
@@ -552,7 +562,7 @@ export default function ProfileClient() {
     </div>
   )
 
-  const isOwner    = session?.id === id
+  const isOwner    = session?.id === pro.id
   // Use slug first (more reliable), fallback to category_name raw value
   const trade      = tradeDisplayName(pro.trade_category?.slug || pro.trade_category?.category_name)
   const location   = [pro.city, pro.state].filter(Boolean).join(', ')
@@ -1121,7 +1131,7 @@ export default function ProfileClient() {
                   )}
 
                   {!isOwner && (
-                    <a href={`/reviews/${id}`}
+                    <a href={`/reviews/${pro.id}`}
                       className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border font-semibold text-sm transition-all"
                       style={{ borderColor: '#E8E2D9', color: '#0A1628', background: '#fff' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = '#0F766E'; e.currentTarget.style.color = '#0F766E' }}
