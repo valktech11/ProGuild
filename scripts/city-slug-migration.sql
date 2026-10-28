@@ -29,10 +29,11 @@ create index if not exists idx_pros_city_slug
 create index if not exists idx_pros_trade_city_active
   on pros (trade_slug, city_slug) where profile_status = 'Active';
 
--- 4. Sitemap aggregation: (trade, city) combos with >= min_count LISTABLE pros.
---    Mirrors the city page's own listing gate (Active + has category + claimed
---    OR has a license number) so we never emit a page that shows fewer pros
---    than the floor. Output cols are prefixed to avoid name-shadowing.
+-- 4. Sitemap aggregation: (trade, city) combos with >= min_count CONTACTABLE
+--    pros. Mirrors the directory listing + Find-a-Pro gate (app/api/pros):
+--    claimed, OR licensed with a real phone, OR licensed with a real (non-
+--    placeholder) email — so we never emit a city page whose listings a
+--    homeowner can't act on. Output cols prefixed to avoid name-shadowing.
 create or replace function public.city_trade_sitemap(min_count int, trade_slugs text[])
 returns table(out_trade text, out_city text, n bigint)
 language sql stable as $$
@@ -42,7 +43,12 @@ language sql stable as $$
     and p.trade_slug = any(trade_slugs)
     and p.city_slug is not null
     and p.trade_category_id is not null
-    and (p.is_claimed = true or p.license_number is not null)
+    and (
+      p.is_claimed = true
+      or (p.license_number is not null and p.phone_cell is not null)
+      or (p.license_number is not null and p.email is not null
+          and p.email not ilike '%@placeholder.tradesnetwork%')
+    )
   group by p.trade_slug, p.city_slug
   having count(*) >= min_count;
 $$;
