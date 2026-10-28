@@ -1,8 +1,9 @@
 import { Metadata } from 'next'
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { getDBPRTrade, slugToCity, cityToSlug, FL_SEO_CITIES } from '@/config/dbpr-trades'
+import { getDBPRTrade, cityToSlug, FL_SEO_CITIES } from '@/config/dbpr-trades'
 import Navbar from '@/components/layout/Navbar'
 import ProCardGrid from './ProCardGrid'
 import CitySearch from './CitySearch'
@@ -25,14 +26,26 @@ async function getTradeCategory(slug: string) {
   return data
 }
 
-async function getCityPros(tradeId: string, stateAbbr: string, city: string) {
+// Resolve a city_slug back to its real stored display name (correct casing +
+// punctuation, e.g. "st-augustine" -> "St. Augustine") by reading an actual
+// pro row, instead of guessing from the slug. cache() dedupes the lookup
+// across generateMetadata + the page within one request.
+const cityDisplayName = cache(async (citySlug: string, stateAbbr: string): Promise<string> => {
+  const { data } = await getSupabaseAdmin()
+    .from('pros').select('city')
+    .eq('city_slug', citySlug).ilike('state', stateAbbr)
+    .not('city', 'is', null).limit(1).maybeSingle()
+  return data?.city || citySlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+})
+
+async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string) {
   // Claimed pros first
   const { data: claimed } = await getSupabaseAdmin()
     .from('pros')
     .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId)
     .ilike('state', stateAbbr)
-    .ilike('city', city)
+    .eq('city_slug', citySlug)
     .eq('profile_status', 'Active')
     .eq('is_claimed', true)
     .order('avg_rating', { ascending: false, nullsFirst: false })
@@ -47,7 +60,7 @@ async function getCityPros(tradeId: string, stateAbbr: string, city: string) {
       .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, trade_category:trade_categories(category_name, slug)')
       .eq('trade_category_id', tradeId)
       .ilike('state', stateAbbr)
-      .ilike('city', city)
+      .eq('city_slug', citySlug)
       .eq('profile_status', 'Active')
       .eq('is_claimed', false)
       .not('license_number', 'is', null)
@@ -57,13 +70,13 @@ async function getCityPros(tradeId: string, stateAbbr: string, city: string) {
   return claimedList
 }
 
-async function getProCount(tradeId: string, stateAbbr: string, city: string) {
+async function getProCount(tradeId: string, stateAbbr: string, citySlug: string) {
   const { count } = await getSupabaseAdmin()
     .from('pros')
     .select('id', { count: 'exact', head: true })
     .eq('trade_category_id', tradeId)
     .ilike('state', stateAbbr)
-    .ilike('city', city)
+    .eq('city_slug', citySlug)
     .eq('profile_status', 'Active')
   return count || 0
 }
@@ -75,7 +88,8 @@ export async function generateMetadata(
   const { state, slug, city } = await params
   const info      = STATE_MAP[state.toLowerCase()]
   if (!info) return {}
-  const cityName  = slugToCity(city) || city.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  const citySlug  = city.toLowerCase()
+  const cityName  = await cityDisplayName(citySlug, info.abbr)
   const category  = await getTradeCategory(slug)
   const tradeName = category?.category_name || slugToTitle(slug)
   const dbpr      = getDBPRTrade(slug)
@@ -102,7 +116,8 @@ export default async function CityTradePage(
   const info = STATE_MAP[state.toLowerCase()]
   if (!info) notFound()
 
-  const cityDisplay = slugToCity(city) || city.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  const citySlug    = city.toLowerCase()
+  const cityDisplay = await cityDisplayName(citySlug, info.abbr)
   const category    = await getTradeCategory(slug)
   if (!category) notFound()
 
@@ -110,8 +125,8 @@ export default async function CityTradePage(
   const dbpr        = getDBPRTrade(slug)
 
   const [pros, count] = await Promise.all([
-    getCityPros(category.id, info.abbr, cityDisplay),
-    getProCount(category.id, info.abbr, cityDisplay),
+    getCityPros(category.id, info.abbr, citySlug),
+    getProCount(category.id, info.abbr, citySlug),
   ])
 
   // JSON-LD schema

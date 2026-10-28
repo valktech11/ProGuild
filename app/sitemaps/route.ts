@@ -22,6 +22,7 @@ export async function GET() {
     // Only reference routes that actually exist
     const sitemaps = [
       `${BASE}/sitemaps/static`,
+      `${BASE}/sitemaps/cities`,
       ...Array.from({ length: proBatches }, (_, i) => `${BASE}/sitemaps/pros/${i}`),
     ]
 
