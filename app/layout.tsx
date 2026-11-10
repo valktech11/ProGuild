@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import MaintenanceGate from '@/components/layout/MaintenanceGate'
 import { SessionProvider } from '@/components/auth/SessionProvider'
 import { TrialGate } from '@/components/auth/TrialGate'
+import AttributionCapture from '@/components/AttributionCapture'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
       </head>
       <body className="bg-stone-50 text-gray-900 antialiased" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <AttributionCapture />
         <SessionProvider>
           <MaintenanceGate>
             <TrialGate>
