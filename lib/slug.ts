@@ -67,3 +67,30 @@ export function generateSlugCandidates({
   // Remove empty / too-short candidates
   return candidates.filter(s => s.length >= 4)
 }
+
+/**
+ * Resolve a unique slug for a pro by walking the candidate list and checking
+ * each against pros.slug until one is free. Final fallback appends a base36
+ * timestamp — practically collision-proof. Mirrors the Case A signup logic so
+ * every path that marks a pro claimed produces an indexable vanity URL.
+ *
+ * `admin` is a service-role Supabase client (typed loosely to avoid coupling).
+ */
+export async function generateUniqueSlug(
+  admin: any,
+  opts: {
+    fullName: string
+    trade: string | null
+    city: string | null
+    state: string | null
+    licenseNumber: string | null
+  },
+): Promise<string> {
+  const candidates = generateSlugCandidates(opts)
+  for (const c of candidates) {
+    const { data: existing } = await admin.from('pros').select('id').eq('slug', c).maybeSingle()
+    if (!existing) return c
+  }
+  const base = candidates[0] || toSlugPart(opts.fullName) || 'pro'
+  return `${base}-${Date.now().toString(36)}`
+}
