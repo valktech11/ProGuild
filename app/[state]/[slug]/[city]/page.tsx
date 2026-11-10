@@ -74,7 +74,8 @@ async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string)
   return claimedList
 }
 
-async function getProCount(tradeId: string, stateAbbr: string, citySlug: string) {
+// cache() so generateMetadata (thin-content gate) and the page body share one query.
+const getProCount = cache(async (tradeId: string, stateAbbr: string, citySlug: string) => {
   // Count only contactable pros (same gate as the list + the sitemap RPC +
   // app/api/pros/route.ts), so the headline count matches what's shown.
   const { count } = await getSupabaseAdmin()
@@ -86,7 +87,11 @@ async function getProCount(tradeId: string, stateAbbr: string, citySlug: string)
     .eq('profile_status', 'Active')
     .or('is_claimed.eq.true,and(license_number.not.is.null,phone_cell.not.is.null),and(license_number.not.is.null,email.not.is.null,email.not.ilike.*@placeholder.tradesnetwork)')
   return count || 0
-}
+})
+
+// Minimum contactable pros for a city+trade page to be indexable — matches the
+// sitemap's ≥3 floor so page indexability and the sitemap agree.
+const MIN_INDEXABLE = 3
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 export async function generateMetadata(
@@ -102,12 +107,20 @@ export async function generateMetadata(
   const dbpr      = getDBPRTrade(slug)
   const licenseNote = dbpr ? ` ${dbpr.licenseLabel} (${dbpr.licenseCodes.join('/')}).` : ''
 
+  // Thin-content gate: a city+trade page below the ≥3 contactable floor renders
+  // near-empty ("No verified pros yet"), which Google flags as Soft 404. noindex
+  // those (follow kept) so indexability matches the sitemap; they flip back to
+  // indexable automatically once the city reaches 3 contactable pros.
+  const count = category ? await getProCount(category.id, info.abbr, citySlug) : 0
+  const thin  = count < MIN_INDEXABLE
+
   return {
     title: `Licensed ${tradeName}s in ${cityName}, ${info.abbr} — DBPR Verified | ProGuild.ai`,
     description: `Find DBPR-verified ${tradeName.toLowerCase()}s in ${cityName}, ${info.name}.${licenseNote} Zero lead fees. Contact pros directly on ProGuild.ai.`,
     alternates: {
       canonical: `https://proguild.ai/${state.toLowerCase()}/${slug.toLowerCase()}/${city.toLowerCase()}`,
     },
+    robots: thin ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${tradeName}s in ${cityName}, FL — DBPR Verified`,
       description: `Licensed ${tradeName.toLowerCase()}s in ${cityName}, Florida. Verified against Florida DBPR. Zero lead fees.`,
