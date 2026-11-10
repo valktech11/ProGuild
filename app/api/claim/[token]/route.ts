@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { proFirstName, parseClaimAttribution } from '@/lib/utils'
+import { generateUniqueSlug } from '@/lib/slug'
 
 // ── GET /api/claim/[token] — validate token, return pro preview ───────────────
 export async function GET(
@@ -64,7 +65,7 @@ export async function POST(
   // 1. Validate token
   const { data: pro, error: fetchErr } = await sb
     .from('pros')
-    .select('id, full_name, email, is_claimed, claim_token_expires_at, trade_slug')
+    .select('id, full_name, email, is_claimed, claim_token_expires_at, slug, trade_slug, city, state, license_number')
     .eq('claim_token', token)
     .single()
 
@@ -114,6 +115,19 @@ export async function POST(
   const trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
 
   const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
+
+  // Generate a vanity slug if this pro has none — keeps claimed profiles indexable.
+  let claimSlug: string | null = null
+  if (!(pro as any).slug) {
+    claimSlug = await generateUniqueSlug(sb, {
+      fullName:      pro.full_name || '',
+      trade:         (pro as any).trade_slug || null,
+      city:          (pro as any).city || null,
+      state:         (pro as any).state || null,
+      licenseNumber: (pro as any).license_number || null,
+    })
+  }
+
   const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
     is_claimed:             true,
     claimed_at:             new Date().toISOString(),
@@ -121,6 +135,7 @@ export async function POST(
     claim_token:            null,
     claim_token_expires_at: null,
     trial_ends_at:          trialEndsAt,
+    ...(claimSlug ? { slug: claimSlug } : {}),
     claimed_via:            'token',
     claim_source:           attr.claim_source,
     claim_referrer:         attr.claim_referrer,

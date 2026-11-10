@@ -10,7 +10,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { generateSlugCandidates } from '@/lib/slug'
+import { generateSlugCandidates, generateUniqueSlug } from '@/lib/slug'
+import { parseClaimAttribution } from '@/lib/utils'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     if (claim_pro_id) {
       const { data: existing } = await admin
         .from('pros')
-        .select('license_number, license_expiry_date, is_claimed, auth_user_id, business_name, trade_slug, trade_category_id, city, state, phone_cell')
+        .select('full_name, slug, license_number, license_expiry_date, is_claimed, auth_user_id, business_name, trade_slug, trade_category_id, city, state, phone_cell')
         .eq('id', claim_pro_id)
         .single()
 
@@ -195,6 +196,22 @@ export async function POST(req: NextRequest) {
         (claim_license_expiry || '').slice(0, 10) === String(existing.license_expiry_date).slice(0, 10)
       const verified = licMatch && expMatch
 
+      // Generate a vanity slug if this pro has none — claimed profiles must be
+      // indexable (present in the sitemap). Legacy imported rows have slug=null,
+      // so without this a claim leaves the most valuable SEO page out of Google.
+      let claimSlug: string | null = null
+      if (!(existing as any)?.slug) {
+        claimSlug = await generateUniqueSlug(admin, {
+          fullName:      (existing as any)?.full_name || full_name || '',
+          trade:         (existing as any)?.trade_slug || null,
+          city:          (existing as any)?.city || null,
+          state:         (existing as any)?.state || null,
+          licenseNumber: (existing as any)?.license_number || null,
+        })
+      }
+
+      const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
+
       const { data: pro, error: proErr } = await admin
         .from('pros')
         .update({
@@ -205,6 +222,11 @@ export async function POST(req: NextRequest) {
           claimed_at:    new Date().toISOString(),
           is_verified:   verified,
           trial_ends_at: trialEndsAt,
+          ...(claimSlug ? { slug: claimSlug } : {}),
+          claimed_via:    'signup',
+          claim_source:   attr.claim_source,
+          claim_referrer: attr.claim_referrer,
+          claim_landing:  attr.claim_landing,
           ...(verified ? {} : { profile_status: 'Pending_Review' }),
         })
         .eq('id', claim_pro_id)

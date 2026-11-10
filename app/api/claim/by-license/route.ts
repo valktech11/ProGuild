@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { proFirstName, parseClaimAttribution } from '@/lib/utils'
+import { generateUniqueSlug } from '@/lib/slug'
 
 // ── GET /api/claim/by-license?license=CCC123456 — preview pro before claiming ─
 export async function GET(req: NextRequest) {
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const { data: pro, error: fetchErr } = await sb
     .from('pros')
-    .select('id, full_name, email, is_claimed, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number')
+    .select('id, full_name, email, is_claimed, slug, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number')
     .eq('license_number', license)
     .maybeSingle()
 
@@ -84,6 +85,19 @@ export async function POST(req: NextRequest) {
   const resolvedDisplayName = display_name?.trim() || proFirstName(pro.full_name || '') || null
 
   const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
+
+  // Generate a vanity slug if this pro has none — keeps claimed profiles indexable.
+  let claimSlug: string | null = null
+  if (!(pro as any).slug) {
+    claimSlug = await generateUniqueSlug(sb, {
+      fullName:      pro.full_name || '',
+      trade:         pro.trade_slug || null,
+      city:          pro.city || null,
+      state:         pro.state || null,
+      licenseNumber: pro.license_number || null,
+    })
+  }
+
   const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
     is_claimed:              true,
     claimed_at:              new Date().toISOString(),
@@ -93,6 +107,7 @@ export async function POST(req: NextRequest) {
     claim_token_expires_at:  null,
     trial_ends_at:           trialEndsAt,
     display_name:            resolvedDisplayName,
+    ...(claimSlug ? { slug: claimSlug } : {}),
     claimed_via:             'by-license',
     claim_source:            attr.claim_source,
     claim_referrer:          attr.claim_referrer,
