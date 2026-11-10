@@ -376,7 +376,7 @@ function CredCard({ lic }: { lic: any }) {
   const [revealed, setRevealed] = useState(false)
   const status = lic.license_status || 'unknown'
   const expiry = lic.license_expiry_date
-  const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null
+  const expiryStr = expiry ? new Date(expiry).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' }) : null
   const daysLeft = expiry ? Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000) : null
 
   const color = status === 'active'
@@ -430,7 +430,7 @@ function CredCard({ lic }: { lic: any }) {
           </div>
           {lic.license_expiry_date && (
             <div className="text-xs mt-1.5" style={{ color: '#6B7280' }}>
-              Expires {new Date(lic.license_expiry_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              Expires {new Date(lic.license_expiry_date).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}
             </div>
           )}
           <div className="flex items-center gap-1.5 mt-3 text-xs" style={{ color: '#0F766E' }}>
@@ -444,17 +444,21 @@ function CredCard({ lic }: { lic: any }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ProfileClient() {
+export default function ProfileClient({ initialPro = null }: { initialPro?: any }) {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
 
   const [session, setSession]         = useState<any>(null)
   const { session: _real } = useProSession()
-  const [pro, setPro]                 = useState<any>(null)
+  // Seed from server-fetched data so the first (SSR) render has the full
+  // profile — not a loading shell. Hydration-safe: initialPro is a prop, so
+  // server and client start from identical state. The effect below still
+  // refreshes pro + loads reviews/portfolio/follow on the client.
+  const [pro, setPro]                 = useState<any>(initialPro)
   const [reviews, setReviews]         = useState<any[]>([])
   const [portfolio, setPortfolio]     = useState<any[]>([])
   const [proLicenses, setProLicenses] = useState<any[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [loading, setLoading]         = useState(!initialPro)
   const [error, setError]             = useState('')
   const [activeTab, setActiveTab]     = useState<Tab>('overview')
   const [lightbox, setLightbox]       = useState<{after:string;before?:string;title?:string} | null>(null)
@@ -553,7 +557,10 @@ export default function ProfileClient() {
     </div>
   )
 
-  if (error || !pro) return (
+  // Only show not-found when there is genuinely no pro. With initialPro seeded
+  // from the server (which already notFound()s unknown pros), a transient error
+  // from the client refresh must not blow away the valid SSR'd profile.
+  if (!pro) return (
     <div className="min-h-screen flex items-center justify-center text-center" style={{ background: '#FAF9F6' }}>
       <div>
         <div className="text-2xl font-bold mb-3" style={{ color: '#0A1628' }}>Pro not found</div>
@@ -934,7 +941,7 @@ export default function ProfileClient() {
                             </svg>
                           ),
                           label: 'Active License',
-                          sub: pro.license_expiry_date ? `Valid through ${new Date(pro.license_expiry_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : 'Currently active',
+                          sub: pro.license_expiry_date ? `Valid through ${new Date(pro.license_expiry_date).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' })}` : 'Currently active',
                         },
                         {
                           icon: (
@@ -1191,7 +1198,7 @@ export default function ProfileClient() {
                           <span>🦺</span>
                           <div>
                             <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>{pro.osha_card_type} Safety</div>
-                            {pro.osha_card_expiry && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.osha_card_expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+                            {pro.osha_card_expiry && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.osha_card_expiry).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}</div>}
                           </div>
                         </div>
                         <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#15803D', border: '1px solid rgba(34,197,94,0.3)' }}>● Active</span>
@@ -1205,7 +1212,7 @@ export default function ProfileClient() {
                           <span>🛡</span>
                           <div>
                             <div className="text-sm font-semibold" style={{ color: '#0A1628' }}>General Liability Insurance</div>
-                            {pro.insurance_expiry_date && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.insurance_expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+                            {pro.insurance_expiry_date && <div className="text-xs" style={{ color: '#6B7280' }}>Expires {new Date(pro.insurance_expiry_date).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}</div>}
                           </div>
                         </div>
                         <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(34,197,94,0.12)', color: '#15803D', border: '1px solid rgba(34,197,94,0.3)' }}>● Active</span>
@@ -1301,7 +1308,7 @@ export default function ProfileClient() {
                       ...(pro.license_status && pro.license_status !== 'unknown'
                         ? [{ label: 'Status', value: pro.license_status === 'active' ? '● Active' : pro.license_status.replace(/_/g, ' ') }]
                         : []),
-                      ...(pro.license_expiry_date ? [{ label: 'Expires', value: new Date(pro.license_expiry_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }] : []),
+                      ...(pro.license_expiry_date ? [{ label: 'Expires', value: new Date(pro.license_expiry_date).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' }) }] : []),
                     ].map(row => (
                       <div key={row.label} className="flex items-start justify-between gap-2 text-xs">
                         <span style={{ color: '#6E6456' }}>{row.label}</span>
