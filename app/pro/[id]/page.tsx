@@ -19,8 +19,23 @@ type ProMeta = {
   state: string | null
   license_number: string | null
   license_expiry_date: string | null
+  license_status: string | null
   bio: string | null
   is_claimed: boolean | null
+  is_verified: boolean | null
+  phone: string | null
+  plan_tier: string | null
+  trial_ends_at: string | null
+  years_experience: number | null
+  avg_rating: number | null
+  review_count: number | null
+  profile_photo_url: string | null
+  cover_image_url: string | null
+  available_for_work: boolean | null
+  insurance_status: string | null
+  insurance_expiry_date: string | null
+  osha_card_type: string | null
+  osha_card_expiry: string | null
   trade_category: { slug: string | null; category_name: string | null } | null
 }
 
@@ -31,7 +46,7 @@ const fetchPro = cache(async (idOrSlug: string): Promise<ProMeta | null> => {
     const col = UUID_RE.test(idOrSlug) ? 'id' : 'slug'
     const { data } = await getSupabaseAdmin()
       .from('pros')
-      .select('id, slug, full_name, city, state, license_number, license_expiry_date, bio, is_claimed, trade_category:trade_categories(slug, category_name)')
+      .select('id, slug, full_name, city, state, license_number, license_expiry_date, license_status, bio, is_claimed, is_verified, phone, plan_tier, trial_ends_at, years_experience, avg_rating, review_count, profile_photo_url, cover_image_url, available_for_work, insurance_status, insurance_expiry_date, osha_card_type, osha_card_expiry, trade_category:trade_categories(slug, category_name)')
       .eq(col, idOrSlug)
       .maybeSingle()
     return (data as ProMeta | null) ?? null
@@ -120,5 +135,10 @@ export default async function Page(
     redirect(`/pro/${pro.slug}`)
   }
 
-  return <ProfileClient />
+  // Seed the client component with server-fetched data so the full profile is
+  // present in the initial HTML (SSR), not a client-only shell. Fixes GSC
+  // Soft 404 on the 20k+ imported profiles — Google's raw-HTML crawl now sees
+  // a substantive, license-verified page. The client still hydrates reviews,
+  // portfolio, follow state and view tracking on top.
+  return <ProfileClient initialPro={pro} />
 }
