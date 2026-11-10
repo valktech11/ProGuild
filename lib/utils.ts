@@ -253,3 +253,37 @@ export async function fetchCitiesForState(stateCode: string): Promise<string[]> 
     return []
   }
 }
+
+// First-touch claim attribution parsed from the pg_attr cookie (set client-side
+// by components/AttributionCapture on first visit). Tells how a claimer arrived:
+// utm_source when present, else the referrer host mapped to google/search/host,
+// else 'direct'. Pairs with claimed_via (token = email/claim-link, by-license =
+// self-service) for a full acquisition picture.
+export function parseClaimAttribution(cookieValue?: string | null): {
+  claim_source: string
+  claim_referrer: string | null
+  claim_landing: string | null
+} {
+  if (!cookieValue) return { claim_source: 'direct', claim_referrer: null, claim_landing: null }
+  try {
+    const { ref, land } = JSON.parse(decodeURIComponent(cookieValue)) as { ref?: string; land?: string }
+    const referrer = ref || null
+    const landing = land || null
+    let source = 'direct'
+    const qs = landing && landing.includes('?') ? landing.split('?')[1] : ''
+    const utm = new URLSearchParams(qs).get('utm_source')
+    if (utm) {
+      source = utm
+    } else if (referrer) {
+      let host = ''
+      try { host = new URL(referrer).hostname.replace(/^www\./, '') } catch { host = '' }
+      if (!host) source = 'direct'
+      else if (/(^|\.)google\./.test(host)) source = 'google'
+      else if (/bing\.|duckduckgo\.|yahoo\.|ecosia\./.test(host)) source = 'search'
+      else source = host
+    }
+    return { claim_source: source, claim_referrer: referrer, claim_landing: landing }
+  } catch {
+    return { claim_source: 'direct', claim_referrer: null, claim_landing: null }
+  }
+}

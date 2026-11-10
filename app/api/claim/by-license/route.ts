@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { proFirstName } from '@/lib/utils'
+import { proFirstName, parseClaimAttribution } from '@/lib/utils'
 
 // ── GET /api/claim/by-license?license=CCC123456 — preview pro before claiming ─
 export async function GET(req: NextRequest) {
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
   // display_name: use what the pro provided, otherwise fall back to proFirstName(full_name)
   const resolvedDisplayName = display_name?.trim() || proFirstName(pro.full_name || '') || null
 
+  const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
   const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
     is_claimed:              true,
     claimed_at:              new Date().toISOString(),
@@ -92,6 +93,10 @@ export async function POST(req: NextRequest) {
     claim_token_expires_at:  null,
     trial_ends_at:           trialEndsAt,
     display_name:            resolvedDisplayName,
+    claimed_via:             'by-license',
+    claim_source:            attr.claim_source,
+    claim_referrer:          attr.claim_referrer,
+    claim_landing:           attr.claim_landing,
   }).eq('id', pro.id).select('id, full_name, email, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number').single()
 
   if (updateErr || !claimedPro) {

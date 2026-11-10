@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { proFirstName } from '@/lib/utils'
+import { proFirstName, parseClaimAttribution } from '@/lib/utils'
 
 // ── GET /api/claim/[token] — validate token, return pro preview ───────────────
 export async function GET(
@@ -113,6 +113,7 @@ export async function POST(
   // 4. Mark claimed, link auth_user_id, consume token (null it out — single use)
   const trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
 
+  const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
   const { data: claimedPro, error: updateErr } = await sb.from('pros').update({
     is_claimed:             true,
     claimed_at:             new Date().toISOString(),
@@ -120,6 +121,10 @@ export async function POST(
     claim_token:            null,
     claim_token_expires_at: null,
     trial_ends_at:          trialEndsAt,
+    claimed_via:            'token',
+    claim_source:           attr.claim_source,
+    claim_referrer:         attr.claim_referrer,
+    claim_landing:          attr.claim_landing,
   }).eq('id', pro.id).select('id, full_name, email, trade_slug, trade_category_id, city, state, phone_cell, business_name, license_number').single()
 
   if (updateErr || !claimedPro) {
