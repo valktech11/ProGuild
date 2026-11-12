@@ -212,6 +212,56 @@ export async function POST(req: NextRequest) {
 
       const attr = parseClaimAttribution(req.cookies.get('pg_attr')?.value)
 
+      // Create the company and owner membership BEFORE marking the profile
+      // claimed. Unlike Case A (a brand-new row we can delete on failure), this
+      // pros row is a pre-existing imported record — rollback() cannot delete
+      // it. If we marked it claimed first and company creation then failed, the
+      // row was left is_claimed=true with a dead auth_user_id and no company: a
+      // half-claimed orphan that can never be re-claimed (retry hits the 409).
+      // So the pros row is mutated exactly once, last, and every earlier
+      // failure leaves the profile untouched for a clean retry.
+      const resolvedTradeSlug =
+        (existing as any)?.trade_slug || (await resolveTradeSlug((existing as any)?.trade_category_id))
+
+      const { data: company, error: compErr } = await admin
+        .from('companies')
+        .insert({
+          name:              (existing as any)?.business_name || full_name || 'My Company',
+          email:             email || null,
+          trade_slug:        resolvedTradeSlug,
+          trade_category_id: (existing as any)?.trade_category_id || null,
+          business_name:     (existing as any)?.business_name || null,
+          license_number:    existing?.license_number || null,
+          city:              (existing as any)?.city || null,
+          state:             (existing as any)?.state || null,
+          phone_cell:        (existing as any)?.phone_cell || null,
+          plan_tier:         'Free',
+          trial_ends_at:     trialEndsAt,
+          owner_pro_id:      claim_pro_id,
+        })
+        .select('id')
+        .single()
+
+      if (compErr || !company) {
+        console.error('[signup] company creation failed for claim:', compErr?.message)
+        await rollback() // deletes the auth user; pros row never mutated
+        return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
+      }
+
+      const { error: memErr } = await admin
+        .from('company_members')
+        .insert({ company_id: company.id, pro_id: claim_pro_id, role: 'owner' })
+
+      if (memErr) {
+        console.error('[signup] membership creation failed for claim:', memErr.message)
+        await admin.from('companies').delete().eq('id', company.id) // compensate
+        await rollback()
+        return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
+      }
+
+      // Mark claimed LAST — one atomic mutation that also folds in company_id.
+      // The is_claimed=false guard rejects a concurrent claim that slipped in
+      // between the company insert above and here.
       const { data: pro, error: proErr } = await admin
         .from('pros')
         .update({
@@ -222,6 +272,7 @@ export async function POST(req: NextRequest) {
           claimed_at:    new Date().toISOString(),
           is_verified:   verified,
           trial_ends_at: trialEndsAt,
+          company_id:    company.id,
           ...(claimSlug ? { slug: claimSlug } : {}),
           claimed_via:    'signup',
           claim_source:   attr.claim_source,
@@ -235,28 +286,13 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (proErr || !pro) {
+        console.error('[signup] claim update failed:', proErr?.message)
+        // Compensate: undo the company + membership created above so no orphan
+        // company is left behind, then delete the auth user.
+        await admin.from('company_members').delete().eq('company_id', company.id)
+        await admin.from('companies').delete().eq('id', company.id)
         await rollback()
         return NextResponse.json({ error: 'Could not link profile' }, { status: 500 })
-      }
-
-      const companyResult = await createCompany(pro.id, {
-        name:            (existing as any).business_name || full_name || 'My Company',
-        tradeSlug:       (existing as any).trade_slug || (pro.trade_category as any)?.slug || null,
-        tradeCategoryId: (existing as any).trade_category_id || null,
-        businessName:    (existing as any).business_name || null,
-        licenseNumber:   existing?.license_number || null,
-        city:            (existing as any).city || null,
-        state:           (existing as any).state || null,
-        phoneCell:       (existing as any).phone_cell || null,
-        email:           email || null,
-        planTier: 'Free',
-        trialEndsAt,
-      })
-
-      if ('error' in companyResult) {
-        console.error('[signup] company creation failed for claim:', companyResult.error)
-        await rollback()
-        return NextResponse.json({ error: 'Account setup failed — please try again or contact support.' }, { status: 500 })
       }
 
       return NextResponse.json({ ok: true, pro, claimed: true, verified })
