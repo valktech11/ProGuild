@@ -25,6 +25,7 @@ export async function GET(
     .from('pros')
     .select('slug, updated_at')
     .eq('profile_status', 'Active')
+    .eq('is_test', false)
     .not('slug', 'is', null)
     .not('city', 'is', null)
     .not('trade_category_id', 'is', null)

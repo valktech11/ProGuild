@@ -146,6 +146,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     .select('id, slug, full_name, city, state, avg_rating, review_count, is_verified, available_for_work, profile_photo_url, plan_tier, years_experience, is_claimed, license_number, email, phone_cell, trade_category:trade_categories(category_name, slug)')
     .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', true)
+    .eq('is_test', false)
     .order('avg_rating', { ascending: false, nullsFirst: false })
     .limit(20)
 
@@ -164,6 +165,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
   const { data: withEmail } = await sb.from('pros').select(SELECT)
     .eq('trade_category_id', tradeId)
     .eq('profile_status', 'Active').eq('is_claimed', false)
+    .eq('is_test', false)
     .not('license_number', 'is', null)
     .not('email', 'ilike', '%@placeholder.tradesnetwork')
     .not('email', 'is', null)
@@ -176,6 +178,7 @@ async function getTopPros(tradeId: string, stateAbbr: string) {
     const { data: withPhone } = await sb.from('pros').select(SELECT)
       .eq('trade_category_id', tradeId)
       .eq('profile_status', 'Active').eq('is_claimed', false)
+      .eq('is_test', false)
       .not('license_number', 'is', null)
       .gt('phone_cell', '')
       .or('email.is.null,email.ilike.%@placeholder.tradesnetwork')
