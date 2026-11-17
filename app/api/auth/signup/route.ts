@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
   const cleanEmail = email.trim().toLowerCase()
 
+  // Flag test/internal accounts at creation so they never reach the public
+  // directory, search or sitemap. Mirrors the one-time backfill heuristic.
+  const looksTest = (em: string, name?: string | null, lic?: string | null) =>
+    /@(mailinator\.com|proguild\.ai)$/i.test(em || '') ||
+    /@(gmail\.com)$/i.test(em || '') && /^(clauderaju|rajuproguild)/i.test(em || '') ||
+    /\(test\)/i.test(name || '') ||
+    /-test$/i.test((lic || '').trim())
+
   // ── Ghost-user guard ──────────────────────────────────────────────────────
   // Uses the Supabase Admin REST endpoint (service role) which returns ALL users
   // including soft-deleted tombstones that block re-registration.
@@ -271,6 +279,7 @@ export async function POST(req: NextRequest) {
           is_claimed:    true,
           claimed_at:    new Date().toISOString(),
           is_verified:   verified,
+          is_test:       looksTest(cleanEmail, (existing as any)?.full_name || full_name, existing?.license_number),
           trial_ends_at: trialEndsAt,
           company_id:    company.id,
           ...(claimSlug ? { slug: claimSlug } : {}),
@@ -329,6 +338,7 @@ export async function POST(req: NextRequest) {
         is_claimed:        true,
         claimed_at:        new Date().toISOString(),
         is_verified:       false,
+        is_test:           looksTest(cleanEmail, full_name, null),
         trial_ends_at:     trialEndsAt,
       })
       .select('*, trade_category:trade_categories(category_name, slug)')

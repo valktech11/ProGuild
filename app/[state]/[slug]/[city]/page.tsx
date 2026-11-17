@@ -48,6 +48,7 @@ async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string)
     .eq('city_slug', citySlug)
     .eq('profile_status', 'Active')
     .eq('is_claimed', true)
+    .eq('is_test', false)
     .order('avg_rating', { ascending: false, nullsFirst: false })
     .limit(12)
 
@@ -63,6 +64,7 @@ async function getCityPros(tradeId: string, stateAbbr: string, citySlug: string)
       .eq('city_slug', citySlug)
       .eq('profile_status', 'Active')
       .eq('is_claimed', false)
+      .eq('is_test', false)
       .not('license_number', 'is', null)
       // Directory shows only contactable pros — a real phone OR a real (non-
       // placeholder) email. Mirrors the Find-a-Pro search gate in

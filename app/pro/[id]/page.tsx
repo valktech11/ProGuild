@@ -22,6 +22,7 @@ type ProMeta = {
   license_status: string | null
   bio: string | null
   is_claimed: boolean | null
+  is_test: boolean | null
   is_verified: boolean | null
   phone: string | null
   plan_tier: string | null
@@ -46,7 +47,7 @@ const fetchPro = cache(async (idOrSlug: string): Promise<ProMeta | null> => {
     const col = UUID_RE.test(idOrSlug) ? 'id' : 'slug'
     const { data } = await getSupabaseAdmin()
       .from('pros')
-      .select('id, slug, full_name, city, state, license_number, license_expiry_date, license_status, bio, is_claimed, is_verified, phone, plan_tier, trial_ends_at, years_experience, avg_rating, review_count, profile_photo_url, cover_image_url, available_for_work, insurance_status, insurance_expiry_date, osha_card_type, osha_card_expiry, trade_category:trade_categories(slug, category_name)')
+      .select('id, slug, full_name, city, state, license_number, license_expiry_date, license_status, bio, is_claimed, is_test, is_verified, phone, plan_tier, trial_ends_at, years_experience, avg_rating, review_count, profile_photo_url, cover_image_url, available_for_work, insurance_status, insurance_expiry_date, osha_card_type, osha_card_expiry, trade_category:trade_categories(slug, category_name)')
       .eq(col, idOrSlug)
       .maybeSingle()
     return (data as ProMeta | null) ?? null
@@ -96,7 +97,9 @@ export async function generateMetadata(
   // Default floor; tune the threshold here if the product call changes.
   const hasCity  = !!(pro.city && pro.city.trim())
   const hasTrade = !!(pro.trade_category?.slug || pro.trade_category?.category_name)
-  const indexable = pro.is_claimed === true || (hasCity && hasTrade)
+  // Test/internal accounts are never indexable, even when claimed — keeps them
+  // out of Google regardless of the thin-content floor below.
+  const indexable = pro.is_test !== true && (pro.is_claimed === true || (hasCity && hasTrade))
 
   return {
     title,
