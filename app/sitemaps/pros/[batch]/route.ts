@@ -52,7 +52,11 @@ ${urls.join('\n')}
   return new NextResponse(xml, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
+      // s-maxage caches at the Vercel CDN so Googlebot's repeated crawls of the
+      // ~21 pro batches are served from the edge, not a fresh DB query + render
+      // each time (that was burning Fluid CPU). SWR keeps it serving while it
+      // revalidates in the background — sitemaps don't need sub-day freshness.
+      'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400',
     },
   })
 }
