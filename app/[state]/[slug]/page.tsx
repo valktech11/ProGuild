@@ -4,6 +4,12 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import TradeLandingClient from './TradeLandingClient'
 import GroupLandingPage from './GroupLandingPage'
 
+// ISR: this directory had no revalidate, so every crawl re-rendered it live
+// (DB query + SSR) — a Fluid CPU drain under Googlebot load. Cache the rendered
+// page for an hour; new/claimed pros still appear within the window, and repeat
+// crawls hit the cache instead of the function. Matches the city page.
+export const revalidate = 3600
+
 // ── Shared data ───────────────────────────────────────────────────────────────
 export const STATE_MAP: Record<string, { name: string; abbr: string }> = {
   fl: { name: 'Florida',        abbr: 'FL' },
